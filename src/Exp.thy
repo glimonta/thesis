@@ -2,6 +2,8 @@ theory Exp
 imports Main
 begin
 
+
+
 (* Variable names are strings *)
 type_synonym vname = string
 (* Addresses are integers *)
@@ -12,15 +14,16 @@ datatype val = I int | A addr
   A state is a pair in which the first element represents the content of the local variables
   and the second element represents the content of the blocked memory.
   The memory is organized in blocks and it is accesed with the address of the block and the index
-  of the block we want to access.
+  of the block we want to access. The memory is encoded as a list of blocks, and each block is
+  a list of values.
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
 type_synonym loc = "vname \<Rightarrow> val"
-type_synonym mem = "addr \<Rightarrow> int \<Rightarrow> val"
+type_synonym mem = "val list list"
 type_synonym state = "loc \<times> mem"
 
 datatype exp = Const val
-(*             | Null  In my notes I've got null as an expr I don't get why now *)
+             | Null           (* This is to separate addresses from values *)
              | V     vname
              | Plus  exp exp
              | Less  exp exp
@@ -35,26 +38,63 @@ datatype exp = Const val
 datatype lexp = Deref exp
               | Index exp exp
 
-fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val" where
-  "plus_val (I i\<^sub>1) (I i\<^sub>2) = I (i\<^sub>1 + i\<^sub>2)"
-| "plus_val (A a\<^sub>1) (A a\<^sub>2) = A (a\<^sub>1 + a\<^sub>2)"
+fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
+| "plus_val a\<^sub>1 a\<^sub>2 = None"
 
-fun neg_val :: "val \<Rightarrow> val" where
-  "neg_val (I i) = (if i = 0 then (I 1) else (I 0))"
+fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
+| "less_val a\<^sub>1 a\<^sub>2 = None"
 
-fun and_val :: "val \<Rightarrow> val" where
-  "neg_val (I i) = (if i = 0 then (I 1) else (I 0))"
+
+fun neg_val :: "val \<Rightarrow> val option" where
+  "neg_val (I i) = (if i = 0 then Some (I 1) else Some (I 0))"
+| "neg_val a = None"
+
+fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "and_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = 0 then Some (I 0) else (if i\<^sub>2 = 0 then Some (I 0) else Some (I 1)))"
+| "and_val a\<^sub>1 a\<^sub>2 = None"
 
 (*
-  Today when discussed with Prof. Lammich he suggested this retuned a pair (val, state)
-  right now I can't remember why that was and it seems unnecesary so I'll remove it
+  The return here is a pair (val \<times> state) option. The state is necessary because malloc and free
+  are expressions and those modify the state. We treate this as an option because None would be
+  a special error state in which the evaluation got stuck i.e. sum of two pointers.
 *)
-fun eval :: "exp \<Rightarrow> state \<Rightarrow> val" where
-  "eval (Const c) s = c"
-| "eval (V x) (\<sigma>, \<mu>) = \<sigma> x"
-| "eval (Plus v\<^sub>1 v\<^sub>2) s =  (eval v\<^sub>1 s) + (eval v\<^sub>2 s)"
-| "eval (Not b) s = neg_val (eval b s)"
-| "eval (And b\<^sub>1 b\<^sub>2) s = and_val (eval b\<^sub>1 s) (eval b\<^sub>2 s)"
+fun eval :: "exp \<Rightarrow> state \<Rightarrow> (val \<times> state) option" where
+  "eval (Const c) s = Some (c, s)"
+| "eval Null s = Some (A 0, s)"
+| "eval (V x) (\<sigma>, \<mu>) = Some (\<sigma> x, (\<sigma>, \<mu>))"
+| "eval (Plus i\<^sub>1 i\<^sub>2) s =  (case (eval i\<^sub>1 s) of
+                            None \<Rightarrow> None |
+                            Some (v\<^sub>1, s') \<Rightarrow> (case (eval i\<^sub>2 s') of
+                                               None \<Rightarrow> None |
+                                               Some (v\<^sub>2, s'') \<Rightarrow> (case (plus_val v\<^sub>1 v\<^sub>2) of
+                                                                   None \<Rightarrow> None |
+                                                                   Some v \<Rightarrow> Some (v, s''))))"
+| "eval (Less i\<^sub>1 i\<^sub>2) s = (case (eval i\<^sub>1 s) of
+                           None \<Rightarrow> None |
+                           Some (v\<^sub>1, s') \<Rightarrow> (case (eval i\<^sub>2 s') of
+                                              None \<Rightarrow> None |
+                                              Some (v\<^sub>2, s'') \<Rightarrow> (case (less_val v\<^sub>1 v\<^sub>2) of
+                                                                  None \<Rightarrow> None |
+                                                                  Some v \<Rightarrow> Some (v, s''))))"
+| "eval (Not b) s = (case (eval b s) of 
+                       None \<Rightarrow> None |
+                       Some (b', s) \<Rightarrow> (case (neg_val b') of
+                                          None \<Rightarrow> None |
+                                          Some b'' \<Rightarrow> Some (b'', s)))"
+| "eval (And b\<^sub>1 b\<^sub>2) s = (case (eval b\<^sub>1 s) of
+                           None \<Rightarrow> None |
+                           Some (v\<^sub>1, s') \<Rightarrow> (case (eval b\<^sub>2 s') of
+                                              None \<Rightarrow> None |
+                                              Some (v\<^sub>2, s'') \<Rightarrow> (case (and_val v\<^sub>1 v\<^sub>2) of
+                                                                  None \<Rightarrow> None |
+                                                                  Some v \<Rightarrow> Some (v, s''))))"
+(*
+| "eval (New e) s = (case (eval e s) of
+                       None \<Rightarrow> None |
+                       Some (v, (\<sigma>, \<mu>)) \<Rightarrow> (,))"
+*)
 
 (*
 text_raw{*\snip{AExpaexpdef}{2}{1}{% *}
