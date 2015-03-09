@@ -2,8 +2,6 @@ theory Exp
 imports Main
 begin
 
-
-
 (* Variable names are strings *)
 type_synonym vname = string
 (* Addresses are a pair of integers (block_id, offset) *)
@@ -28,8 +26,9 @@ fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 
 abbreviation "list_size xs \<equiv> int(length xs)"
 
+(* Null is to separate addresses from values *)
 datatype exp = Const val
-             | Null           (* This is to separate addresses from values *)
+             | Null          
              | V     vname
              | Plus  exp exp
              | Less  exp exp
@@ -41,13 +40,12 @@ datatype exp = Const val
              | Ref   exp     (* & *)
              | Index exp exp (* e[e] *)
 
-(*
-datatype lexp = Deref exp
-              | Index exp exp
-*)
+datatype lexp = Derefl exp
+              | Indexl exp exp
 
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
+| "plus_val (A (x,y)) (I i) = Some (A (x, y+i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
@@ -149,6 +147,20 @@ fun eval :: "exp \<Rightarrow> state \<Rightarrow> (val \<times> state) option" 
                                                Some (v\<^sub>2, (\<sigma>, \<mu>)) \<Rightarrow> (case (index_mem v\<^sub>1 v\<^sub>2 \<mu>) of
                                                                       None \<Rightarrow> None |
                                                                       Some v \<Rightarrow> Some(v, (\<sigma>,\<mu>)))))"
+
+fun eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) option" where
+  "eval_l (Derefl e) s = (case (eval e s) of
+                            None \<Rightarrow> None |
+                            Some (v, s') \<Rightarrow> (case v of
+                                               (I _) \<Rightarrow> None |
+                                               (A _) \<Rightarrow> Some (v, s')))"
+| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = (case (eval e\<^sub>1 s) of
+                               None \<Rightarrow> None |
+                               Some (v\<^sub>1, s') \<Rightarrow> (case (eval e\<^sub>2 s') of
+                                                  None \<Rightarrow> None |
+                                                  Some (v\<^sub>2, s'') \<Rightarrow> (case (plus_val v\<^sub>1 v\<^sub>2) of
+                                                                      None \<Rightarrow> None |
+                                                                      Some v \<Rightarrow> Some(v, s''))))"
 
 (*
 text_raw{*\snip{AExpaexpdef}{2}{1}{% *}
