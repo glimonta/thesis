@@ -39,7 +39,8 @@ datatype exp = Const val
              | Ref   lexp    (* & *)
              | Index exp exp (* e[e] *)
 
-and lexp = Derefl exp
+and lexp = Vl vname
+         | Derefl exp
          | Indexl exp exp
 
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
