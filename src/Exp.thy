@@ -1,5 +1,5 @@
 theory Exp
-imports Main
+imports Main "~~/src/HOL/Library/Monad_Syntax"
 begin
 
 (* Variable names are strings *)
@@ -39,8 +39,7 @@ datatype exp = Const val
              | Ref   lexp    (* & *)
              | Index exp exp (* e[e] *)
 
-and lexp = Vl vname
-         | Derefl exp
+and lexp = Derefl exp
          | Indexl exp exp
 
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
@@ -65,14 +64,14 @@ fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 fun init_block :: "nat \<Rightarrow> val list" where
   "init_block 0 = []"
 | "init_block (Suc i) = (I 0) # init_block i"
-
+ term replicate
 (* Allocates a new block in the memory *)
 (* 
   This is using conversions between int and nat I don't know what happens if the number in 
   (I i) is neg
 *)
 fun new_block :: "val \<Rightarrow> mem \<Rightarrow> mem option" where
-  "new_block (I i) \<mu> = (if i < list_size \<mu> then None else Some (\<mu> @ [init_block (nat i)]))"
+  "new_block (I i) \<mu> = Some (\<mu> @ [init_block (nat i)])"
 | "new_block (A a) _ = None"
 
 value "new_block (I 2) [[]]"
@@ -160,6 +159,15 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
                                                   Some (v\<^sub>2, s'') \<Rightarrow> (case (plus_val v\<^sub>1 v\<^sub>2) of
                                                                       None \<Rightarrow> None |
                                                                       Some v \<Rightarrow> Some(v, s''))))"
+
+lemma "eval_l (Indexl e1 e2) s = do {
+  (v1,s) \<leftarrow> eval e1 s;
+  (v2,s) \<leftarrow> eval e2 s;
+  r \<leftarrow> plus_val v1 v2;
+  Some (r,s)
+}"
+  by (simp split: option.splits)
+
 
 
 
