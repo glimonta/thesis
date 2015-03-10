@@ -70,9 +70,14 @@ fun new_block :: "val \<Rightarrow> mem \<Rightarrow> (val \<times> mem) option"
 
 value "new_block (I 2) [[]]"
 
+fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
+  "valid_mem (i,j) \<mu> = (if (i < (list_size \<mu>) - 1 \<and> j < ((list_size (\<mu> !! i)) - 1))
+                        then True
+                        else False)"
+
 (* In indexes 0 nothing should be stored *)
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
-  "get_mem (A (i,j)) \<mu> = (if (i=0 \<or> j=0) then None else Some ((\<mu> !! i) !! j))"  
+  "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
 | "get_mem _ _ = None"
 
 value "get_mem (A (0,0)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
