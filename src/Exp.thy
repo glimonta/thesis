@@ -146,7 +146,7 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
                             None \<Rightarrow> None |
                             Some (v, s') \<Rightarrow> (case v of
                                                (I _) \<Rightarrow> None |
-                                               (A _) \<Rightarrow> Some (v, s')))"
+                                               (A _) \<Rightarrow> Some (v, s')))" (** What about v = NullVal?**)
 | "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval e\<^sub>2 s;

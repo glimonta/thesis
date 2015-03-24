@@ -41,4 +41,48 @@ where
 *)
 | FreeNone: "eval_l x s = None \<Longrightarrow> (FREE x, s) \<rightarrow> None"
 
+
+inductive_simps assignl_simp: "(x ::== a, s) \<rightarrow> cs'"
+inductive_simps assign_simp: "(x ::= a, s) \<rightarrow> cs'"
+
+lemma 
+  assumes "eval_l x s = Some (v,s)"
+  obtains i j where "v=A (i,j)"
+  using assms
+  apply (cases x)
+  apply (auto split: option.splits val.splits)
+  (* Here, I get stuck in a case with undefined. 
+  Looks like a missing case in eval_l: The inner 
+    case-distinction of Derefl forgets about NullVal! *)
+  (* The second subgoal does not look solvable either! What if, 
+    for Indexl exp1 exp2, exp1 does not evaluate to an address? 
+    Then your eval_l returns a scalar value!   *)  
+oops
+(** A sanity check. I'm trying to prove that the semantics 
+  only gets stuck at SKIP. This may reveal some problems in your 
+  current semantics: **)
+lemma 
+  assumes [simp]: "c\<noteq>SKIP"
+  shows "\<exists>x. (c,s) \<rightarrow> x"
+proof (cases c)
+  case SKIP thus ?thesis by simp
+next
+  case (Assignl x a) [simp] 
+  show ?thesis
+  proof (cases "eval_l x s")
+    case None[simp]
+      show ?thesis 
+        apply simp 
+        apply (rule exI)
+        apply (rule AssignlNone)
+        by simp
+  next
+    case (Some a)[simp]
+    (** Your semantics has only a rule if a has the form (A (i,j),s).
+      I'm trying to prove a lemma above ...*)
+    show ?thesis
+  oops
+
+
+
 end
