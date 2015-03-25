@@ -75,7 +75,6 @@ fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
                         then True
                         else False)"
 
-(* In indexes 0 nothing should be stored *)
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
   "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
 | "get_mem _ _ = None"
@@ -135,6 +134,7 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
                        None \<Rightarrow> None |
                        Some (v, s') \<Rightarrow> (case v of
                                           (I _) \<Rightarrow> None |
+                                          NullVal \<Rightarrow> None |
                                           (A _) \<Rightarrow> Some (v,s')))"
 | "eval (Index e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
@@ -146,12 +146,17 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
                             None \<Rightarrow> None |
                             Some (v, s') \<Rightarrow> (case v of
                                                (I _) \<Rightarrow> None |
-                                               (A _) \<Rightarrow> Some (v, s')))" (** What about v = NullVal?**)
-| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
-  (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
-  (v\<^sub>2, s) \<leftarrow> eval e\<^sub>2 s;
-  v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
-  Some (v, s)
-}"
+                                               NullVal \<Rightarrow> None |
+                                               (A _) \<Rightarrow> Some (v, s')))"
+| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = (case (eval e\<^sub>1 s) of
+                                None \<Rightarrow> None |
+                                Some (v\<^sub>1, s) \<Rightarrow> (case (eval e\<^sub>2 s) of
+                                                  None \<Rightarrow> None |
+                                                  Some (v\<^sub>2, s) \<Rightarrow> (case (plus_val v\<^sub>1 v\<^sub>2) of
+                                                                    None \<Rightarrow> None |
+                                                                    Some v \<Rightarrow> (case v of
+                                                                                 (I _) \<Rightarrow> None |
+                                                                                 NullVal \<Rightarrow> None |
+                                                                                 (A _) \<Rightarrow> Some (v, s)))))"
 
 end

@@ -51,12 +51,6 @@ lemma
   using assms
   apply (cases x)
   apply (auto split: option.splits val.splits)
-  (* Here, I get stuck in a case with undefined. 
-  Looks like a missing case in eval_l: The inner 
-    case-distinction of Derefl forgets about NullVal! *)
-  (* The second subgoal does not look solvable either! What if, 
-    for Indexl exp1 exp2, exp1 does not evaluate to an address? 
-    Then your eval_l returns a scalar value!   *)  
 oops
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
