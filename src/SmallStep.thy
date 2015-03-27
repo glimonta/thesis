@@ -8,6 +8,62 @@ fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> st
 fun update_mem :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
   "update_mem (i,j) v (\<sigma>, \<mu>) = (\<sigma>, list_update \<mu> (nat i) (list_update (\<mu> !! i) (nat j) v))"
 
+
+type_synonym enabled = "state \<rightharpoonup> bool"
+type_synonym transformer = "state \<rightharpoonup> state"
+type_synonym cfg_label = "enabled \<times> transformer"
+
+abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
+abbreviation tr_id :: transformer where "tr_id \<equiv> Some"
+
+definition "tr_assign x a s \<equiv> do {
+  (v,s) \<leftarrow> eval a s;
+  let s = update_locs x v s;
+  Some s
+}"
+
+definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
+where "tr_assignl x a s \<equiv> do {
+  (addr,s) \<leftarrow> eval_l x s;
+  (v,s) \<leftarrow> eval a s;
+  let s = update_mem addr v s;
+  Some s
+}"
+
+fun truth_value_of :: "val \<Rightarrow> bool" where
+  "truth_value_of NullVal \<longleftrightarrow> False"
+| "truth_value_of (I i) \<longleftrightarrow> i\<noteq>0"
+| "truth_value_of (A _) \<longleftrightarrow> True"
+
+definition en_pos :: "exp \<Rightarrow> enabled" where
+  "en_pos e s \<equiv> do {
+    (v,_) \<leftarrow> eval e s;
+    let b = truth_value_of v;
+    Some b
+  }"
+
+definition en_neg :: "exp \<Rightarrow> enabled" where
+  "en_neg e s \<equiv> do {
+    (v,_) \<leftarrow> eval e s;
+    let b = truth_value_of v;
+    Some (\<not>b)
+  }"
+
+definition tr_eval :: "exp \<Rightarrow> transformer" where
+  "tr_eval e s \<equiv> do {
+    (_,s) \<leftarrow> eval e s;
+    Some s
+  }"
+
+inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
+  Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
+| Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
+| Seq1: "cfg (SKIP;; c\<^sub>2) (en_always, tr_id) c\<^sub>2"
+| Seq2: "\<lbrakk>cfg c\<^sub>1 a c\<^sub>1'\<rbrakk> \<Longrightarrow> cfg (c\<^sub>1;; c\<^sub>2) a (c\<^sub>1';; c\<^sub>2)"
+| IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_pos b, tr_eval b) c\<^sub>1"
+| IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
+| While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
+
 (*
   Right now I'll add None cases to this but I'm not sure whether that's the smart choice,
   maybe there's a better way to write it I'm not aware of
@@ -20,10 +76,8 @@ where
 | AssignNone:  "eval a s = None \<Longrightarrow> (x ::= a, s) \<rightarrow> None"
 
 (* This rules are still a bit rusty *)
-| Assignl:     "\<lbrakk>eval_l x s = Some ((A (i,j)), s\<^sub>1); eval a s\<^sub>1 = Some (v, s\<^sub>2); update_mem (i,j) v s\<^sub>2 = s\<^sub>3 \<rbrakk>
+| Assignl:     "\<lbrakk>eval_l x s = Some (((i,j)), s\<^sub>1); eval a s\<^sub>1 = Some (v, s\<^sub>2); update_mem (i,j) v s\<^sub>2 = s\<^sub>3 \<rbrakk>
                  \<Longrightarrow> (x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>3)"
-| AssignlI:    "\<lbrakk>eval_l x s = Some ((I i), s')\<rbrakk> \<Longrightarrow> (x ::== a, s) \<rightarrow> None"
-| AssignlNull: "\<lbrakk>eval_l x s = Some (NullVal, s')\<rbrakk> \<Longrightarrow> (x ::== a, s) \<rightarrow> None"
 | AssignlNone: "eval a s = None \<or> eval_l x s = None \<Longrightarrow> (x ::== a, s) \<rightarrow> None"
 
 | Seq1:    "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)"
@@ -50,14 +104,6 @@ inductive_simps assignl_simp: "(x ::== a, s) \<rightarrow> cs'"
 inductive_simps assign_simp: "(x ::= a, s) \<rightarrow> cs'"
 
 
-lemma
-  assumes "eval_l x s = Some (v,s)"
-  obtains i j where "v=A (i,j)"
-  using assms
-  apply (cases x)
-  apply (auto split: option.splits val.splits)
-done
-
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
   current semantics: **)
@@ -77,10 +123,29 @@ next
         apply (rule AssignlNone)
         by simp
   next
-    case (Some a)[simp]
+    case (Some addr_s)[simp]
     (** Your semantics has only a rule if a has the form (A (i,j),s).
       I'm trying to prove a lemma above ...*)
-    thus ?thesis sorry
+    show ?thesis 
+    proof (cases "eval a s")
+      case None[simp]
+        show ?thesis 
+          apply simp 
+          apply (rule exI)
+          apply (rule AssignlNone)
+          by simp
+      next  
+      case Some[simp]
+      
+
+      apply (simp)
+      apply (rule exI)
+      apply (rule small_step.Assignl)
+      apply auto
+
+      apply (cases a) 
+      
+      apply (auto intro: Assignl)
 qed
 next
   case (Assign x a)

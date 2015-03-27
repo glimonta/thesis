@@ -5,7 +5,7 @@ begin
 (* Variable names are strings *)
 type_synonym vname = string
 (* Addresses are a pair of integers (block_id, offset) *)
-type_synonym addr = "int \<times> int"
+type_synonym addr = "nat \<times> int"
 (* A value can be either an integer or an address *)
 datatype val = NullVal | I int | A addr
 (*
@@ -17,7 +17,7 @@ datatype val = NullVal | I int | A addr
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
 type_synonym loc = "vname \<Rightarrow> val"
-type_synonym mem = "val list list"
+type_synonym mem = "val list option list"
 type_synonym state = "loc \<times> mem"
 
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
@@ -65,15 +65,35 @@ fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   (I i) is neg
 *)
 fun new_block :: "val \<Rightarrow> mem \<Rightarrow> (val \<times> mem) option" where
-  "new_block (I i) \<mu> = Some ((A (list_size \<mu>, 0)), \<mu> @ [replicate (nat i) (I 0)])"
+  "new_block (I i) \<mu> = Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat i) (I 0))])"
 | "new_block _ _ = None"
 
-value "new_block (I 2) [[]]"
+value "new_block (I 2) [Some []]"
 
 fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
-  "valid_mem (i,j) \<mu> = (if (i < (list_size \<mu>) - 1 \<and> j < ((list_size (\<mu> !! i)) - 1))
-                        then True
-                        else False)"
+  "valid_mem (i,j) \<mu> = (
+    if i<length \<mu> then (
+      case \<mu>!i of
+        None \<Rightarrow> False
+      | Some b \<Rightarrow> 0\<le>j \<and> nat j < length b)
+    else False)"
+      
+fun ofs_addr :: "addr \<Rightarrow> int \<Rightarrow> addr" where
+  "ofs_addr (i,j) ofs = (i,j + ofs)"
+
+definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
+  "load \<equiv> \<lambda>(i,j) \<mu>. 
+    if valid_mem (i,j) \<mu> then
+      Some (the (\<mu>!i) !! j)
+    else  
+      None"
+
+definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem option" where
+  "store \<equiv> \<lambda>(i,j) \<mu> v. 
+    if valid_mem (i,j) \<mu> then
+      Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := v] )])
+    else  
+      None"
 
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
   "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
@@ -93,7 +113,7 @@ fun index_mem :: "val \<Rightarrow> val \<Rightarrow> mem \<Rightarrow> val opti
   a special error state in which the evaluation got stuck i.e. sum of two pointers.
 *)
 fun eval :: "exp \<Rightarrow> state \<Rightarrow> (val \<times> state) option"
-and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) option" where
+and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) option" where
   "eval (Const c) s = Some (c, s)"
 | "eval Null s = Some (NullVal, s)"
 | "eval (V x) (\<sigma>, \<mu>) = Some (\<sigma> x, (\<sigma>, \<mu>))"
@@ -132,22 +152,45 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
 }"
 | "eval (Ref e) s = (case (eval_l e s) of
                        None \<Rightarrow> None |
-                       Some (v, s') \<Rightarrow> (case v of
-                                          (I _) \<Rightarrow> None |
-                                          NullVal \<Rightarrow> None |
-                                          (A _) \<Rightarrow> Some (v,s')))"
+                       Some (addr, s) \<Rightarrow> Some (A addr,s))"
 | "eval (Index e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
   (v\<^sub>2, (\<sigma>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
   v \<leftarrow> index_mem v\<^sub>1 v\<^sub>2 \<mu>;
   Some (v, (\<sigma>, \<mu>))
 }"
-| "eval_l (Derefl e) s = (case (eval e s) of
+| "eval_l (Derefl e) s = do {
+    (v,s) \<leftarrow> eval e s;
+    case v of A addr \<Rightarrow> Some (addr,s)
+    | _ \<Rightarrow> None
+  }"
+(*| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
+    (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
+    (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
+    v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
+    case v of
+      A addr \<Rightarrow> Some (addr,s)
+    | _ \<Rightarrow> None  
+  }"*)
+| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
+    (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
+    (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
+    case (v\<^sub>1,v\<^sub>2) of
+      (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+incr),s)
+    | _ \<Rightarrow> None  
+  }"
+
+
+
+(*
+(case (eval e s) of
                             None \<Rightarrow> None |
                             Some (v, s') \<Rightarrow> (case v of
                                                (I _) \<Rightarrow> None |
                                                NullVal \<Rightarrow> None |
                                                (A _) \<Rightarrow> Some (v, s')))"
+*)
+(*
 | "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = (case (eval e\<^sub>1 s) of
                                 None \<Rightarrow> None |
                                 Some (v\<^sub>1, s) \<Rightarrow> (case (eval e\<^sub>2 s) of
@@ -158,5 +201,5 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (val \<times> state) optio
                                                                                  (I _) \<Rightarrow> None |
                                                                                  NullVal \<Rightarrow> None |
                                                                                  (A _) \<Rightarrow> Some (v, s)))))"
-
+*)
 end
