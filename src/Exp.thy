@@ -94,7 +94,7 @@ definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem 
       Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := v] )])
     else  
       None"
-
+(*
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
   "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
 | "get_mem _ _ = None"
@@ -106,6 +106,7 @@ value "get_mem (A (2,3)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
 fun index_mem :: "val \<Rightarrow> val \<Rightarrow> mem \<Rightarrow> val option" where
   "index_mem (A (x,y)) (I i) \<mu> = get_mem (A (x, (y + i))) \<mu>"
 | "index_mem _ _ _ = None"
+*)
 
 (*
   The return here is a pair (val \<times> state) option. The state is necessary because malloc and free
@@ -147,8 +148,12 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
 }"
 | "eval (Deref e) s = do {
   (v, (\<sigma>, \<mu>)) \<leftarrow> eval e s;
-  v \<leftarrow> get_mem v \<mu>;
-  Some (v, (\<sigma>, \<mu>))
+  case v of
+    (A addr) \<Rightarrow> do {
+      v \<leftarrow> load addr \<mu>;
+      Some (v, (\<sigma>, \<mu>))
+    }
+  | _ \<Rightarrow> None
 }"
 | "eval (Ref e) s = (case (eval_l e s) of
                        None \<Rightarrow> None |
@@ -156,8 +161,12 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
 | "eval (Index e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
   (v\<^sub>2, (\<sigma>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
-  v \<leftarrow> index_mem v\<^sub>1 v\<^sub>2 \<mu>;
-  Some (v, (\<sigma>, \<mu>))
+  case (v\<^sub>1, v\<^sub>2) of
+    (A addr, I incr) \<Rightarrow> do {
+      v \<leftarrow> load (ofs_addr addr incr) \<mu>;
+      Some (v, (\<sigma>, \<mu>))
+    }
+  | _ \<Rightarrow> None
 }"
 | "eval_l (Derefl e) s = do {
     (v,s) \<leftarrow> eval e s;
@@ -179,7 +188,6 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
       (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+incr),s)
     | _ \<Rightarrow> None  
   }"
-
 
 
 (*
