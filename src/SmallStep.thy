@@ -5,10 +5,6 @@ begin
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
   "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=a), \<mu>)"
 
-(*fun update_mem :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
-  "update_mem (i,j) v (\<sigma>, \<mu>) = (\<sigma>, list_update \<mu> i (list_update (\<mu> !! i) (nat j) v))"
-*)
-
 type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
@@ -71,55 +67,18 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 | IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
 | While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
 | Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
-(* FREE is missing *)
 
-
-(*
-  Right now I'll add None cases to this but I'm not sure whether that's the smart choice,
-  maybe there's a better way to write it I'm not aware of
-*)
+(* A configuration can take a small step if there's a cfg edge between the two commands, the
+   enabled returns True and the transformer successfully transforms the state into a new one.
+   If the enabled does not allow for the execution to continue then it goes to None, same
+   thing happens if the enabled or the transformer return None as a result.
+  *)
 inductive 
   small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
   Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
 | EnFalse: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some False\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 | None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
-(*| Assign:     "\<lbrakk>cfg (x ::= a) (en, tr) SKIP; en s = Some True; tr s = Some s\<^sub>2\<rbrakk>
-                \<Longrightarrow> (x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
-(*I'm not sure if the other AssignNone rule works as simple as it's written there, probably not *)
-| AssignNone: "(*\<lbrakk>cfg (x ::= a) (en, tr) SKIP; tr s = None\<rbrakk> \<Longrightarrow> *)(x ::= a, s) \<rightarrow> None"
-
-| Assignl:     "\<lbrakk>cfg (x ::== a) (en, tr) SKIP; en s = Some True; tr s = Some s\<^sub>2\<rbrakk>
-                 \<Longrightarrow> (x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
-| AssignlNone: "(x ::== a, s) \<rightarrow> None"
-
-| Seq1: "\<lbrakk>cfg (SKIP;; c\<^sub>2) (en, tr) c\<^sub>2; en s = Some True; tr s = Some s'\<rbrakk>
-          \<Longrightarrow> (SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s')"
-*)
-(*
-| Seq1:    "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)"
-| Seq2:    "(c\<^sub>1,s) \<rightarrow> Some (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,s) \<rightarrow> Some (c\<^sub>1';;c\<^sub>2,s')"
-| SeqNone: "(c\<^sub>1,s) \<rightarrow> None \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,s) \<rightarrow> None"
-
-(* If the condition is anything else other than NullVall or Zero it'll take the True branch *)
-| IfTrue:  "\<lbrakk>eval b s = Some (v, s'); (v \<noteq> (I 0) \<or> v \<noteq> NullVal)\<rbrakk>
-             \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>1,s')"
-(* If the condition is a NullVall or Zero it'll take the False branch *)
-| IfFalse: "\<lbrakk>eval b s = Some (v, s'); (v = (I 0) \<or> v = NullVal)\<rbrakk>
-             \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>2,s')"
-| IfNone:  "eval b s = None \<Longrightarrow> (IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None"
-
-| While:   "(WHILE b DO c,s) \<rightarrow> Some (IF b THEN c;; WHILE b DO c ELSE SKIP,s)"
-
-(* Missing the free small_step, I'm not sure what it should do 
-| Free: "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
-*)
-| FreeNone: "eval_l x s = None \<Longrightarrow> (FREE x, s) \<rightarrow> None"
-
-
-inductive_simps assignl_simp: "(x ::== a, s) \<rightarrow> cs'"
-inductive_simps assign_simp: "(x ::= a, s) \<rightarrow> cs'"
-*)
 
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
