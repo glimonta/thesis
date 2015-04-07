@@ -5,9 +5,9 @@ begin
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
   "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=a), \<mu>)"
 
-fun update_mem :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
-  "update_mem (i,j) v (\<sigma>, \<mu>) = (\<sigma>, list_update \<mu> (nat i) (list_update (\<mu> !! i) (nat j) v))"
-
+(*fun update_mem :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
+  "update_mem (i,j) v (\<sigma>, \<mu>) = (\<sigma>, list_update \<mu> i (list_update (\<mu> !! i) (nat j) v))"
+*)
 
 type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
@@ -25,9 +25,9 @@ definition "tr_assign x a s \<equiv> do {
 definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
 where "tr_assignl x a s \<equiv> do {
   (addr,s) \<leftarrow> eval_l x s;
-  (v,s) \<leftarrow> eval a s;
-  let s = update_mem addr v s;
-  Some s
+  (v,(\<sigma>, \<mu>)) \<leftarrow> eval a s;
+  \<mu> \<leftarrow> store addr \<mu> v;
+  Some (\<sigma>, \<mu>)
 }"
 
 fun truth_value_of :: "val \<Rightarrow> bool" where
@@ -55,6 +55,13 @@ definition tr_eval :: "exp \<Rightarrow> transformer" where
     Some s
   }"
 
+definition tr_free :: "lexp \<Rightarrow> transformer" where
+  "tr_free e s \<equiv> do {
+    (addr, (\<sigma>, \<mu>)) \<leftarrow> eval_l e s;
+    \<mu> \<leftarrow> free addr \<mu>;
+    Some (\<sigma>, \<mu>)
+  }"
+
 inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
   Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
 | Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
@@ -63,6 +70,9 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 | IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_pos b, tr_eval b) c\<^sub>1"
 | IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
 | While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
+| Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
+(* FREE is missing *)
+
 
 (*
   Right now I'll add None cases to this but I'm not sure whether that's the smart choice,
@@ -71,15 +81,22 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 inductive 
   small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
-  Assign:      "\<lbrakk>eval a s = Some (v, s\<^sub>1); update_locs x v s\<^sub>1 = s\<^sub>2\<rbrakk>
-                 \<Longrightarrow> (x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
-| AssignNone:  "eval a s = None \<Longrightarrow> (x ::= a, s) \<rightarrow> None"
+  Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+| EnFalse: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some False\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
+| None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
+(*| Assign:     "\<lbrakk>cfg (x ::= a) (en, tr) SKIP; en s = Some True; tr s = Some s\<^sub>2\<rbrakk>
+                \<Longrightarrow> (x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
+(*I'm not sure if the other AssignNone rule works as simple as it's written there, probably not *)
+| AssignNone: "(*\<lbrakk>cfg (x ::= a) (en, tr) SKIP; tr s = None\<rbrakk> \<Longrightarrow> *)(x ::= a, s) \<rightarrow> None"
 
-(* This rules are still a bit rusty *)
-| Assignl:     "\<lbrakk>eval_l x s = Some (((i,j)), s\<^sub>1); eval a s\<^sub>1 = Some (v, s\<^sub>2); update_mem (i,j) v s\<^sub>2 = s\<^sub>3 \<rbrakk>
-                 \<Longrightarrow> (x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>3)"
-| AssignlNone: "eval a s = None \<or> eval_l x s = None \<Longrightarrow> (x ::== a, s) \<rightarrow> None"
+| Assignl:     "\<lbrakk>cfg (x ::== a) (en, tr) SKIP; en s = Some True; tr s = Some s\<^sub>2\<rbrakk>
+                 \<Longrightarrow> (x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)"
+| AssignlNone: "(x ::== a, s) \<rightarrow> None"
 
+| Seq1: "\<lbrakk>cfg (SKIP;; c\<^sub>2) (en, tr) c\<^sub>2; en s = Some True; tr s = Some s'\<rbrakk>
+          \<Longrightarrow> (SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s')"
+*)
+(*
 | Seq1:    "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)"
 | Seq2:    "(c\<^sub>1,s) \<rightarrow> Some (c\<^sub>1',s') \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,s) \<rightarrow> Some (c\<^sub>1';;c\<^sub>2,s')"
 | SeqNone: "(c\<^sub>1,s) \<rightarrow> None \<Longrightarrow> (c\<^sub>1;;c\<^sub>2,s) \<rightarrow> None"
@@ -102,7 +119,7 @@ where
 
 inductive_simps assignl_simp: "(x ::== a, s) \<rightarrow> cs'"
 inductive_simps assign_simp: "(x ::= a, s) \<rightarrow> cs'"
-
+*)
 
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
@@ -115,96 +132,101 @@ proof (cases c)
 next
   case (Assignl x a) [simp] 
   show ?thesis
-  proof (cases "eval_l x s")
+  proof (cases "tr_assignl x a s")
     case None[simp]
-      show ?thesis 
-        apply simp 
-        apply (rule exI)
-        apply (rule AssignlNone)
-        by simp
+      hence "(x ::== a, s) \<rightarrow> None" using small_step.None cfg.Assignl by blast
+      thus ?thesis by auto
   next
-    case (Some addr_s)[simp]
-    (** Your semantics has only a rule if a has the form (A (i,j),s).
-      I'm trying to prove a lemma above ...*)
-    show ?thesis 
-    proof (cases "eval a s")
-      case None[simp]
-        show ?thesis 
-          apply simp 
-          apply (rule exI)
-          apply (rule AssignlNone)
-          by simp
-      next  
-      case Some[simp]
-      
-
-      apply (simp)
-      apply (rule exI)
-      apply (rule small_step.Assignl)
-      apply auto
-
-      apply (cases a) 
-      
-      apply (auto intro: Assignl)
-qed
+    case (Some s\<^sub>2)[simp]
+      hence "(x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using small_step.Base cfg.Assignl by blast
+      thus ?thesis by auto
+  qed
 next
   case (Assign x a)
   show ?thesis 
-  proof (cases "eval a s")
+  proof (cases "tr_assign x a s")
     case None[simp]
-      hence "(x ::= a, s) \<rightarrow> None" using small_step.AssignNone by auto
+      hence "(x ::= a, s) \<rightarrow> None" using small_step.None cfg.Assign by blast
       thus ?thesis using Assign by auto
     next
-    case (Some aa)[simp]
-      moreover obtain v s\<^sub>1 where "aa = (v, s\<^sub>1)" using PairE by blast
-      moreover obtain s\<^sub>2 where "update_locs x v s\<^sub>1 = s\<^sub>2" by blast
-      ultimately have "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using small_step.Assign Some by auto
+    case (Some s\<^sub>2)[simp]
+      hence "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using small_step.Base cfg.Assign by blast
       thus ?thesis using Assign by auto
   qed
 next
-  case (If b c1 c2)
+  case (Seq c\<^sub>1 c\<^sub>2)
+  have "c\<^sub>1 = SKIP \<or> c\<^sub>1 \<noteq> SKIP" by auto
+  then show ?thesis
+  proof
+    assume "c\<^sub>1 = SKIP"
+      hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
+      thus ?thesis using Seq `c\<^sub>1 = SKIP` by auto
+  next
+    assume "c\<^sub>1 \<noteq> SKIP"
+      show ?thesis sorry
+  qed
+next
+  case (If b c\<^sub>1 c\<^sub>2)
   show ?thesis
-  proof (cases "eval b s")
+  proof (cases "en_pos b s")
     case None[simp]
-      hence "(IF b THEN c1 ELSE c2,s) \<rightarrow> None" using small_step.IfNone by auto
+      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfTrue small_step.None by blast
       thus ?thesis using If by auto
-    next
+  next
     case (Some a)
-      then obtain v s' where a: "a = (v, s')" using PairE by blast
       show ?thesis
-      proof (cases v)
-        case NullVal
-          hence "(IF b THEN c1 ELSE c2,s) \<rightarrow> Some (c2,s')"
-            using Some and a and small_step.IfFalse by auto
+      proof (cases "tr_eval b s")
+        case None
+          hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfTrue small_step.None by blast
           thus ?thesis using If by auto
-        next
-        case (A x)
-          hence "(IF b THEN c1 ELSE c2,s) \<rightarrow> Some (c1,s')"
-            using Some and a and small_step.IfTrue by auto
-          thus ?thesis using If by auto
-        next
-        case (I i)
-          hence "i = 0 \<or> i \<noteq> 0 \<Longrightarrow> ?thesis"
-          proof cases
-            assume i0: "i = 0"
-            hence "(IF b THEN c1 ELSE c2,s) \<rightarrow> Some (c2,s')"
-              using I and i0 and `eval b s = Some a` and a and If and small_step.IfFalse by simp
-            thus ?thesis using If by auto
+      next
+        case (Some s\<^sub>2)
+          show ?thesis
+          proof (cases a)
+            case True
+              hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>1, s\<^sub>2)"
+              using `en_pos b s = Some a` cfg.IfTrue small_step.Base If Some by metis
+              thus ?thesis using If by auto
           next
-            assume i: "i \<noteq> 0"
-            hence "(IF b THEN c1 ELSE c2,s) \<rightarrow> Some (c1,s')"
-              using I and i and `eval b s = Some a` and a and If and small_step.IfTrue by simp
-            thus ?thesis using If by auto
+            case False
+              show ?thesis
+              proof (cases "en_neg b s")
+                case None
+                  hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfFalse small_step.None by blast
+                  thus ?thesis using If by auto
+              next
+                case (Some c)
+                  show ?thesis
+                  proof (cases c)
+                    case True
+                      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+                      using `tr_eval b s = Some s\<^sub>2` cfg.IfFalse small_step.Base If Some by metis
+                      thus ?thesis using If by auto
+                  next
+                    case False
+                      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None"
+                      using Some cfg.IfFalse small_step.EnFalse by metis
+                      thus ?thesis using If by auto
+                  qed
+              qed
           qed
-        thus ?thesis by auto
       qed
   qed
 next
 case (While b c)
-  thus ?thesis using small_step.While by blast
+  thus ?thesis using small_step.Base cfg.While by blast
 next
 case (Free x)
-oops
-    
-
+  show ?thesis
+  proof (cases "tr_free x s")
+    case None
+      hence "(FREE x, s) \<rightarrow> None" using cfg.Free small_step.None by blast
+      thus ?thesis using Free by auto
+  next
+    case (Some s\<^sub>2)
+      hence "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using cfg.Free small_step.Base by blast
+      thus ?thesis using Free by auto
+  qed
+qed
+ 
 end

@@ -94,6 +94,14 @@ definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem 
       Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := v] )])
     else  
       None"
+
+definition free :: "addr \<Rightarrow> mem \<Rightarrow> mem option" where
+  "free \<equiv>  \<lambda>(i,j) \<mu>. 
+    if valid_mem (i,j) \<mu> then
+      Some (\<mu>[i := None])
+    else  
+      None"
+
 (*
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
   "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
