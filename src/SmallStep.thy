@@ -1,5 +1,5 @@
 theory SmallStep
-imports Com
+imports Com "~~/src/HOL/IMP/Star"
 begin
 
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
@@ -80,6 +80,15 @@ where
 | EnFalse: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some False\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 | None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 
+inductive
+  small_step' :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
+where
+  "cs \<rightarrow> cs' \<Longrightarrow> Some cs \<rightarrow>' cs'"
+
+abbreviation
+  small_steps :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>*" 55)
+where "x \<rightarrow>* y == star small_step' x y"
+
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
   current semantics: **)
@@ -115,14 +124,14 @@ next
 next
   case (Seq c\<^sub>1 c\<^sub>2)
   have "c\<^sub>1 = SKIP \<or> c\<^sub>1 \<noteq> SKIP" by auto
-  then show ?thesis
+  thus ?thesis
   proof
     assume "c\<^sub>1 = SKIP"
       hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
       thus ?thesis using Seq `c\<^sub>1 = SKIP` by auto
   next
     assume "c\<^sub>1 \<noteq> SKIP"
-      show ?thesis sorry
+    show ?thesis sorry
   qed
 next
   case (If b c\<^sub>1 c\<^sub>2)
@@ -187,5 +196,5 @@ case (Free x)
       thus ?thesis using Free by auto
   qed
 qed
- 
+
 end
