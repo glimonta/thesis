@@ -1,5 +1,11 @@
 theory SmallStep
-imports Com "~~/src/HOL/IMP/Star"
+imports 
+  Com 
+  "~~/src/HOL/IMP/Star"  
+  "~~/src/HOL/Library/While_Combinator"
+  "~~/src/HOL/Library/Code_Char"
+  "~~/src/HOL/Library/Code_Target_Int"
+  "~~/src/HOL/Library/Code_Target_Nat"
 begin
 
   (* TODO: Should be contained in Isabelle since de0a4a76d7aa under 
@@ -272,6 +278,62 @@ lemma small_step_determ:
   apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
   apply simp
   done
+
+
+fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" where
+  "fstep (SKIP,s) = Some (SKIP,s)"
+| "fstep (x ::= a,s) = do {
+    s \<leftarrow> tr_assign x a s;
+    Some (SKIP,s)
+  }"
+| "fstep (x ::== a,s) = do {
+    s \<leftarrow> tr_assignl x a s;
+    Some (SKIP,s)
+  }"
+
+
+lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'" sorry
+
+lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))" sorry
+
+
+fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
+  "is_term (Some (SKIP,_)) = True"
+| "is_term None = True"
+| "is_term _ = False"
+
+
+definition interp :: "com \<times> state \<Rightarrow> (com\<times>state) option" where
+  "interp cs \<equiv> (while 
+    (HOL.Not o is_term)
+    (\<lambda>Some (c,s) \<Rightarrow> fstep (c,s))
+    (Some cs))"
+
+definition "yields == \<lambda>cs cs'. Some cs \<rightarrow>* cs' \<and> is_term cs'"
+definition "terminates == \<lambda>cs. \<exists>cs'. yields cs cs'"
+
+theorem 
+  assumes TERM: "terminates cs" 
+  shows "(yields cs cs') \<longleftrightarrow> (cs' = interp cs)"
+proof safe
+  assume "yields cs cs'"
+  hence "Some cs \<rightarrow>* cs'" "is_term cs'" unfolding yields_def by auto
+  show "cs' = interp cs" sorry
+  thm while_unfold
+  (*thm while_rule*)
+next
+  from TERM obtain cs' where 
+    "Some cs \<rightarrow>* cs'" "is_term cs'" 
+    unfolding yields_def terminates_def by auto
+  have "Some cs \<rightarrow>* interp cs" "is_term (interp cs)" sorry
+  thus "yields cs (interp cs)" by (auto simp: yields_def)
+qed  
+
+
+
+
+
+export_code interp in SML
 
 
 end

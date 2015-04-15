@@ -1,13 +1,18 @@
 theory Exp
-imports Main "~~/src/HOL/Library/Monad_Syntax"
+imports 
+  Main 
+  "~~/src/HOL/Library/Monad_Syntax"
+  "~~/src/HOL/Word/Word"
 begin
 
 (* Variable names are strings *)
 type_synonym vname = string
 (* Addresses are a pair of integers (block_id, offset) *)
 type_synonym addr = "nat \<times> int"
+type_synonym int_width = 32
+type_synonym int_val = "int_width word"
 (* A value can be either an integer or an address *)
-datatype val = NullVal | I int | A addr
+datatype val = NullVal | I int_val | A addr
 (*
   A state is a pair in which the first element represents the content of the local variables
   and the second element represents the content of the blocked memory.
@@ -29,7 +34,7 @@ abbreviation "list_size xs \<equiv> int(length xs)"
 datatype exp = Const val
              | Null          
              | V     vname
-             | Plus  exp exp
+             | Plus  exp exp  
              | Less  exp exp
              | Not   exp
              | And   exp exp
@@ -43,7 +48,7 @@ and lexp = Derefl exp
 
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
-| "plus_val (A (x,y)) (I i) = Some (A (x, y+i))"
+| "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
@@ -65,7 +70,11 @@ fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   (I i) is neg
 *)
 fun new_block :: "val \<Rightarrow> mem \<Rightarrow> (val \<times> mem) option" where
-  "new_block (I i) \<mu> = Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat i) (I 0))])"
+  "new_block (I i) \<mu> = (
+    if sint i < 0 then None
+    else
+      Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat (sint i)) (I 0))])
+  )"
 | "new_block _ _ = None"
 
 value "new_block (I 2) [Some []]"
@@ -78,8 +87,8 @@ fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
       | Some b \<Rightarrow> 0\<le>j \<and> nat j < length b)
     else False)"
       
-fun ofs_addr :: "addr \<Rightarrow> int \<Rightarrow> addr" where
-  "ofs_addr (i,j) ofs = (i,j + ofs)"
+fun ofs_addr :: "addr \<Rightarrow> int_val \<Rightarrow> addr" where
+  "ofs_addr (i,j) ofs = (i,j + sint ofs)"
 
 definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
   "load \<equiv> \<lambda>(i,j) \<mu>. 
@@ -193,7 +202,7 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
     (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
     (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
     case (v\<^sub>1,v\<^sub>2) of
-      (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+incr),s)
+      (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+sint incr),s)
     | _ \<Rightarrow> None  
   }"
 
