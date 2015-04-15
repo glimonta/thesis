@@ -2,6 +2,20 @@ theory SmallStep
 imports Com "~~/src/HOL/IMP/Star"
 begin
 
+  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under 
+    Option.bind_split{s,_asm}*)
+  lemma option_bind_split: "P (Option.bind m f) 
+  \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
+    by (cases m) auto
+
+  lemma option_bind_split_asm: "P (Option.bind m f) = (\<not>(
+      m=None \<and> \<not>P None 
+    \<or> (\<exists>x. m=Some x \<and> \<not>P (f x))))"
+    by (cases m) auto
+
+  lemmas option_bind_splits = option_bind_split option_bind_split_asm
+
+
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
   "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=a), \<mu>)"
 
@@ -77,7 +91,6 @@ inductive
   small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
   Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-| EnFalse: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some False\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 | None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 
 inductive
@@ -92,14 +105,27 @@ where "x \<rightarrow>* y == star small_step' x y"
 (** A sanity check. I'm trying to prove that the semantics 
   only gets stuck at SKIP. This may reveal some problems in your 
   current semantics: **)
-lemma 
-  assumes [simp]: "c\<noteq>SKIP"
+
+(*lemma 
+  assumes "c\<noteq>SKIP"
   shows "\<exists>x. (c,s) \<rightarrow> x"
-proof (cases c)
-  case SKIP thus ?thesis by simp
+  using assms apply (induction c)
+  apply (auto intro: small_step.intros cfg.intros)
+apply (metis Assignl Base not_None_eq small_step.intros(2))
+apply (metis Assign Base not_None_eq small_step.intros(2))
+  *)
+
+
+
+lemma 
+  assumes "c\<noteq>SKIP"
+  shows "\<exists>x. (c,s) \<rightarrow> x"
+  using assms
+proof (induction c)
+  case SKIP thus ?case by simp
 next
   case (Assignl x a) [simp] 
-  show ?thesis
+  show ?case
   proof (cases "tr_assignl x a s")
     case None[simp]
       hence "(x ::== a, s) \<rightarrow> None" using small_step.None cfg.Assignl by blast
@@ -111,7 +137,7 @@ next
   qed
 next
   case (Assign x a)
-  show ?thesis 
+  show ?case 
   proof (cases "tr_assign x a s")
     case None[simp]
       hence "(x ::= a, s) \<rightarrow> None" using small_step.None cfg.Assign by blast
@@ -123,25 +149,44 @@ next
   qed
 next
   case (Seq c\<^sub>1 c\<^sub>2)
-  have "c\<^sub>1 = SKIP \<or> c\<^sub>1 \<noteq> SKIP" by auto
-  thus ?thesis
-  proof
-    assume "c\<^sub>1 = SKIP"
-      hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
-      thus ?thesis using Seq `c\<^sub>1 = SKIP` by auto
+  show ?case
+  proof (cases "c\<^sub>1 = SKIP")
+    case True
+    hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
+    thus ?thesis using Seq `c\<^sub>1 = SKIP` by auto
   next
-    assume "c\<^sub>1 \<noteq> SKIP"
-    show ?thesis sorry
+    case False
+    from Seq.IH(1)[OF this] obtain a where "(c\<^sub>1,s) \<rightarrow> a" ..
+    thus ?thesis
+    proof cases
+      case (Base en tr c\<^sub>1' s\<^sub>2)
+      from Seq2[OF Base(2), of c\<^sub>2] Base show ?thesis
+        by (auto intro: small_step.Base)
+    next    
+      case (None en tr c\<^sub>1')
+      from Seq2[OF None(2), of c\<^sub>2] None show ?thesis
+        by (auto intro: small_step.None)
+    qed
   qed
+      
+
+(*  {
+    assume "c\<^sub>1 = SKIP"
+    have ?case sorry
+  } moreover {
+    assume "c\<^sub>1 \<noteq> SKIP"
+    have ?case sorry
+  } ultimately show ?case by blast
+*)
 next
   case (If b c\<^sub>1 c\<^sub>2)
-  show ?thesis
+  show ?case
   proof (cases "en_pos b s")
     case None[simp]
       hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfTrue small_step.None by blast
       thus ?thesis using If by auto
   next
-    case (Some a)
+    case (Some a)[simp]
       show ?thesis
       proof (cases "tr_eval b s")
         case None
@@ -156,36 +201,23 @@ next
               using `en_pos b s = Some a` cfg.IfTrue small_step.Base If Some by metis
               thus ?thesis using If by auto
           next
-            case False
-              show ?thesis
-              proof (cases "en_neg b s")
-                case None
-                  hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfFalse small_step.None by blast
-                  thus ?thesis using If by auto
-              next
-                case (Some c)
-                  show ?thesis
-                  proof (cases c)
-                    case True
-                      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-                      using `tr_eval b s = Some s\<^sub>2` cfg.IfFalse small_step.Base If Some by metis
-                      thus ?thesis using If by auto
-                  next
-                    case False
-                      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None"
-                      using Some cfg.IfFalse small_step.EnFalse by metis
-                      thus ?thesis using If by auto
-                  qed
-              qed
+            case False[simp]
+            have "en_pos b s = Some False" by simp
+            hence "en_neg b s = Some True"
+              unfolding en_pos_def en_neg_def
+              by (auto split: option_bind_splits)
+            hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+            using `tr_eval b s = Some s\<^sub>2` cfg.IfFalse small_step.Base If Some by metis
+            thus ?thesis using If by auto
           qed
       qed
   qed
 next
 case (While b c)
-  thus ?thesis using small_step.Base cfg.While by blast
+  thus ?case using small_step.Base cfg.While by blast
 next
 case (Free x)
-  show ?thesis
+  show ?case
   proof (cases "tr_free x s")
     case None
       hence "(FREE x, s) \<rightarrow> None" using cfg.Free small_step.None by blast
@@ -197,4 +229,50 @@ case (Free x)
   qed
 qed
 
+lemma cfg_SKIP_stuck[simp]: "\<not> cfg SKIP a c"
+  by (auto elim: cfg.cases)
+
+lemma en_neg_by_pos: "en_neg e s = map_option (HOL.Not) (en_pos e s)"
+  unfolding en_pos_def en_neg_def
+  by (auto split: option_bind_splits)
+
+lemma cfg_determ: 
+  assumes "cfg c a1 c'" 
+  assumes "cfg c a2 c''" 
+  obtains 
+      "a1=a2" "c' = c''"
+    | b where "a1 = (en_pos b,tr_eval b)" "a2 = (en_neg b,tr_eval b)"
+    | b where "a1 = (en_neg b,tr_eval b)" "a2 = (en_pos b,tr_eval b)"
+  using assms  
+  apply (induction arbitrary: c'')
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (rotate_tac )
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  done
+
+lemma small_step_determ:
+  assumes "(c,s) \<rightarrow> c'"
+  assumes "(c,s) \<rightarrow> c''"
+  shows "c'=c''"
+  using assms  
+  apply (cases)
+  apply (erule small_step.cases)
+  apply simp
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
+  apply simp
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
+  apply (erule small_step.cases)
+  apply simp
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
+  apply simp
+  done
+
+
 end
+
