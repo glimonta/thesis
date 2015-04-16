@@ -290,6 +290,20 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     s \<leftarrow> tr_assignl x a s;
     Some (SKIP,s)
   }"
+| "fstep (c\<^sub>1;; c\<^sub>2, s) = do {
+    (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
+    Some (c\<^sub>1' ;; c\<^sub>2, s)
+  }"
+| "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = do {
+    v \<leftarrow> en_pos b s;
+    s \<leftarrow> tr_eval b s;
+    if v then Some (c\<^sub>1, s) else Some (c\<^sub>2, s)
+  }"
+| "fstep (WHILE b DO c, s) = Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)"
+| "fstep (FREE x, s) = do {
+    s \<leftarrow> tr_free x s;
+    Some (SKIP, s)
+  }"
 
 
 lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'" sorry
