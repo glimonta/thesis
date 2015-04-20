@@ -306,10 +306,130 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
   }"
 
 
-lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'" sorry
+lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'"
+apply (induction c arbitrary: c')
+sorry
 
-lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))" sorry
 
+lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))"
+proof (induction c)
+  case SKIP
+    thus ?case by simp
+next
+  case (Assignl x a)
+  thus ?case
+  proof (cases "tr_assignl x a s")
+  print_cases
+    case None
+      hence "fstep (x ::== a, s) = None" by auto
+      moreover have "(x ::== a, s) \<rightarrow> None" using None cfg.Assignl small_step.None by blast
+      ultimately show ?thesis by auto
+  next
+    case (Some s\<^sub>2)
+      hence "fstep (x ::== a, s) = Some (SKIP, s\<^sub>2)" by auto
+      moreover have "(x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assignl small_step.Base by blast
+      ultimately show ?thesis by auto
+  qed
+next
+  case (Assign x a)
+  thus ?case
+  proof (cases "tr_assign x a s")
+  print_cases
+    case None
+      hence "fstep (x ::= a, s) = None" by auto
+      moreover have "(x ::= a, s) \<rightarrow> None" using None cfg.Assign small_step.None by blast
+      ultimately show ?thesis by auto
+  next
+    case (Some s\<^sub>2)
+      hence "fstep (x ::= a, s) = Some (SKIP, s\<^sub>2)" by auto
+      moreover have "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assign small_step.Base by blast
+      ultimately show ?thesis by auto
+  qed
+next
+  case (Seq c\<^sub>1 c\<^sub>2) 
+  thus ?case
+  proof (cases "c\<^sub>1 = SKIP")
+    case True
+      hence "fstep (SKIP;; c\<^sub>2, s) = Some (c\<^sub>2, s)" using small_step.Base cfg.Seq1 fstep1 by blast
+      moreover have "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
+      ultimately show ?thesis using Seq `c\<^sub>1 = SKIP` by auto 
+  next
+    case False
+      from Seq.IH(1)[OF this] obtain a where "(c\<^sub>1, s) \<rightarrow> a" ..
+      thus ?thesis
+      proof cases
+        case (Base en tr c\<^sub>1' s\<^sub>2)
+          from Seq2[OF Base(2), of c\<^sub>2] Base
+            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using small_step.Base by auto
+          moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using fstep1 calculation by blast
+          ultimately show ?thesis by auto
+      next    
+        case (None en tr c\<^sub>1')
+          from Seq2[OF None(2), of c\<^sub>2] None 
+            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow>None" using small_step.None by auto
+          moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = None" using fstep1 calculation by blast
+          ultimately show ?thesis by auto
+      qed
+  qed
+next
+  case (If b c\<^sub>1 c\<^sub>2)
+  thus ?case
+  proof (cases "en_pos b s")
+    case None
+      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
+      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
+      ultimately show ?thesis by auto
+  next
+    case (Some v)
+    thus ?thesis
+    proof (cases "tr_eval b s")
+      case None
+      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
+      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
+      ultimately show ?thesis by auto
+    next
+      case (Some s\<^sub>2)
+      thus ?thesis
+      proof (cases v)
+        case True
+          hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>1, s\<^sub>2)" using Some `en_pos b s = Some v` by auto
+          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1, s\<^sub>2)"
+            using Some cfg.IfTrue small_step.Base `en_pos b s = Some v` `v` by metis
+          ultimately show ?thesis by auto
+      next
+        case False[simp]
+          have "en_pos b s = Some False" using `en_pos b s = Some v` by simp
+          hence "en_neg b s = Some True" using en_neg_by_pos by auto
+          moreover have "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>2, s\<^sub>2)"
+            using Some `en_pos b s = Some v` by auto
+          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+            using Some cfg.IfFalse small_step.Base calculation(1) by metis
+          ultimately show ?thesis by auto
+      qed
+    qed
+  qed
+next
+  case (While b c)
+    hence "fstep (WHILE b DO c, s) = Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)" by auto
+    moreover have "(WHILE b DO c, s) \<rightarrow> Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)"
+      using cfg.While small_step.Base by blast
+    ultimately show ?case by auto
+next
+  case (Free x)
+    thus ?case
+    proof (cases "tr_free x s")
+      case None
+        hence "fstep (FREE x, s) = None" by auto
+        moreover have "(FREE x, s) \<rightarrow> None" using None cfg.Free small_step.None by blast
+        ultimately show ?thesis by auto
+    next
+      case (Some s\<^sub>2)
+        hence "fstep (FREE x, s) = Some (SKIP, s\<^sub>2)" by auto
+        moreover have "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Free small_step.Base by blast
+        ultimately show ?thesis by auto
+    qed
+qed
+      
 
 fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
   "is_term (Some (SKIP,_)) = True"
