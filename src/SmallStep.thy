@@ -30,7 +30,7 @@ type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
-abbreviation tr_id :: transformer where "tr_id \<equiv> Some"
+abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
 
 definition "tr_assign x a s \<equiv> do {
   (v,s) \<leftarrow> eval a s;
@@ -238,6 +238,13 @@ qed
 lemma cfg_SKIP_stuck[simp]: "\<not> cfg SKIP a c"
   by (auto elim: cfg.cases)
 
+lemma ss_SKIP_stuck[simp]: "\<not>( (SKIP,s) \<rightarrow> cs')"
+  by (auto elim: small_step.cases)
+
+lemma ss'_SKIP_stuck[simp]: "\<not>( Some (SKIP,s) \<rightarrow>' cs')"
+  by (auto elim: small_step'.cases)
+
+
 lemma en_neg_by_pos: "en_neg e s = map_option (HOL.Not) (en_pos e s)"
   unfolding en_pos_def en_neg_def
   by (auto split: option_bind_splits)
@@ -290,11 +297,10 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     s \<leftarrow> tr_assignl x a s;
     Some (SKIP,s)
   }"
+| "fstep (SKIP;;c, s) = Some (c,s)"
 | "fstep (c\<^sub>1;; c\<^sub>2, s) = do {
     (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
-    case c\<^sub>1' of
-      SKIP \<Rightarrow> Some (c\<^sub>2, s) |
-      _ \<Rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s)
+    Some (c\<^sub>1' ;; c\<^sub>2, s)
   }"
 | "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = do {
     v \<leftarrow> en_pos b s;
@@ -307,9 +313,15 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     Some (SKIP, s)
   }"
 
+lemma fstep_seq_nSKIP[simp]: "c\<^sub>1 \<noteq> SKIP \<Longrightarrow> fstep (c\<^sub>1;; c\<^sub>2, s) = do {
+    (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
+    Some (c\<^sub>1' ;; c\<^sub>2, s)
+  }"
+  by (cases c\<^sub>1) auto
+
 
 lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'"
-proof (induction c arbitrary: c')
+proof (induction c arbitrary: s c')
   case SKIP
     hence False using cfg.cases small_step.cases by fastforce
     thus ?case by auto
@@ -345,33 +357,44 @@ next
   qed
 next
   case (Seq c\<^sub>1 c\<^sub>2)
-  thus ?case
-  proof (cases "c\<^sub>1 = SKIP")
-    case True
-      hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
-      moreover have "fstep (c\<^sub>1;;c\<^sub>2, s) = Some (c\<^sub>2, s)" using True by simp
-      ultimately show ?thesis using True fstep.simps Seq small_step_determ by fast
-  next
-    case False
-      obtain a where "(c\<^sub>1, s) \<rightarrow> a" using aux[OF False] by blast
+  from Seq.prems show ?case
+  proof cases
+    case (Base en tr c\<^sub>1' s\<^sub>2)
+    note [simp] = Base(1)
+    from Base(2) show ?thesis
+    proof cases
+      case Seq1 
       thus ?thesis
-      proof cases
-        case (Base en tr c\<^sub>1' s\<^sub>2)
-          from Seq2[OF Base(2), of c\<^sub>2] Base
-            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using small_step.Base by auto
-          moreover have "fstep (c\<^sub>1, s) = Some (c\<^sub>1', s\<^sub>2)" using Seq Base `(c\<^sub>1, s) \<rightarrow> a` by simp
-(*          moreover have "fstep (c\<^sub>1;; c\<^sub>2, s) = Some (c\<^sub>1';; c\<^sub>2, s\<^sub>2)" *)
-          ultimately show ?thesis sorry
-      next
-        case (None en tr c\<^sub>1')
-          from Seq2[OF None(2), of c\<^sub>2] None 
-            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> None" using small_step.None by auto
-          moreover have "fstep (c\<^sub>1, s) = None" using Seq None `(c\<^sub>1, s) \<rightarrow> a` by simp
-          moreover from fstep.simps(4) [of c\<^sub>1 c\<^sub>2 s] calculation(2) bind_lzero
-            have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = None" by auto
-          ultimately show ?thesis using small_step_determ Seq by simp
-      qed
-  qed
+        using Base
+        by simp
+    next    
+      case (Seq2 cc\<^sub>1) 
+      hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
+
+      from Base(3,4) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> Some (cc\<^sub>1,s\<^sub>2)"
+        by (blast intro: small_step.intros)
+      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = Some (cc\<^sub>1, s\<^sub>2)" .
+
+      show ?thesis using \<open>c\<^sub>1' = cc\<^sub>1;; c\<^sub>2\<close>
+        by simp
+    qed
+  next     
+    case (None en tr c\<^sub>1')
+    note [simp] = \<open>c'=None\<close>
+    from None(2) show ?thesis
+    proof cases
+      case Seq1 with None(3) have False by auto thus ?thesis ..
+    next
+      case (Seq2 cc1)
+      hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
+
+      from None(3) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> None"
+        by (blast intro: small_step.intros)
+      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = None" .
+      show ?thesis  
+        by simp
+    qed
+  qed    
 next
   case (If b c\<^sub>1 c\<^sub>2)
   thus ?case
@@ -430,8 +453,6 @@ next
         ultimately show ?thesis using Free small_step_determ by simp
     qed
 qed
-
-
 
 lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))"
 proof (induction c)
@@ -562,36 +583,183 @@ fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
 definition interp :: "com \<times> state \<Rightarrow> (com\<times>state) option" where
   "interp cs \<equiv> (while 
     (HOL.Not o is_term)
-    (\<lambda>Some (c,s) \<Rightarrow> fstep (c,s))
+    (\<lambda>Some cs \<Rightarrow> fstep cs)
     (Some cs))"
+
+lemma interp_unfold: "interp cs = (
+    if is_term (Some cs) then
+      Some cs
+    else do {
+      cs \<leftarrow> fstep cs;
+      interp cs
+    }
+  )"
+  unfolding interp_def
+  apply (subst while_unfold)
+  apply (auto split: option_bind_split)
+  apply (subst while_unfold)
+  apply auto
+  done
+  
+
+lemma interp_term: "is_term (Some cs) \<Longrightarrow> interp cs = Some cs"
+  apply (subst interp_unfold)
+  by simp
 
 definition "yields == \<lambda>cs cs'. Some cs \<rightarrow>* cs' \<and> is_term cs'"
 definition "terminates == \<lambda>cs. \<exists>cs'. yields cs cs'"
 
-theorem 
+lemma None_star_preserved[simp]: "None \<rightarrow>* z \<longleftrightarrow> z=None"
+proof  
+  assume "None \<rightarrow>* z"
+  thus "z=None"
+    apply (induction "None::(com\<times>state) option" z rule: star.induct)
+    apply (auto elim: small_step'.cases)
+    done
+qed auto
+
+lemma small_step'_determ:
+  assumes "c \<rightarrow>' c1"
+  assumes "c \<rightarrow>' c2"
+  shows "c1=c2"
+  using assms(1)
+  apply cases
+  using assms(2)
+  apply (cases)
+  apply (auto simp: small_step_determ)
+  done
+
+
+theorem interp_correct:
   assumes TERM: "terminates cs" 
   shows "(yields cs cs') \<longleftrightarrow> (cs' = interp cs)"
 proof safe
   assume "yields cs cs'"
   hence a: "Some cs \<rightarrow>* cs'" and b: "is_term cs'" unfolding yields_def by auto
-  show "cs' = interp cs"
-(*  proof (induction arbitrary: cs')*)
-  show ?thesis sorry
-  thm while_unfold
-  (*thm while_rule*)
-next
+  thus "cs' = interp cs"
+  proof (induction _ "Some cs" _ arbitrary: cs rule: star.induct)
+    case refl with interp_term show ?case by simp
+  next  
+    case (step csh cs') 
+    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
+      apply (cases)
+      apply (cases cs, cases csh)
+      apply (auto intro: fstep1)
+      done
+
+    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)"
+      apply (cases "Some cs" rule: is_term.cases)
+      by simp_all
+
+    show ?case
+    proof (cases csh)
+      case None[simp]
+
+      from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
+
+      show ?thesis
+        by (subst interp_unfold) simp
+    next
+      case (Some cst)[simp]
+
+      have "interp cs = interp cst"
+        by (subst interp_unfold) simp
+      thus ?thesis using step.hyps(3)[OF Some step.prems]
+        by simp
+    qed    
+  qed
+next  
   from TERM obtain cs' where 
-    "Some cs \<rightarrow>* cs'" "is_term cs'" 
+    1: "Some cs \<rightarrow>* cs'" "is_term cs'" 
     unfolding yields_def terminates_def by auto
-  have "Some cs \<rightarrow>* interp cs" "is_term (interp cs)" sorry
+  hence "cs'=interp cs"
+  proof (induction "Some cs" _ arbitrary: cs rule: star.induct)
+    case refl thus ?case by (simp add: interp_term)
+  next  
+    case (step csh cs')
+
+    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
+      apply (cases)
+      apply (cases cs, cases csh)
+      apply (auto intro: fstep1)
+      done
+
+    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)"
+      apply (cases "Some cs" rule: is_term.cases)
+      by simp_all
+
+    show ?case
+    proof (cases csh)
+      case None[simp]
+
+      from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
+
+      show ?thesis
+        by (subst interp_unfold) simp
+    next
+      case (Some cst)[simp]
+
+      have "interp cs = interp cst"
+        by (subst interp_unfold) simp
+      thus ?thesis using step.hyps(3)[OF Some step.prems]
+        by simp
+    qed    
+  qed
+  with 1 have "Some cs \<rightarrow>* interp cs" "is_term (interp cs)" by simp_all
   thus "yields cs (interp cs)" by (auto simp: yields_def)
 qed  
 
 
-
-
+lemmas [code] = interp_unfold
 
 export_code interp in SML
+
+
+definition "uninit name \<equiv> Code.abort (STR ''Uninitialized variable'') (\<lambda>_. undefined name)"
+
+definition initial_loc :: loc where "initial_loc \<equiv> \<lambda>name. uninit name"
+definition initial_mem :: mem where "initial_mem \<equiv> []"
+definition initial_state :: state where "initial_state \<equiv> (initial_loc, initial_mem)"
+
+export_code initial_state in SML
+
+definition "test1 c \<equiv> 
+  ''p'' ::= New (Plus (Const (I c)) (Const (I 1)));;
+  ''i'' ::= Const (I 0);;
+  WHILE (Less (V ''i'') (Const (I c))) DO (
+    (Indexl (V ''p'') (V ''i'')) ::== (Plus (V ''i'') (Const (I 1)));;
+    ''i'' ::= Plus (V ''i'') (Const (I 1))
+  );;
+  ''l'' ::= Const (I 0)
+  ;;
+  WHILE (Deref (V ''p'')) DO (
+    ''l'' ::= Plus (V ''l'') (Const (I 1));;
+    ''p'' ::= Plus (V ''p'') (Const (I 1))
+  )"
+
+definition "test1' \<equiv> test1 5"
+
+ML_val {*
+
+  val interp = @{code interp}
+
+  val s = (@{code test1'}, @{code initial_state});
+  val step = @{code fstep};
+
+  val SOME (_,(l,m)) = interp s
+  val r = l [#"l"]
+*}
+
+
+value 
+  "case interp (test1 5, initial_state) of Some (_,(l,_)) \<Rightarrow> l ''l''"
+
+
+
+
+
+
+
 
 
 end
