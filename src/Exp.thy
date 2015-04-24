@@ -34,10 +34,11 @@ abbreviation "list_size xs \<equiv> int(length xs)"
 datatype exp = Const val
              | Null          
              | V     vname
-             | Plus  exp exp  
+             | Plus  exp exp
              | Less  exp exp
              | Not   exp
              | And   exp exp
+             | Or    exp exp
              | New   exp
              | Deref exp    (* * *)
              | Ref   lexp    (* & *)
@@ -50,6 +51,7 @@ fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
 | "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
+ 
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
@@ -155,6 +157,15 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
 | "eval (And b\<^sub>1 b\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval b\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
+  v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+(* p \<or> q \<equiv> \<not>(\<not> p \<and> \<not>q)*)
+| "eval (Or b\<^sub>1 b\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval b\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
+  v\<^sub>1 \<leftarrow> not_val v\<^sub>1;
+  v\<^sub>2 \<leftarrow> not_val v\<^sub>2;
   v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"

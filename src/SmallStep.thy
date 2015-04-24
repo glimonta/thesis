@@ -123,7 +123,7 @@ apply (metis Assign Base not_None_eq small_step.intros(2))
 
 
 
-lemma 
+lemma aux:
   assumes "c\<noteq>SKIP"
   shows "\<exists>x. (c,s) \<rightarrow> x"
   using assms
@@ -292,7 +292,9 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
   }"
 | "fstep (c\<^sub>1;; c\<^sub>2, s) = do {
     (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
-    Some (c\<^sub>1' ;; c\<^sub>2, s)
+    case c\<^sub>1' of
+      SKIP \<Rightarrow> Some (c\<^sub>2, s) |
+      _ \<Rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s)
   }"
 | "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = do {
     v \<leftarrow> en_pos b s;
@@ -343,7 +345,33 @@ next
   qed
 next
   case (Seq c\<^sub>1 c\<^sub>2)
-  thus ?case sorry
+  thus ?case
+  proof (cases "c\<^sub>1 = SKIP")
+    case True
+      hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
+      moreover have "fstep (c\<^sub>1;;c\<^sub>2, s) = Some (c\<^sub>2, s)" using True by simp
+      ultimately show ?thesis using True fstep.simps Seq small_step_determ by fast
+  next
+    case False
+      obtain a where "(c\<^sub>1, s) \<rightarrow> a" using aux[OF False] by blast
+      thus ?thesis
+      proof cases
+        case (Base en tr c\<^sub>1' s\<^sub>2)
+          from Seq2[OF Base(2), of c\<^sub>2] Base
+            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using small_step.Base by auto
+          moreover have "fstep (c\<^sub>1, s) = Some (c\<^sub>1', s\<^sub>2)" using Seq Base `(c\<^sub>1, s) \<rightarrow> a` by simp
+(*          moreover have "fstep (c\<^sub>1;; c\<^sub>2, s) = Some (c\<^sub>1';; c\<^sub>2, s\<^sub>2)" *)
+          ultimately show ?thesis sorry
+      next
+        case (None en tr c\<^sub>1')
+          from Seq2[OF None(2), of c\<^sub>2] None 
+            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> None" using small_step.None by auto
+          moreover have "fstep (c\<^sub>1, s) = None" using Seq None `(c\<^sub>1, s) \<rightarrow> a` by simp
+          moreover from fstep.simps(4) [of c\<^sub>1 c\<^sub>2 s] calculation(2) bind_lzero
+            have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = None" by auto
+          ultimately show ?thesis using small_step_determ Seq by simp
+      qed
+  qed
 next
   case (If b c\<^sub>1 c\<^sub>2)
   thus ?case
@@ -545,8 +573,10 @@ theorem
   shows "(yields cs cs') \<longleftrightarrow> (cs' = interp cs)"
 proof safe
   assume "yields cs cs'"
-  hence "Some cs \<rightarrow>* cs'" "is_term cs'" unfolding yields_def by auto
-  show "cs' = interp cs" sorry
+  hence a: "Some cs \<rightarrow>* cs'" and b: "is_term cs'" unfolding yields_def by auto
+  show "cs' = interp cs"
+(*  proof (induction arbitrary: cs')*)
+  show ?thesis sorry
   thm while_unfold
   (*thm while_rule*)
 next
