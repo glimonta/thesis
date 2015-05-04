@@ -51,7 +51,6 @@ fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
 | "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
- 
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
