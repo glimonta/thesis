@@ -715,52 +715,5 @@ lemmas [code] = interp_unfold
 export_code interp in SML
 
 
-definition "uninit name \<equiv> Code.abort (STR ''Uninitialized variable'') (\<lambda>_. undefined name)"
-
-definition initial_loc :: loc where "initial_loc \<equiv> \<lambda>name. uninit name"
-definition initial_mem :: mem where "initial_mem \<equiv> []"
-definition initial_state :: state where "initial_state \<equiv> (initial_loc, initial_mem)"
-
-export_code initial_state in SML
-
-definition "test1 c \<equiv> 
-  ''p'' ::= New (Plus (Const (I c)) (Const (I 1)));;
-  ''i'' ::= Const (I 0);;
-  WHILE (Less (V ''i'') (Const (I c))) DO (
-    (Indexl (V ''p'') (V ''i'')) ::== (Plus (V ''i'') (Const (I 1)));;
-    ''i'' ::= Plus (V ''i'') (Const (I 1))
-  );;
-  ''l'' ::= Const (I 0)
-  ;;
-  WHILE (Deref (V ''p'')) DO (
-    ''l'' ::= Plus (V ''l'') (Const (I 1));;
-    ''p'' ::= Plus (V ''p'') (Const (I 1))
-  )"
-
-definition "test1' \<equiv> test1 5"
-
-ML_val {*
-
-  val interp = @{code interp}
-
-  val s = (@{code test1'}, @{code initial_state});
-  val step = @{code fstep};
-
-  val SOME (_,(l,m)) = interp s
-  val r = l [#"l"]
-*}
-
-
-value 
-  "case interp (test1 5, initial_state) of Some (_,(l,_)) \<Rightarrow> l ''l''"
-
-
-
-
-
-
-
-
-
 end
 
