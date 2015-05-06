@@ -2,7 +2,6 @@ theory Test
 imports SmallStep
 begin
 
-
 definition "uninit name \<equiv> Code.abort (STR ''Uninitialized variable'') (\<lambda>_. undefined name)"
 
 definition initial_loc :: loc where "initial_loc \<equiv> \<lambda>name. uninit name"
@@ -57,7 +56,7 @@ ML_val {*
 *}
 
 
-value 
+value
   "case interp (test1 5, initial_state) of Some (_,(l,_)) \<Rightarrow> l ''l''"
 
 definition "add_test a b \<equiv>
@@ -65,7 +64,7 @@ definition "add_test a b \<equiv>
 
 definition "add_test' \<equiv> add_test 1 2"
 
-value 
+value
   "case interp (add_test 1 2, initial_state) of Some (_,(l,_)) \<Rightarrow> l cc"
 
 (* I need multiplication for this *)
@@ -77,5 +76,47 @@ definition "factorial_test n \<equiv>
   FOR cc FROM (Const (I 1)) TO (V nn) DO
   SKIP
 "
+
+definition "bubblesort_test \<equiv>
+  aa ::= New (Const (I 10));;
+  (Indexl (V aa) (Const (I 0))) ::== (Const (I 44));;
+  (Indexl (V aa) (Const (I 1))) ::== (Const (I 98));;
+  (Indexl (V aa) (Const (I 2))) ::== (Const (I 60));;
+  (Indexl (V aa) (Const (I 3))) ::== (Const (I 26));;
+  (Indexl (V aa) (Const (I 4))) ::== (Const (I 54));;
+  (Indexl (V aa) (Const (I 5))) ::== (Const (I 1));;
+  (Indexl (V aa) (Const (I 6))) ::== (Const (I 92));;
+  (Indexl (V aa) (Const (I 7))) ::== (Const (I 84));;
+  (Indexl (V aa) (Const (I 8))) ::== (Const (I 38));;
+  (Indexl (V aa) (Const (I 9))) ::== (Const (I 80));;
+
+  nn ::= (Const (I 10));;
+  tt ::= (Const (I 0));;
+
+
+  FOR ii FROM (Const (I 1)) TO (V nn) DO
+    (FOR jj FROM (Const (I 0)) TO (Plus (V nn) (Const (I -1))) DO
+      (IF (Less (Index (V aa) (Plus (V jj) (Const (I 1)))) (Index (V aa) (V jj)))
+      THEN (tt ::= (Index (V aa) (V jj));;
+        (Indexl (V aa) (V jj)) ::== (Index (V aa) (Plus (V jj) (Const (I 1))));;
+        (Indexl (V aa) (Plus (V jj) (Const (I 1)))) ::== (V tt))
+      ELSE SKIP))
+"
+
+value
+  "case interp (bubblesort_test, initial_state) of Some (_,(l,m)) \<Rightarrow> (l bb, m)"
+
+ML {*
+
+val interp = @{code interp}
+
+  val s = (@{code bubblesort_test}, @{code initial_state});
+  val step = @{code fstep};
+
+  val SOME (_,(l,m)) = interp s
+val r = l [#"a"]
+val r2 = hd m
+*}
+
 
 end
