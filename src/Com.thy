@@ -3,7 +3,7 @@ imports Exp
 begin
 
 datatype
-  com = SKIP 
+  com = SKIP
       | Assignl lexp exp       ("_ ::== _" [1000, 61] 61)
       | Assign  vname exp      ("_ ::= _" [1000, 61] 61)
       | Seq     com  com       ("_;;/ _"  [60, 61] 60)

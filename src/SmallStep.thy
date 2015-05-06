@@ -1,21 +1,21 @@
 theory SmallStep
-imports 
-  Com 
-  "~~/src/HOL/IMP/Star"  
+imports
+  Com
+  "~~/src/HOL/IMP/Star"
   "~~/src/HOL/Library/While_Combinator"
   "~~/src/HOL/Library/Code_Char"
   "~~/src/HOL/Library/Code_Target_Int"
   "~~/src/HOL/Library/Code_Target_Nat"
 begin
 
-  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under 
+  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
     Option.bind_split{s,_asm}*)
-  lemma option_bind_split: "P (Option.bind m f) 
+  lemma option_bind_split: "P (Option.bind m f)
   \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
     by (cases m) auto
 
   lemma option_bind_split_asm: "P (Option.bind m f) = (\<not>(
-      m=None \<and> \<not>P None 
+      m=None \<and> \<not>P None
     \<or> (\<exists>x. m=Some x \<and> \<not>P (f x))))"
     by (cases m) auto
 
@@ -108,11 +108,11 @@ abbreviation
   small_steps :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>*" 55)
 where "x \<rightarrow>* y == star small_step' x y"
 
-(** A sanity check. I'm trying to prove that the semantics 
-  only gets stuck at SKIP. This may reveal some problems in your 
+(** A sanity check. I'm trying to prove that the semantics
+  only gets stuck at SKIP. This may reveal some problems in your
   current semantics: **)
 
-(*lemma 
+(*lemma
   assumes "c\<noteq>SKIP"
   shows "\<exists>x. (c,s) \<rightarrow> x"
   using assms apply (induction c)
@@ -249,14 +249,14 @@ lemma en_neg_by_pos: "en_neg e s = map_option (HOL.Not) (en_pos e s)"
   unfolding en_pos_def en_neg_def
   by (auto split: option_bind_splits)
 
-lemma cfg_determ: 
-  assumes "cfg c a1 c'" 
-  assumes "cfg c a2 c''" 
-  obtains 
+lemma cfg_determ:
+  assumes "cfg c a1 c'"
+  assumes "cfg c a2 c''"
+  obtains
       "a1=a2" "c' = c''"
     | b where "a1 = (en_pos b,tr_eval b)" "a2 = (en_neg b,tr_eval b)"
     | b where "a1 = (en_neg b,tr_eval b)" "a2 = (en_pos b,tr_eval b)"
-  using assms  
+  using assms
   apply (induction arbitrary: c'')
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
@@ -273,7 +273,7 @@ lemma small_step_determ:
   assumes "(c,s) \<rightarrow> c'"
   assumes "(c,s) \<rightarrow> c''"
   shows "c'=c''"
-  using assms  
+  using assms
   apply (cases)
   apply (erule small_step.cases)
   apply simp
@@ -363,12 +363,12 @@ next
     note [simp] = Base(1)
     from Base(2) show ?thesis
     proof cases
-      case Seq1 
+      case Seq1
       thus ?thesis
         using Base
         by simp
-    next    
-      case (Seq2 cc\<^sub>1) 
+    next
+      case (Seq2 cc\<^sub>1)
       hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
 
       from Base(3,4) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> Some (cc\<^sub>1,s\<^sub>2)"
@@ -378,7 +378,7 @@ next
       show ?thesis using \<open>c\<^sub>1' = cc\<^sub>1;; c\<^sub>2\<close>
         by simp
     qed
-  next     
+  next
     case (None en tr c\<^sub>1')
     note [simp] = \<open>c'=None\<close>
     from None(2) show ?thesis
@@ -391,10 +391,10 @@ next
       from None(3) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> None"
         by (blast intro: small_step.intros)
       from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = None" .
-      show ?thesis  
+      show ?thesis
         by simp
     qed
-  qed    
+  qed
 next
   case (If b c\<^sub>1 c\<^sub>2)
   thus ?case
@@ -489,13 +489,13 @@ next
       ultimately show ?thesis by auto
   qed
 next
-  case (Seq c\<^sub>1 c\<^sub>2) 
+  case (Seq c\<^sub>1 c\<^sub>2)
   thus ?case
   proof (cases "c\<^sub>1 = SKIP")
     case True
       hence "fstep (SKIP;; c\<^sub>2, s) = Some (c\<^sub>2, s)" using small_step.Base cfg.Seq1 fstep1 by blast
       moreover have "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
-      ultimately show ?thesis using Seq `c\<^sub>1 = SKIP` by auto 
+      ultimately show ?thesis using Seq `c\<^sub>1 = SKIP` by auto
   next
     case False
       from Seq.IH(1)[OF this] obtain a where "(c\<^sub>1, s) \<rightarrow> a" ..
@@ -506,9 +506,9 @@ next
             have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using small_step.Base by auto
           moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using fstep1 calculation by blast
           ultimately show ?thesis by auto
-      next    
+      next
         case (None en tr c\<^sub>1')
-          from Seq2[OF None(2), of c\<^sub>2] None 
+          from Seq2[OF None(2), of c\<^sub>2] None
             have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow>None" using small_step.None by auto
           moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = None" using fstep1 calculation by blast
           ultimately show ?thesis by auto
@@ -572,7 +572,7 @@ next
         ultimately show ?thesis by auto
     qed
 qed
-      
+
 
 fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
   "is_term (Some (SKIP,_)) = True"
@@ -581,7 +581,7 @@ fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
 
 
 definition interp :: "com \<times> state \<Rightarrow> (com\<times>state) option" where
-  "interp cs \<equiv> (while 
+  "interp cs \<equiv> (while
     (HOL.Not o is_term)
     (\<lambda>Some cs \<Rightarrow> fstep cs)
     (Some cs))"
@@ -600,7 +600,7 @@ lemma interp_unfold: "interp cs = (
   apply (subst while_unfold)
   apply auto
   done
-  
+
 
 lemma interp_term: "is_term (Some cs) \<Longrightarrow> interp cs = Some cs"
   apply (subst interp_unfold)
@@ -610,7 +610,7 @@ definition "yields == \<lambda>cs cs'. Some cs \<rightarrow>* cs' \<and> is_term
 definition "terminates == \<lambda>cs. \<exists>cs'. yields cs cs'"
 
 lemma None_star_preserved[simp]: "None \<rightarrow>* z \<longleftrightarrow> z=None"
-proof  
+proof
   assume "None \<rightarrow>* z"
   thus "z=None"
     apply (induction "None::(com\<times>state) option" z rule: star.induct)
@@ -631,7 +631,7 @@ lemma small_step'_determ:
 
 
 theorem interp_correct:
-  assumes TERM: "terminates cs" 
+  assumes TERM: "terminates cs"
   shows "(yields cs cs') \<longleftrightarrow> (cs' = interp cs)"
 proof safe
   assume "yields cs cs'"
@@ -639,8 +639,8 @@ proof safe
   thus "cs' = interp cs"
   proof (induction _ "Some cs" _ arbitrary: cs rule: star.induct)
     case refl with interp_term show ?case by simp
-  next  
-    case (step csh cs') 
+  next
+    case (step csh cs')
     from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
       apply (cases)
       apply (cases cs, cases csh)
@@ -666,16 +666,16 @@ proof safe
         by (subst interp_unfold) simp
       thus ?thesis using step.hyps(3)[OF Some step.prems]
         by simp
-    qed    
+    qed
   qed
-next  
-  from TERM obtain cs' where 
-    1: "Some cs \<rightarrow>* cs'" "is_term cs'" 
+next
+  from TERM obtain cs' where
+    1: "Some cs \<rightarrow>* cs'" "is_term cs'"
     unfolding yields_def terminates_def by auto
   hence "cs'=interp cs"
   proof (induction "Some cs" _ arbitrary: cs rule: star.induct)
     case refl thus ?case by (simp add: interp_term)
-  next  
+  next
     case (step csh cs')
 
     from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
@@ -703,11 +703,11 @@ next
         by (subst interp_unfold) simp
       thus ?thesis using step.hyps(3)[OF Some step.prems]
         by simp
-    qed    
+    qed
   qed
   with 1 have "Some cs \<rightarrow>* interp cs" "is_term (interp cs)" by simp_all
   thus "yields cs (interp cs)" by (auto simp: yields_def)
-qed  
+qed
 
 
 lemmas [code] = interp_unfold

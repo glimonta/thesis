@@ -32,7 +32,7 @@ abbreviation "list_size xs \<equiv> int(length xs)"
 
 (* Null is to separate addresses from values *)
 datatype exp = Const val
-             | Null          
+             | Null
              | V     vname
              | Plus  exp exp
              | Less  exp exp
@@ -87,34 +87,34 @@ fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
         None \<Rightarrow> False
       | Some b \<Rightarrow> 0\<le>j \<and> nat j < length b)
     else False)"
-      
+
 fun ofs_addr :: "addr \<Rightarrow> int_val \<Rightarrow> addr" where
   "ofs_addr (i,j) ofs = (i,j + sint ofs)"
 
 definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
-  "load \<equiv> \<lambda>(i,j) \<mu>. 
+  "load \<equiv> \<lambda>(i,j) \<mu>.
     if valid_mem (i,j) \<mu> then
       Some (the (\<mu>!i) !! j)
-    else  
+    else
       None"
 
 definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem option" where
-  "store \<equiv> \<lambda>(i,j) \<mu> v. 
+  "store \<equiv> \<lambda>(i,j) \<mu> v.
     if valid_mem (i,j) \<mu> then
       Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := v] )])
-    else  
+    else
       None"
 
 definition free :: "addr \<Rightarrow> mem \<Rightarrow> mem option" where
-  "free \<equiv>  \<lambda>(i,j) \<mu>. 
+  "free \<equiv>  \<lambda>(i,j) \<mu>.
     if valid_mem (i,j) \<mu> then
       Some (\<mu>[i := None])
-    else  
+    else
       None"
 
 (*
 fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
-  "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"  
+  "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"
 | "get_mem _ _ = None"
 
 value "get_mem (A (0,0)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
@@ -206,14 +206,14 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
     v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
     case v of
       A addr \<Rightarrow> Some (addr,s)
-    | _ \<Rightarrow> None  
+    | _ \<Rightarrow> None
   }"*)
 | "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
     (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
     (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
     case (v\<^sub>1,v\<^sub>2) of
       (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+sint incr),s)
-    | _ \<Rightarrow> None  
+    | _ \<Rightarrow> None
   }"
 
 
