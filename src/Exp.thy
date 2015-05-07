@@ -39,6 +39,7 @@ datatype exp = Const val
              | Not   exp
              | And   exp exp
              | Or    exp exp
+             | Eq    exp exp
              | New   exp
              | Deref exp    (* * *)
              | Ref   lexp    (* & *)
@@ -64,6 +65,18 @@ fun not_val :: "val \<Rightarrow> val option" where
 fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "and_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = 0 then Some (I 0) else (if i\<^sub>2 = 0 then Some (I 0) else Some (I 1)))"
 | "and_val a\<^sub>1 a\<^sub>2 = None"
+
+fun eq_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "eq_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = i\<^sub>2 then Some (I 1) else Some (I 0))"
+| "eq_val (A (i\<^sub>1,j\<^sub>1)) (A (i\<^sub>2,j\<^sub>2)) = (if i\<^sub>1 = i\<^sub>2 \<and> j\<^sub>1 = j\<^sub>2 then Some (I 1) else Some (I 0))"
+| "eq_val a\<^sub>1 a\<^sub>2 = None"
+
+value "eq_val (I 5) (I 6)"
+value "eq_val (I 5) (I 5)"
+value "eq_val (A (0,1)) (A (6,5))"
+value "eq_val (A (0,1)) (A (0,5))"
+value "eq_val (A (6,5)) (A (6,5))"
+value "eq_val (I 1) (A (6,5))"
 
 (* Allocates a new block in the memory *)
 (* n
@@ -166,6 +179,12 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
   v\<^sub>1 \<leftarrow> not_val v\<^sub>1;
   v\<^sub>2 \<leftarrow> not_val v\<^sub>2;
   v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+| "eval (Eq e\<^sub>1 e\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval e\<^sub>2 s;
+  v \<leftarrow> eq_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
 | "eval (New e) s = do {
