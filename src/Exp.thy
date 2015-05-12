@@ -13,6 +13,7 @@ type_synonym int_width = 32
 type_synonym int_val = "int_width word"
 (* A value can be either an integer or an address *)
 datatype val = NullVal | I int_val | A addr
+
 (*
   A state is a pair in which the first element represents the content of the local variables
   and the second element represents the content of the blocked memory.
@@ -21,8 +22,8 @@ datatype val = NullVal | I int_val | A addr
   a list of values.
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
-type_synonym loc = "vname \<Rightarrow> val"
-type_synonym mem = "val list option list"
+type_synonym loc = "vname \<Rightarrow> val option"
+type_synonym mem = "val option list option list"
 type_synonym state = "loc \<times> mem"
 
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
@@ -87,7 +88,7 @@ fun new_block :: "val \<Rightarrow> mem \<Rightarrow> (val \<times> mem) option"
   "new_block (I i) \<mu> = (
     if sint i < 0 then None
     else
-      Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat (sint i)) (I 0))])
+      Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat (sint i)) None)])
   )"
 | "new_block _ _ = None"
 
@@ -106,15 +107,16 @@ fun ofs_addr :: "addr \<Rightarrow> int_val \<Rightarrow> addr" where
 
 definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
   "load \<equiv> \<lambda>(i,j) \<mu>.
-    if valid_mem (i,j) \<mu> then
-      Some (the (\<mu>!i) !! j)
-    else
+    if valid_mem (i,j) \<mu> then do {
+      v \<leftarrow> (the (\<mu>!i) !! j);  (* Yields None if memory location is uninitialized *)
+      Some v
+    } else
       None"
 
 definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem option" where
   "store \<equiv> \<lambda>(i,j) \<mu> v.
     if valid_mem (i,j) \<mu> then
-      Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := v] )])
+      Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := Some v] )])
     else
       None"
 
@@ -148,7 +150,10 @@ fun eval :: "exp \<Rightarrow> state \<Rightarrow> (val \<times> state) option"
 and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) option" where
   "eval (Const c) s = Some (c, s)"
 | "eval Null s = Some (NullVal, s)"
-| "eval (V x) (\<sigma>, \<mu>) = Some (\<sigma> x, (\<sigma>, \<mu>))"
+| "eval (V x) (\<sigma>, \<mu>) = do {
+    v \<leftarrow> \<sigma> x;
+    Some (v, (\<sigma>, \<mu>))
+    }"
 | "eval (Plus i\<^sub>1 i\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;

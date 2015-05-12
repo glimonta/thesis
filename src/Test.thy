@@ -2,9 +2,7 @@ theory Test
 imports SmallStep
 begin
 
-definition "uninit name \<equiv> Code.abort (STR ''Uninitialized variable'') (\<lambda>_. undefined name)"
-
-definition initial_loc :: loc where "initial_loc \<equiv> \<lambda>name. uninit name"
+definition initial_loc :: loc where "initial_loc \<equiv> \<lambda>name. None"
 definition initial_mem :: mem where "initial_mem \<equiv> []"
 definition initial_state :: state where "initial_state \<equiv> (initial_loc, initial_mem)"
 
@@ -35,6 +33,7 @@ definition "test1 c \<equiv>
     (Indexl (V pp) (V ii)) ::== (Plus (V ii) (Const (I 1)));;
     ii ::= Plus (V ii) (Const (I 1))
   );;
+  (Indexl (V pp) (V ii)) ::== (Const (I 0)) ;;
   ll ::= Const (I 0)
   ;;
   WHILE (Deref (V pp)) DO (

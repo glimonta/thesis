@@ -23,7 +23,7 @@ begin
 
 
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
-  "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=a), \<mu>)"
+  "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=Some a), \<mu>)"
 
 type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
