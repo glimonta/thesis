@@ -1,6 +1,6 @@
 theory SmallStep
 imports
-  Com
+  Eval
   "~~/src/HOL/IMP/Star"
   "~~/src/HOL/Library/While_Combinator"
   "~~/src/HOL/Library/Code_Char"
