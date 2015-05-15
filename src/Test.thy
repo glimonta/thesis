@@ -2,9 +2,12 @@ theory Test
 imports SmallStep
 begin
 
-definition initial_loc :: valuation where "initial_loc \<equiv> \<lambda>name. None"
+definition initial_stack :: "stack_frame list" where "initial_stack \<equiv> []"
+definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
+definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None"
 definition initial_mem :: mem where "initial_mem \<equiv> []"
-definition initial_state :: state where "initial_state \<equiv> (initial_loc, initial_mem)"
+definition initial_state :: state 
+  where "initial_state \<equiv> (initial_stack, initial_glob, initial_proc, initial_mem)"
 
 export_code initial_state in SML
 

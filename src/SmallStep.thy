@@ -21,9 +21,9 @@ begin
 
   lemmas option_bind_splits = option_bind_split option_bind_split_asm
 
-
+(*
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
-  "update_locs x a (\<sigma>, \<mu>) = (\<sigma>(x:=Some a), \<mu>)"
+  "update_locs x a (\<sigma>, \<gamma>, \<mu>) = (\<sigma>(x:=Some a), \<gamma>, \<mu>)"*)
 
 type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
@@ -34,16 +34,16 @@ abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
 
 definition "tr_assign x a s \<equiv> do {
   (v,s) \<leftarrow> eval a s;
-  let s = update_locs x v s;
+  s \<leftarrow> write_var x v s;
   Some s
 }"
 
 definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
 where "tr_assignl x a s \<equiv> do {
   (addr,s) \<leftarrow> eval_l x s;
-  (v,(\<sigma>, \<mu>)) \<leftarrow> eval a s;
+  (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
   \<mu> \<leftarrow> store addr \<mu> v;
-  Some (\<sigma>, \<mu>)
+  Some (\<sigma>, \<gamma>, \<rho>, \<mu>)
 }"
 
 fun truth_value_of :: "val \<Rightarrow> bool" where
@@ -73,10 +73,77 @@ definition tr_eval :: "exp \<Rightarrow> transformer" where
 
 definition tr_free :: "lexp \<Rightarrow> transformer" where
   "tr_free e s \<equiv> do {
-    (addr, (\<sigma>, \<mu>)) \<leftarrow> eval_l e s;
+    (addr, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l e s;
     \<mu> \<leftarrow> free addr \<mu>;
-    Some (\<sigma>, \<mu>)
+    Some (\<sigma>, \<gamma>, \<rho>, \<mu>)
   }"
+
+(* A function can be called if the number of parameters from the function and the actual parameters
+   used when calling it match, otherwise it can't be called *)
+definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
+  "en_callfun f values s \<equiv> do {
+    (\<sigma>, \<gamma>, \<rho>, \<mu>) \<leftarrow> Some s;
+    (params, locals, _) \<leftarrow> \<rho> f;
+    if (list_size params) = (list_size values) then Some True else Some False
+  }"
+
+(* Takes the actual values list, the parameter names list and returns the valuation new stack_frame
+   if it returns none it's because the lists had different length \<Rightarrow> error *)
+fun create_stack_frame :: "vname list \<Rightarrow> val list \<Rightarrow> stack_frame option" where
+  "create_stack_frame [] [] = Some (\<lambda>name. None)"
+| "create_stack_frame (x#xs) [] =  do {
+    sf \<leftarrow> (create_stack_frame xs []);
+    Some (sf (x \<mapsto> None))
+  }"
+| "create_stack_frame (x#xs) (y#ys) = do {
+    sf \<leftarrow> (create_stack_frame xs ys);
+    Some (sf (x \<mapsto> Some y))
+  }"
+| "create_stack_frame _ _ = None"
+  
+fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times> state) option" where
+  "real_values [] s = Some ([], s)"
+| "real_values (x#xs) s = do {
+    (v,s) \<leftarrow> eval x s;
+    (vals, s) \<leftarrow> real_values xs s;
+    Some ([v] @ vals, s)
+  }"
+
+definition initial_stack :: "stack_frame list" where "initial_stack \<equiv> []"
+definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
+definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None"
+definition initial_mem :: mem where "initial_mem \<equiv> []"
+definition initial_state :: state 
+  where "initial_state \<equiv> (initial_stack, initial_glob, initial_proc, initial_mem)"
+
+value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
+
+definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfunl x f call_params s \<equiv> do {
+    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
+(*    (_, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l x s; *)
+    (params, locals, _) \<leftarrow> \<rho> f;
+    (values, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<rho>, \<mu>);
+    sf \<leftarrow> create_stack_frame (params@locals) values;
+    Some (sf#\<sigma>, \<gamma>, \<rho>, \<mu>)
+  }"
+
+definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfun x f call_params s \<equiv> do {
+    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
+    (params, locals, _) \<leftarrow> \<rho> f;
+    (values, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<rho>, \<mu>);
+    sf \<leftarrow> create_stack_frame (params@locals) values;
+    Some (sf#\<sigma>, \<gamma>, \<rho>, \<mu>)
+  }"
+
+(* Return eliminates the returning function's stack_frame *)
+definition tr_return :: transformer where
+  "tr_return s = do {
+    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
+    Some (tl \<sigma>, \<gamma>, \<rho>, \<mu>)
+  }"
+
 
 inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
   Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
@@ -87,6 +154,15 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 | IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
 | While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
 | Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
+
+(* When we reach a return in a block we substitute by an assignment *)
+| Block1: "cfg (Block x (Return a)) (en_always, tr_id) (x ::= a)"
+| Block2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) a (Block x c')"
+(*
+| Blockl: "cfg (Blockl x (Return a)) (en_always, tr_id) (x ::== a)"
+| Callfun: "cfg (x ::= f (params)) (en_callfun, tr_callfun) (Block x SKIP)"
+| Callfunl: "cfg (x ::== f (params)) (en_callfun, tr_callfunl x f params) (Blockl x SKIP)"
+*)
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
    enabled returns True and the transformer successfully transforms the state into a new one.
