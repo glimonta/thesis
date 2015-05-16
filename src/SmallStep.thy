@@ -118,10 +118,10 @@ definition initial_state :: state
 
 value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
 
+(* The lhs is evaluated before *)
 definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfunl x f call_params s \<equiv> do {
-    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
-(*    (_, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l x s; *)
+    (_, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l x s;
     (params, locals, _) \<leftarrow> \<rho> f;
     (values, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<rho>, \<mu>);
     sf \<leftarrow> create_stack_frame (params@locals) values;
@@ -137,10 +137,21 @@ definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rig
     Some (sf#\<sigma>, \<gamma>, \<rho>, \<mu>)
   }"
 
+(* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
+   I did this because I wouldn't want to assign the result to a local variable in the stack_frame
+   that's going to be eliminated *)
+definition tr_return :: "vname \<Rightarrow> exp \<Rightarrow> transformer" where
+  "tr_return x a s = do {
+    (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
+    s \<leftarrow> write_var x v (tl \<sigma>, \<gamma>, \<rho>, \<mu>);
+    Some s
+  }"
+
 (* Return eliminates the returning function's stack_frame *)
-definition tr_return :: transformer where
-  "tr_return s = do {
-    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
+definition tr_returnl :: "addr \<Rightarrow> exp \<Rightarrow> transformer" where
+  "tr_returnl addr a s = do {
+    (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
+    \<mu> \<leftarrow> store addr \<mu> v;
     Some (tl \<sigma>, \<gamma>, \<rho>, \<mu>)
   }"
 
@@ -156,10 +167,11 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 | Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
 
 (* When we reach a return in a block we substitute by an assignment *)
-| Block1: "cfg (Block x (Return a)) (en_always, tr_id) (x ::= a)"
+| Block1: "cfg (Block x (Return a)) (en_always, tr_return x a) SKIP"
 | Block2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) a (Block x c')"
+| Blockl1: "cfg (Blockl add (Return a)) (en_always, tr_returnl x a) SKIP"
+| Blockl2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Blockl x c) a (Blockl x c')"
 (*
-| Blockl: "cfg (Blockl x (Return a)) (en_always, tr_id) (x ::== a)"
 | Callfun: "cfg (x ::= f (params)) (en_callfun, tr_callfun) (Block x SKIP)"
 | Callfunl: "cfg (x ::== f (params)) (en_callfun, tr_callfunl x f params) (Blockl x SKIP)"
 *)
@@ -309,7 +321,7 @@ case (Free x)
       hence "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using cfg.Free small_step.Base by blast
       thus ?thesis using Free by auto
   qed
-qed
+qed 
 
 lemma cfg_SKIP_stuck[simp]: "\<not> cfg SKIP a c"
   by (auto elim: cfg.cases)
