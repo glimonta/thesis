@@ -17,10 +17,9 @@ type_synonym valuation = "vname \<Rightarrow> val option option"
 type_synonym mem = "val option list option list"
 
 type_synonym stack_frame = valuation
-type_synonym proc_table = "fname \<Rightarrow> (vname list \<times> vname list \<times> com) option"
 
 (* Stack, globals, procedure table, memory *)
-type_synonym state = "stack_frame list \<times> valuation \<times> proc_table \<times> mem"
+type_synonym state = "stack_frame list \<times> valuation \<times> mem"
 
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 "(x # xs) !! i = (if i = 0 then x else xs !! (i - 1))"
@@ -205,16 +204,16 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
   Some (v, s)
 }"
 | "eval (New e) s = do {
-  (v, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval e s;
+  (v, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e s;
   (v, \<mu>) \<leftarrow> new_block v \<mu>;
-  Some (v, (\<sigma>, \<gamma>, \<rho>, \<mu>))
+  Some (v, (\<sigma>, \<gamma>, \<mu>))
 }"
 | "eval (Deref e) s = do {
-  (v, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval e s;
+  (v, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e s;
   case v of
     (A addr) \<Rightarrow> do {
       v \<leftarrow> load addr \<mu>;
-      Some (v, (\<sigma>, \<gamma>, \<rho>, \<mu>))
+      Some (v, (\<sigma>, \<gamma>, \<mu>))
     }
   | _ \<Rightarrow> None
 }"
@@ -223,11 +222,11 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
                        Some (addr, s) \<Rightarrow> Some (A addr,s))"
 | "eval (Index e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
-  (v\<^sub>2, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
+  (v\<^sub>2, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
   case (v\<^sub>1, v\<^sub>2) of
     (A addr, I incr) \<Rightarrow> do {
       v \<leftarrow> load (ofs_addr addr incr) \<mu>;
-      Some (v, (\<sigma>, \<gamma>, \<rho>, \<mu>))
+      Some (v, (\<sigma>, \<gamma>, \<mu>))
     }
   | _ \<Rightarrow> None
 }"

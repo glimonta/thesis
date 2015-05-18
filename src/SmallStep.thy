@@ -29,6 +29,8 @@ type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
+type_synonym proc_table = "fname \<Rightarrow> (vname list \<times> vname list \<times> com) option"
+
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
 abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
 
@@ -41,9 +43,9 @@ definition "tr_assign x a s \<equiv> do {
 definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
 where "tr_assignl x a s \<equiv> do {
   (addr,s) \<leftarrow> eval_l x s;
-  (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
+  (v,(\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval a s;
   \<mu> \<leftarrow> store addr \<mu> v;
-  Some (\<sigma>, \<gamma>, \<rho>, \<mu>)
+  Some (\<sigma>, \<gamma>, \<mu>)
 }"
 
 fun truth_value_of :: "val \<Rightarrow> bool" where
@@ -73,17 +75,16 @@ definition tr_eval :: "exp \<Rightarrow> transformer" where
 
 definition tr_free :: "lexp \<Rightarrow> transformer" where
   "tr_free e s \<equiv> do {
-    (addr, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l e s;
+    (addr, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l e s;
     \<mu> \<leftarrow> free addr \<mu>;
-    Some (\<sigma>, \<gamma>, \<rho>, \<mu>)
+    Some (\<sigma>, \<gamma>, \<mu>)
   }"
 
 (* A function can be called if the number of parameters from the function and the actual parameters
    used when calling it match, otherwise it can't be called *)
-definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
-  "en_callfun f values s \<equiv> do {
-    (\<sigma>, \<gamma>, \<rho>, \<mu>) \<leftarrow> Some s;
-    (params, locals, _) \<leftarrow> \<rho> f;
+definition en_callfun :: "fname \<Rightarrow> proc_table \<Rightarrow> exp list \<Rightarrow> enabled" where
+  "en_callfun f pt values _ \<equiv> do {
+    (params, locals, _) \<leftarrow> pt f;
     if (list_size params) = (list_size values) then Some True else Some False
   }"
 
@@ -114,27 +115,27 @@ definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name.
 definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None"
 definition initial_mem :: mem where "initial_mem \<equiv> []"
 definition initial_state :: state 
-  where "initial_state \<equiv> (initial_stack, initial_glob, initial_proc, initial_mem)"
+  where "initial_state \<equiv> (initial_stack, initial_glob, initial_mem)"
 
 value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
 
 (* The lhs is evaluated before *)
-definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfunl x f call_params s \<equiv> do {
-    (_, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval_l x s;
-    (params, locals, _) \<leftarrow> \<rho> f;
-    (values, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<rho>, \<mu>);
+definition tr_callfunl :: "proc_table \<Rightarrow> lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfunl pt x f call_params s \<equiv> do {
+    (_, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l x s;
+    (params, locals, _) \<leftarrow> pt f;
+    (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
     sf \<leftarrow> create_stack_frame (params@locals) values;
-    Some (sf#\<sigma>, \<gamma>, \<rho>, \<mu>)
+    Some (sf#\<sigma>, \<gamma>, \<mu>)
   }"
 
-definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfun x f call_params s \<equiv> do {
-    let (\<sigma>, \<gamma>, \<rho>, \<mu>) = s;
-    (params, locals, _) \<leftarrow> \<rho> f;
-    (values, (\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<rho>, \<mu>);
+definition tr_callfun :: "proc_table \<Rightarrow> vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfun pt x f call_params s \<equiv> do {
+    let (\<sigma>, \<gamma>, \<mu>) = s;
+    (params, locals, _) \<leftarrow> pt f;
+    (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
     sf \<leftarrow> create_stack_frame (params@locals) values;
-    Some (sf#\<sigma>, \<gamma>, \<rho>, \<mu>)
+    Some (sf#\<sigma>, \<gamma>, \<mu>)
   }"
 
 (* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
@@ -142,38 +143,40 @@ definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rig
    that's going to be eliminated *)
 definition tr_return :: "vname \<Rightarrow> exp \<Rightarrow> transformer" where
   "tr_return x a s = do {
-    (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
-    s \<leftarrow> write_var x v (tl \<sigma>, \<gamma>, \<rho>, \<mu>);
+    (v,(\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval a s;
+    s \<leftarrow> write_var x v (tl \<sigma>, \<gamma>, \<mu>);
     Some s
   }"
 
 (* Return eliminates the returning function's stack_frame *)
 definition tr_returnl :: "addr \<Rightarrow> exp \<Rightarrow> transformer" where
   "tr_returnl addr a s = do {
-    (v,(\<sigma>, \<gamma>, \<rho>, \<mu>)) \<leftarrow> eval a s;
+    (v,(\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval a s;
     \<mu> \<leftarrow> store addr \<mu> v;
-    Some (tl \<sigma>, \<gamma>, \<rho>, \<mu>)
+    Some (tl \<sigma>, \<gamma>, \<mu>)
   }"
 
 
-inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
-  Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
-| Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
-| Seq1: "cfg (SKIP;; c\<^sub>2) (en_always, tr_id) c\<^sub>2"
-| Seq2: "\<lbrakk>cfg c\<^sub>1 a c\<^sub>1'\<rbrakk> \<Longrightarrow> cfg (c\<^sub>1;; c\<^sub>2) a (c\<^sub>1';; c\<^sub>2)"
-| IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_pos b, tr_eval b) c\<^sub>1"
-| IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
-| While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
-| Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
+inductive cfg :: "com \<Rightarrow> proc_table \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
+  Assign: "cfg (x ::= a) pt (en_always,tr_assign x a) SKIP"
+| Assignl: "cfg (x ::== a) pt (en_always,tr_assignl x a) SKIP"
+| Seq1: "cfg (SKIP;; c\<^sub>2) pt (en_always, tr_id) c\<^sub>2"
+| Seq2: "\<lbrakk>cfg c\<^sub>1 pt a c\<^sub>1'\<rbrakk> \<Longrightarrow> cfg (c\<^sub>1;; c\<^sub>2) pt a (c\<^sub>1';; c\<^sub>2)"
+| IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) pt (en_pos b, tr_eval b) c\<^sub>1"
+| IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) pt (en_neg b, tr_eval b) c\<^sub>2"
+| While: "cfg (WHILE b DO c) pt (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
+| Free: "cfg (FREE x) pt (en_always, tr_free x) SKIP"
 
 (* When we reach a return in a block we substitute by an assignment *)
-| Block1: "cfg (Block x (Return a)) (en_always, tr_return x a) SKIP"
-| Block2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) a (Block x c')"
-| Blockl1: "cfg (Blockl add (Return a)) (en_always, tr_returnl x a) SKIP"
-| Blockl2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Blockl x c) a (Blockl x c')"
-(*
-| Callfun: "cfg (x ::= f (params)) (en_callfun, tr_callfun) (Block x SKIP)"
-| Callfunl: "cfg (x ::== f (params)) (en_callfun, tr_callfunl x f params) (Blockl x SKIP)"
+| Block1: "cfg (Block x (Return a)) pt (en_always, tr_return x a) SKIP"
+| Block2: "\<lbrakk>cfg c pt a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) pt a (Block x c')"
+| Blockl1: "cfg (Blockl add (Return a)) pt (en_always, tr_returnl x a) SKIP"
+| Blockl2: "\<lbrakk>cfg c pt a c'\<rbrakk> \<Longrightarrow> cfg (Blockl x c) pt a (Blockl x c')"
+
+(* Syntax for Callfun and Callfunl not working I think... *)
+| Callfun: "cfg (Callfun x f params) pt (en_callfun f pt params, tr_callfun pt x f params) (Block x (snd (snd (the (pt f)))))"
+(* I still have the problem with how to figure the address in which it will be saved.
+| Callfunl: "cfg (Callfunl x f params) pt (en_callfun f pt params, tr_callfunl pt x f params) (Block x (snd (snd (the (pt f)))))"
 *)
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
@@ -184,8 +187,8 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 inductive 
   small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
-  Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-| None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
+  Base: "\<lbrakk>cfg c\<^sub>1 pt (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+| None: "\<lbrakk>cfg c\<^sub>1 pt (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 
 inductive
   small_step' :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
