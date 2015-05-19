@@ -29,7 +29,8 @@ type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
-type_synonym proc_table = "fname \<Rightarrow> (vname list \<times> vname list \<times> com) option"
+locale program = fixes proc_table :: "fname \<Rightarrow> (vname list \<times> vname list \<times> com) option"
+context program begin
 
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
 abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
@@ -81,11 +82,13 @@ definition tr_free :: "lexp \<Rightarrow> transformer" where
   }"
 
 (* A function can be called if the number of parameters from the function and the actual parameters
-   used when calling it match, otherwise it can't be called *)
-definition en_callfun :: "fname \<Rightarrow> proc_table \<Rightarrow> exp list \<Rightarrow> enabled" where
-  "en_callfun f pt values _ \<equiv> do {
-    (params, locals, _) \<leftarrow> pt f;
-    if (list_size params) = (list_size values) then Some True else Some False
+   used when calling it match, otherwise it can't be called 
+   If the number of parameters is wrong we return None instead of False because we want it to stop
+   executing \<rightarrow> it's an error. *)
+definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
+  "en_callfun f values _ \<equiv> do {
+    (params, locals, _) \<leftarrow> proc_table f;
+    if (list_size params) = (list_size values) then Some True else None
   }"
 
 (* Takes the actual values list, the parameter names list and returns the valuation new stack_frame
@@ -112,7 +115,7 @@ fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times
 
 definition initial_stack :: "stack_frame list" where "initial_stack \<equiv> []"
 definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
-definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None"
+(*definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None" *)
 definition initial_mem :: mem where "initial_mem \<equiv> []"
 definition initial_state :: state 
   where "initial_state \<equiv> (initial_stack, initial_glob, initial_mem)"
@@ -120,19 +123,19 @@ definition initial_state :: state
 value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
 
 (* The lhs is evaluated before *)
-definition tr_callfunl :: "proc_table \<Rightarrow> lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfunl pt x f call_params s \<equiv> do {
+definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfunl x f call_params s \<equiv> do {
     (_, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l x s;
-    (params, locals, _) \<leftarrow> pt f;
+    (params, locals, _) \<leftarrow> proc_table f;
     (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
     sf \<leftarrow> create_stack_frame (params@locals) values;
     Some (sf#\<sigma>, \<gamma>, \<mu>)
   }"
 
-definition tr_callfun :: "proc_table \<Rightarrow> vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfun pt x f call_params s \<equiv> do {
+definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfun x f call_params s \<equiv> do {
     let (\<sigma>, \<gamma>, \<mu>) = s;
-    (params, locals, _) \<leftarrow> pt f;
+    (params, locals, _) \<leftarrow> proc_table f;
     (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
     sf \<leftarrow> create_stack_frame (params@locals) values;
     Some (sf#\<sigma>, \<gamma>, \<mu>)
@@ -157,24 +160,27 @@ definition tr_returnl :: "addr \<Rightarrow> exp \<Rightarrow> transformer" wher
   }"
 
 
-inductive cfg :: "com \<Rightarrow> proc_table \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
-  Assign: "cfg (x ::= a) pt (en_always,tr_assign x a) SKIP"
-| Assignl: "cfg (x ::== a) pt (en_always,tr_assignl x a) SKIP"
-| Seq1: "cfg (SKIP;; c\<^sub>2) pt (en_always, tr_id) c\<^sub>2"
-| Seq2: "\<lbrakk>cfg c\<^sub>1 pt a c\<^sub>1'\<rbrakk> \<Longrightarrow> cfg (c\<^sub>1;; c\<^sub>2) pt a (c\<^sub>1';; c\<^sub>2)"
-| IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) pt (en_pos b, tr_eval b) c\<^sub>1"
-| IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) pt (en_neg b, tr_eval b) c\<^sub>2"
-| While: "cfg (WHILE b DO c) pt (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
-| Free: "cfg (FREE x) pt (en_always, tr_free x) SKIP"
+inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
+  Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
+| Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
+| Seq1: "cfg (SKIP;; c\<^sub>2) (en_always, tr_id) c\<^sub>2"
+| Seq2: "\<lbrakk>cfg c\<^sub>1 a c\<^sub>1'\<rbrakk> \<Longrightarrow> cfg (c\<^sub>1;; c\<^sub>2) a (c\<^sub>1';; c\<^sub>2)"
+| Seq3: "cfg (Return a;; c\<^sub>2) (en_always, tr_id) (Return a)"
+| IfTrue: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_pos b, tr_eval b) c\<^sub>1"
+| IfFalse: "cfg (IF b THEN c\<^sub>1 ELSE c\<^sub>2) (en_neg b, tr_eval b) c\<^sub>2"
+| While: "cfg (WHILE b DO c) (en_always, tr_id) (IF b THEN c;; WHILE b DO c ELSE SKIP)"
+| Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
 
 (* When we reach a return in a block we substitute by an assignment *)
-| Block1: "cfg (Block x (Return a)) pt (en_always, tr_return x a) SKIP"
-| Block2: "\<lbrakk>cfg c pt a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) pt a (Block x c')"
-| Blockl1: "cfg (Blockl add (Return a)) pt (en_always, tr_returnl x a) SKIP"
-| Blockl2: "\<lbrakk>cfg c pt a c'\<rbrakk> \<Longrightarrow> cfg (Blockl x c) pt a (Blockl x c')"
+| Block1: "cfg (Block x (Return a)) (en_always, tr_return x a) SKIP"
+| Block2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Block x c) a (Block x c')"
+| Blockl1: "cfg (Blockl add (Return a)) (en_always, tr_returnl x a) SKIP"
+| Blockl2: "\<lbrakk>cfg c a c'\<rbrakk> \<Longrightarrow> cfg (Blockl x c) a (Blockl x c')"
 
 (* Syntax for Callfun and Callfunl not working I think... *)
-| Callfun: "cfg (Callfun x f params) pt (en_callfun f pt params, tr_callfun pt x f params) (Block x (snd (snd (the (pt f)))))"
+| Callfun:
+    "cfg (Callfun x f params) (en_callfun f params, tr_callfun x f params)
+      (Block x (snd (snd (the (proc_table f)))))"
 (* I still have the problem with how to figure the address in which it will be saved.
 | Callfunl: "cfg (Callfunl x f params) pt (en_callfun f pt params, tr_callfunl pt x f params) (Block x (snd (snd (the (pt f)))))"
 *)
@@ -187,8 +193,8 @@ inductive cfg :: "com \<Rightarrow> proc_table \<Rightarrow> cfg_label \<Rightar
 inductive 
   small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
-  Base: "\<lbrakk>cfg c\<^sub>1 pt (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-| None: "\<lbrakk>cfg c\<^sub>1 pt (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
+  Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
+| None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
 
 inductive
   small_step' :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
@@ -213,7 +219,8 @@ apply (metis Assign Base not_None_eq small_step.intros(2))
   *)
 
 
-
+(* This doesn't hold anymore because the Return command can only happen in a Block but
+   there's no small step step from return to something else. *)
 lemma aux:
   assumes "c\<noteq>SKIP"
   shows "\<exists>x. (c,s) \<rightarrow> x"
@@ -324,7 +331,38 @@ case (Free x)
       hence "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using cfg.Free small_step.Base by blast
       thus ?thesis using Free by auto
   qed
+next
+  case (Callfun x f params)
+  show ?case
+    proof (cases "en_callfun f params s")
+      case (None)
+        hence "(Callfun x f params, s) \<rightarrow> None" using cfg.Callfun small_step.None by blast
+        thus ?thesis by auto
+    next
+      case (Some b)
+        show ?thesis
+        proof (cases b)
+          case True
+          show ?thesis
+            proof (cases "tr_callfun x f params s")
+              case None
+                hence "(Callfun x f params, s) \<rightarrow> None" using cfg.Callfun small_step.None by blast
+                thus ?thesis by auto
+            next
+              case (Some s\<^sub>2)
+                hence "(Callfun x f params, s) \<rightarrow> Some (Block x (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+                  using True cfg.Callfun small_step.Base `en_callfun f params s = Some b` by metis
+                thus ?thesis by auto
+            qed
+        next
+          case False
+          (* This case should never happen, I don't know how to prove this *)
+          thus ?thesis sorry
+        qed
+    qed
 qed 
+oops
+
 
 lemma cfg_SKIP_stuck[simp]: "\<not> cfg SKIP a c"
   by (auto elim: cfg.cases)
@@ -352,13 +390,24 @@ lemma cfg_determ:
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
-  apply (rotate_tac )
+  apply (rotate_tac)
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
   apply (erule cfg.cases, auto) []
-  done
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (rotate_tac)
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  prefer 2
+  apply (rotate_tac)
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  prefer 2
+  apply (erule cfg.cases, auto) []
+  sorry
 
 lemma small_step_determ:
   assumes "(c,s) \<rightarrow> c'"
@@ -374,10 +423,10 @@ lemma small_step_determ:
   apply (erule small_step.cases)
   apply simp
   apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
-  apply simp
-  done
+  by simp
 
-
+(* Return is undefined because we will never have a Return command outside of a Block or Blockl
+   Callfunl is giving me problems *)
 fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" where
   "fstep (SKIP,s) = Some (SKIP,s)"
 | "fstep (x ::= a,s) = do {
@@ -389,6 +438,7 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     Some (SKIP,s)
   }"
 | "fstep (SKIP;;c, s) = Some (c,s)"
+| "fstep (Return a;; c, s) = Some (Return a, s)"
 | "fstep (c\<^sub>1;; c\<^sub>2, s) = do {
     (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
     Some (c\<^sub>1' ;; c\<^sub>2, s)
@@ -403,8 +453,32 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     s \<leftarrow> tr_free x s;
     Some (SKIP, s)
   }"
+| "fstep (Callfun x f params, s) = do {
+    b \<leftarrow> en_callfun f params s;
+    if b then do {
+      s \<leftarrow> tr_callfun x f params s;
+      Some (Block x (snd (snd (the (proc_table f)))), s)
+    } else None
+}"
+| "fstep (Block x (Return a), s) = do {
+    s \<leftarrow> tr_return x a s;
+    Some (SKIP, s)
+}"
+| "fstep (Block x c, s) = do {
+    (c, s) \<leftarrow> fstep (c, s);
+    Some (Block x c, s)
+}"
+| "fstep (Blockl x (Return a), s) = do {
+    s \<leftarrow> tr_returnl x a s;
+    Some (SKIP, s)
+}"
+| "fstep (Blockl x c, s) = do {
+    (c, s) \<leftarrow> fstep (c, s);
+    Some (Blockl x c, s)
+}"
 
-lemma fstep_seq_nSKIP[simp]: "c\<^sub>1 \<noteq> SKIP \<Longrightarrow> fstep (c\<^sub>1;; c\<^sub>2, s) = do {
+
+lemma fstep_seq_nSKIP[simp]: "\<lbrakk>c\<^sub>1 \<noteq> SKIP; \<And>a. c\<^sub>1 \<noteq> Return a\<rbrakk> \<Longrightarrow> fstep (c\<^sub>1;; c\<^sub>2, s) = do {
     (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
     Some (c\<^sub>1' ;; c\<^sub>2, s)
   }"
@@ -459,15 +533,20 @@ next
         using Base
         by simp
     next
+      case (Seq3 a)
+      thus ?thesis
+        using Base
+        by simp
+    next
       case (Seq2 cc\<^sub>1)
       hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
 
       from Base(3,4) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> Some (cc\<^sub>1,s\<^sub>2)"
         by (blast intro: small_step.intros)
-      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = Some (cc\<^sub>1, s\<^sub>2)" .
+      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = Some (cc\<^sub>1, s\<^sub>2)" by simp
 
-      show ?thesis using \<open>c\<^sub>1' = cc\<^sub>1;; c\<^sub>2\<close>
-        by simp
+      show ?thesis using \<open>c\<^sub>1' = cc\<^sub>1;; c\<^sub>2\<close> sorry
+        (*by simp*)
     qed
   next
     case (None en tr c\<^sub>1')
@@ -476,14 +555,16 @@ next
     proof cases
       case Seq1 with None(3) have False by auto thus ?thesis ..
     next
+      case Seq3 with None have False by auto thus ?thesis ..
+    next
       case (Seq2 cc1)
       hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
 
       from None(3) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> None"
         by (blast intro: small_step.intros)
       from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = None" .
-      show ?thesis
-        by simp
+      show ?thesis sorry
+        (*by simp*)
     qed
   qed
 next
@@ -543,7 +624,51 @@ next
         moreover have "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Free small_step.Base by blast
         ultimately show ?thesis using Free small_step_determ by simp
     qed
+print_cases
+next
+  case (Callfun x f params)
+    thus ?case
+    proof (cases "en_callfun f params s")
+      case None
+        hence "fstep (Callfun x f params, s) = None" by auto
+        moreover have "(Callfun x f params, s) \<rightarrow> None" using None cfg.Callfun small_step.None by blast
+        ultimately show ?thesis using Callfun small_step_determ by simp
+    next
+      case (Some b)
+        thus ?thesis
+        proof (cases b)
+          case True
+            thus ?thesis
+            proof (cases "tr_callfun x f params s")
+              case None
+                hence "fstep (Callfun x f params, s) = None" using Some by auto
+                moreover have "(Callfun x f params, s) \<rightarrow> None"
+                  using cfg.Callfun small_step.None None by blast
+                ultimately show ?thesis using Callfun small_step_determ by simp
+            next
+              case (Some s\<^sub>2)
+                hence "fstep (Callfun x f params, s) = Some (Block x (snd (snd (the (proc_table f)))), s\<^sub>2)"
+                  using `en_callfun f params s = Some b` True by auto
+                moreover have "(Callfun x f params, s) \<rightarrow> Some (Block x (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+                  using True cfg.Callfun small_step.Base Some `en_callfun f params s = Some b` by metis
+                ultimately show ?thesis using Callfun small_step_determ by simp
+            qed
+        next
+          case False
+          (*This would never happen*)
+            thus ?thesis sorry
+        qed
+    qed
+next
+  case (Return a) thus ?case sorry
+next
+  case (Block x c) thus ?case sorry
+next
+  case (Blockl x c) thus ?case sorry
+next
+  case (Callfunl x f params) thus ?case sorry
 qed
+
 
 lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))"
 proof (induction c)
@@ -662,6 +787,48 @@ next
         moreover have "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Free small_step.Base by blast
         ultimately show ?thesis by auto
     qed
+next
+  case (Callfun x f params)
+    thus ?case
+    proof (cases "en_callfun f params s")
+      case None
+        hence "fstep (Callfun x f params, s) = None" by auto
+        moreover have "(Callfun x f params, s) \<rightarrow> None" using None cfg.Callfun small_step.None by blast
+        ultimately show ?thesis using Callfun small_step_determ by simp
+    next
+      case (Some b)
+        thus ?thesis
+        proof (cases b)
+          case True
+            thus ?thesis
+            proof (cases "tr_callfun x f params s")
+              case None
+                hence "fstep (Callfun x f params, s) = None" using Some by auto
+                moreover have "(Callfun x f params, s) \<rightarrow> None"
+                  using cfg.Callfun small_step.None None by blast
+                ultimately show ?thesis using Callfun small_step_determ by simp
+            next
+              case (Some s\<^sub>2)
+                hence "fstep (Callfun x f params, s) = Some (Block x (snd (snd (the (proc_table f)))), s\<^sub>2)"
+                  using `en_callfun f params s = Some b` True by auto
+                moreover have "(Callfun x f params, s) \<rightarrow> Some (Block x (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+                  using True cfg.Callfun small_step.Base Some `en_callfun f params s = Some b` by metis
+                ultimately show ?thesis using Callfun small_step_determ by simp
+            qed
+        next
+          case False
+          (*This would never happen*)
+            thus ?thesis sorry
+        qed
+    qed
+next
+  case (Return a) thus ?case sorry
+next
+  case (Block x c) thus ?case sorry
+next
+  case (Blockl x c) thus ?case sorry
+next
+  case (Callfunl x f params) thus ?case sorry
 qed
 
 
