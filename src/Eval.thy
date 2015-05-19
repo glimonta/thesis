@@ -13,10 +13,14 @@ datatype val = NullVal | I int_val | A addr
   a list of values.
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
+
+datatype return_loc = Ar addr | Vr vname
+(* A valuation is a function that maps variable names to values, name of variable where to save the
+   return value of the function, address where to save the return value of the function *)
 type_synonym valuation = "vname \<Rightarrow> val option option"
 type_synonym mem = "val option list option list"
 
-type_synonym stack_frame = valuation
+type_synonym stack_frame = "valuation \<times> return_loc"
 
 (* Stack, globals, procedure table, memory *)
 type_synonym state = "stack_frame list \<times> valuation \<times> mem"
@@ -129,7 +133,7 @@ definition "assert \<Phi> \<equiv> if \<Phi> then Some () else None"
 fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
   "read_var x (\<sigma>,\<gamma>,\<mu>) = do {
     assert (\<sigma> \<noteq> []);
-    let locals = hd \<sigma>;
+    let locals = fst (hd \<sigma>);
     case locals x of
       Some v \<Rightarrow> v
     | None \<Rightarrow> do {
@@ -142,11 +146,11 @@ fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
 fun write_var :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state option" where
   "write_var x v (\<sigma>,\<gamma>,\<mu>) = do {
     assert (\<sigma> \<noteq> []);
-    let locals = hd \<sigma>;
+    let locals = fst (hd \<sigma>);
     case locals x of
       Some _ \<Rightarrow> do {
         let locals = locals (x \<mapsto> Some v);
-        let \<sigma> = locals#tl \<sigma>;
+        let \<sigma> = (locals, snd(hd \<sigma>))#tl \<sigma>;
         Some (\<sigma>,\<gamma>,\<mu>)
       }
     | None \<Rightarrow> do {

@@ -15,8 +15,7 @@ datatype
       | Return exp
       | Callfunl lexp fname "exp list" ("_ ::== _ '(_')" [1000, 61] 61)
       | Callfun vname fname "exp list" ("_ ::= _ '(_')" [1000, 61] 61)
-      | Blockl addr com
-      | Block vname com
+      | Block com
 
 term "''x'' ::= ''fun'' ([])"
 term "(Derefl (V ''x'')) ::== ''fun'' ([])"
