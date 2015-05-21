@@ -81,16 +81,6 @@ definition tr_free :: "lexp \<Rightarrow> transformer" where
     Some (\<sigma>, \<gamma>, \<mu>)
   }"
 
-(* A function can be called if the number of parameters from the function and the actual parameters
-   used when calling it match, otherwise it can't be called 
-   If the number of parameters is wrong we return None instead of False because we want it to stop
-   executing \<rightarrow> it's an error. *)
-definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
-  "en_callfun f values _ \<equiv> do {
-    (params, locals, _) \<leftarrow> proc_table f;
-    if (list_size params) = (list_size values) then Some True else None
-  }"
-
 (* Takes the actual values list, the parameter names list and returns the valuation new stack_frame
    if it returns none it's because the lists had different length \<Rightarrow> error *)
 fun create_locals_stack_frame :: "vname list \<Rightarrow> val list \<Rightarrow> valuation option" where
@@ -122,23 +112,40 @@ definition initial_state :: state
 
 value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
 
+(* A function can be called if the number of parameters from the function and the actual parameters
+   used when calling it match, otherwise it can't be called 
+   If the number of parameters is wrong we return None instead of False because we want it to stop
+   executing \<rightarrow> it's an error. *)
+definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
+  "en_callfun f values _ \<equiv> do {
+    (params, locals, _) \<leftarrow> proc_table f;
+    if (list_size params) = (list_size values) then Some True else None
+  }"
+
+
 (* The lhs is evaluated before *)
 definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfunl x f call_params s \<equiv> do {
     (addr, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l x s;
     (params, locals, _) \<leftarrow> proc_table f;
-    (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
-    sf \<leftarrow> create_locals_stack_frame (params@locals) values;
-    Some ((sf, Ar addr)#\<sigma>, \<gamma>, \<mu>)
+    if (list_size params) = (list_size call_params)
+    then do {
+      (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
+      sf \<leftarrow> create_locals_stack_frame (params@locals) values;
+      Some ((sf, Ar addr)#\<sigma>, \<gamma>, \<mu>)
+    } else None
   }"
 
 definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfun x f call_params s \<equiv> do {
     let (\<sigma>, \<gamma>, \<mu>) = s;
     (params, locals, _) \<leftarrow> proc_table f;
-    (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
-    sf \<leftarrow> create_locals_stack_frame (params@locals) values;
-    Some ((sf, Vr x)#\<sigma>, \<gamma>, \<mu>)
+    if (list_size params) = (list_size call_params)
+      then do {
+        (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
+        sf \<leftarrow> create_locals_stack_frame (params@locals) values;
+        Some ((sf, Vr x)#\<sigma>, \<gamma>, \<mu>)
+    } else None
   }"
 
 (* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
@@ -171,12 +178,12 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 
 | Return: "cfg (Return a) (en_always, tr_return a) SKIP"
 
-| Block1: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; \<And>a. tr \<noteq> tr_return a\<rbrakk> \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr) (Block c\<^sub>2)"
-| Block2: "cfg (Return a) (en, tr_return a) c\<^sub>2 \<Longrightarrow> cfg (Block (Return a)) (en, tr_id) SKIP"
+| Block1: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; tr \<noteq> tr_return a\<rbrakk> \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr) (Block c\<^sub>2)"
+| Block2: "cfg c\<^sub>1 (en, tr_return a) c\<^sub>2 \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr_id) SKIP"
 
-| Callfun: "cfg (Callfun x f params) (en_callfun f params, tr_callfun x f params)
+| Callfun: "cfg (Callfun x f params) (en_always, tr_callfun x f params)
             (Block (snd (snd (the (proc_table f)))))"
-| Callfunl: "cfg (Callfunl x f params) (en_callfun f params, tr_callfunl x f params)
+| Callfunl: "cfg (Callfunl x f params) (en_always, tr_callfunl x f params)
             (Block (snd (snd (the (proc_table f)))))"
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
@@ -328,60 +335,28 @@ next
 next
   case (Callfun x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfun x f params s")
       case None
         hence "(Callfun x f params, s) \<rightarrow> None" using cfg.Callfun small_step.None by blast
         thus ?thesis by auto
     next
-      case (Some b)
-        show ?thesis
-        proof (cases b)
-          case True
-          show ?thesis
-            proof (cases "tr_callfun x f params s")
-              case None
-                hence "(Callfun x f params, s) \<rightarrow> None" using cfg.Callfun small_step.None by blast
-                thus ?thesis by auto
-            next
-              case (Some s\<^sub>2)
-                hence "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfun small_step.Base `en_callfun f params s = Some b` by metis
-                thus ?thesis by auto
-            qed
-        next
-          case False
-            thus ?thesis (* This case should never happen, I don't know how to prove this *)
-            sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfun small_step.Base by blast
+        thus ?thesis by auto
     qed
 next
   case (Callfunl x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfunl x f params s")
       case None
         hence "(Callfunl x f params, s) \<rightarrow> None" using cfg.Callfunl small_step.None by blast
         thus ?thesis by auto
     next
-      case (Some b)
-        show ?thesis
-        proof (cases b)
-          case True
-          show ?thesis
-            proof (cases "tr_callfunl x f params s")
-              case None
-                hence "(Callfunl x f params, s) \<rightarrow> None" using cfg.Callfunl small_step.None by blast
-                thus ?thesis by auto
-            next
-              case (Some s\<^sub>2)
-                hence "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfunl small_step.Base `en_callfun f params s = Some b` by metis
-                thus ?thesis by auto
-            qed
-        next
-          case False
-            thus ?thesis (* This case should never happen, I don't know how to prove this *)
-            sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfunl small_step.Base by blast
+        thus ?thesis by auto
     qed
 next
   case (Block c)
@@ -424,14 +399,11 @@ lemma cfg_determ:
   apply (erule cfg.cases, auto) []
   apply (rotate_tac)
   apply (erule cfg.cases, auto) []
+  prefer 3
   apply (erule cfg.cases, auto) []
+  prefer 3
   apply (erule cfg.cases, auto) []
-  apply (erule cfg.cases, auto) []
-  apply (erule cfg.cases, auto) []
-  apply (erule cfg.cases, auto) []
-  apply (erule cfg.cases, auto) []
-  apply (erule cfg.cases, auto) []
-  done
+  sorry
 
 lemma small_step_determ:
   assumes "(c,s) \<rightarrow> c'"
@@ -479,10 +451,6 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
 | "fstep (Return a, s) = do {
     s \<leftarrow> tr_return a s;
      Some (SKIP, s)
-  }"
-| "fstep (Block (Return a), s) = do {
-    (c, s) \<leftarrow> fstep (Return a, s);
-    Some (c, s)
   }"
 | "fstep (Block c, s) = do {
     (c, s) \<leftarrow> fstep (c, s);
