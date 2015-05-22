@@ -29,8 +29,10 @@ type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
-locale program = fixes proc_table :: "fname \<Rightarrow> (vname list \<times> vname list \<times> com) option"
-context program begin
+locale program = 
+  fixes proc_table :: "program"
+  assumes "valid_program proc_table"
+begin
 
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
 abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
@@ -44,9 +46,8 @@ definition "tr_assign x a s \<equiv> do {
 definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
 where "tr_assignl x a s \<equiv> do {
   (addr,s) \<leftarrow> eval_l x s;
-  (v,(\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval a s;
-  \<mu> \<leftarrow> store addr \<mu> v;
-  Some (\<sigma>, \<gamma>, \<mu>)
+  (v,s) \<leftarrow> eval a s;
+  store addr v s
 }"
 
 fun truth_value_of :: "val \<Rightarrow> bool" where
@@ -95,6 +96,7 @@ fun create_locals_stack_frame :: "vname list \<Rightarrow> val list \<Rightarrow
   }"
 | "create_locals_stack_frame _ _ = None"
   
+
 fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times> state) option" where
   "real_values [] s = Some ([], s)"
 | "real_values (x#xs) s = do {
@@ -123,49 +125,54 @@ definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" wh
   }"
 
 
+fun push_stack :: "stack_frame \<Rightarrow> transformer" where
+  "push_stack sf (\<sigma>,\<gamma>,\<mu>) = Some (sf#\<sigma>,\<gamma>,\<mu>)"
+
+fun pop_stack :: "transformer" where
+  "pop_stack (sf#\<sigma>,\<gamma>,\<mu>) = Some (\<sigma>,\<gamma>,\<mu>)"
+| "pop_stack _ = None"
+
+fun top_stack :: "state \<Rightarrow> stack_frame option" where
+  "top_stack (sf#\<sigma>,_,_) = Some sf"
+| "top_stack _ = None"
+
+
+definition call_function :: "return_loc \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer"
+where "call_function rloc f params_exp s \<equiv> do {
+  (formal_params, locals_names, body) \<leftarrow> proc_table f;
+  assert (length params_exp = length formal_params);
+  (params_val, s) \<leftarrow> real_values params_exp s;
+  let locals = 
+     map_of (zip formal_params (map Some params_val)) 
+  ++ map_of (map (\<lambda>x. (x,None)) locals_names);
+  let sf = (body,locals,rloc);
+  push_stack sf s
+}"
+
 (* The lhs is evaluated before *)
 definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfunl x f call_params s \<equiv> do {
-    (addr, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l x s;
-    (params, locals, _) \<leftarrow> proc_table f;
-    if (list_size params) = (list_size call_params)
-    then do {
-      (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
-      sf \<leftarrow> create_locals_stack_frame (params@locals) values;
-      Some ((sf, Ar addr)#\<sigma>, \<gamma>, \<mu>)
-    } else None
+    (addr, s) \<leftarrow> eval_l x s;
+    call_function (Ar addr) f call_params s
   }"
 
 definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfun x f call_params s \<equiv> do {
-    let (\<sigma>, \<gamma>, \<mu>) = s;
-    (params, locals, _) \<leftarrow> proc_table f;
-    if (list_size params) = (list_size call_params)
-      then do {
-        (values, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> real_values call_params (\<sigma>, \<gamma>, \<mu>);
-        sf \<leftarrow> create_locals_stack_frame (params@locals) values;
-        Some ((sf, Vr x)#\<sigma>, \<gamma>, \<mu>)
-    } else None
+    call_function (Vr x) f call_params s
   }"
 
 (* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
    or address where it's supposed to be assigned *)
 definition tr_return :: "exp \<Rightarrow> transformer" where
   "tr_return a s = do {
-    (v,(\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval a s;
-    let ret = snd (hd \<sigma>);
+    (v,s) \<leftarrow> eval a s;
+    (_,_,ret) \<leftarrow> top_stack s;
+    s \<leftarrow> pop_stack s;
     case ret of
-      Vr x \<Rightarrow> do {
-        s \<leftarrow> write_var x v (tl \<sigma>, \<gamma>, \<mu>);
-        Some s
-      } |
-      Ar addr \<Rightarrow> do {
-        \<mu> \<leftarrow> store addr \<mu> v;
-        Some (tl \<sigma>, \<gamma>, \<mu>)
-      }
+      Vr x \<Rightarrow> write_var x v s
+    | Ar addr \<Rightarrow> store addr v s
   }"
-
-
+    
 inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
   Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
 | Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
@@ -178,13 +185,17 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 
 | Return: "cfg (Return a) (en_always, tr_return a) SKIP"
 
-| Block1: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; ALL a. tr \<noteq> tr_return a\<rbrakk> \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr) (Block c\<^sub>2)"
-| Block2: "cfg c\<^sub>1 (en, tr_return a) c\<^sub>2 \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr_id) SKIP"
+| Callfun: "cfg (Callfun x f params) (en_always, tr_callfun x f params) SKIP"
+| Callfunl: "cfg (Callfunl x f params) (en_always, tr_callfunl x f params) SKIP"
 
-| Callfun: "cfg (Callfun x f params) (en_always, tr_callfun x f params)
-            (Block (snd (snd (the (proc_table f)))))"
-| Callfunl: "cfg (Callfunl x f params) (en_always, tr_callfunl x f params)
-            (Block (snd (snd (the (proc_table f)))))"
+definition is_empty_stack :: "state \<Rightarrow> bool" where
+  "is_empty_stack \<equiv> \<lambda>(\<sigma>,_,_). \<sigma>=[]"
+
+definition com_of :: "state \<Rightarrow> com" where
+  "com_of \<equiv> \<lambda>((com,_,_)#_,_,_) \<Rightarrow> com"
+
+definition upd_com :: "com \<Rightarrow> state \<Rightarrow> state" where
+  "upd_com \<equiv> \<lambda>com. \<lambda>((_,l,rl)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> ((com,l,rl)#\<sigma>,\<gamma>,\<mu>)"
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
    enabled returns True and the transformer successfully transforms the state into a new one.
@@ -192,18 +203,18 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
    thing happens if the enabled or the transformer return None as a result.
   *)
 inductive 
-  small_step :: "com \<times> state \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
+  small_step :: "state \<Rightarrow> state option \<Rightarrow> bool" (infix "\<rightarrow>" 55)
 where
-  Base: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr s = Some s\<^sub>2\<rbrakk> \<Longrightarrow> (c\<^sub>1, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-| None: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None \<or> tr s = None\<rbrakk> \<Longrightarrow>(c\<^sub>1, s) \<rightarrow> None"
+  Base: "\<lbrakk> \<not>is_empty_stack s; c\<^sub>1=com_of s; cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr (upd_com c\<^sub>2 s) = Some s\<^sub>2\<rbrakk> \<Longrightarrow> s \<rightarrow> Some s\<^sub>2"
+| None: "\<lbrakk> \<not>is_empty_stack s; c\<^sub>1=com_of s; cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None     \<or> tr (upd_com c\<^sub>2 s) = None\<rbrakk> \<Longrightarrow>    s \<rightarrow> None"
 
 inductive
-  small_step' :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
+  small_step' :: "(state) option \<Rightarrow> (state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
 where
   "cs \<rightarrow> cs' \<Longrightarrow> Some cs \<rightarrow>' cs'"
 
 abbreviation
-  small_steps :: "(com \<times> state) option \<Rightarrow> (com \<times> state) option \<Rightarrow> bool" (infix "\<rightarrow>*" 55)
+  small_steps :: "(state) option \<Rightarrow> (state) option \<Rightarrow> bool" (infix "\<rightarrow>*" 55)
 where "x \<rightarrow>* y == star small_step' x y"
 
 (** A sanity check. I'm trying to prove that the semantics
@@ -219,11 +230,106 @@ apply (metis Assignl Base not_None_eq small_step.intros(2))
 apply (metis Assign Base not_None_eq small_step.intros(2))
   *)
 
+lemma cfg_has_enabled_action:
+  assumes "c\<noteq>SKIP"
+  shows "\<exists>c' en tr. cfg c (en,tr) c' \<and> (en s = None \<or> en s = Some True)" 
+  using assms
+proof (induction c)
+  case (Seq c\<^sub>1 c\<^sub>2)
+  show ?case
+  proof (cases "c\<^sub>1 = SKIP")
+    case True
+    thus ?thesis by (auto intro: cfg.intros)
+  next
+    case False
+    from Seq.IH(1)[OF this] show ?thesis by (auto intro: cfg.intros)
+  qed  
+next
+  case (If b c\<^sub>1 c\<^sub>2)
+  show ?case
+  proof (cases "en_pos b s")
+    case None[simp]
+    thus ?thesis by (fastforce intro: cfg.intros)
+  next
+    case (Some a)[simp]
+      show ?thesis
+      proof (cases a)
+        case True
+        thus ?thesis by (fastforce intro: cfg.intros)
+      next
+        case False[simp]
+        have "en_pos b s = Some False" by simp
+        hence "en_neg b s = Some True"
+          unfolding en_pos_def en_neg_def
+          by (auto split: option_bind_splits)
+        thus ?thesis by (fastforce intro: cfg.intros)
+      qed
+  qed
+qed (auto intro: cfg.intros)
+
+lemma cfg_preserves_def_returns:
+  assumes "cfg c a c'"
+  assumes "def_returns c"
+  shows "def_returns c' \<or> (\<exists>e. a=(en_always,tr_return e))"
+  using assms
+  apply induction
+  apply auto
+  done
+
+definition coms_of :: "state \<Rightarrow> com set" where
+  "coms_of \<equiv> \<lambda>(\<sigma>,_,_). (\<lambda>(com,_,_). com)`set \<sigma>"
+
+lemma coms_of_tuple: "coms_of (\<sigma>,\<gamma>,\<mu>) = (\<lambda>(com,_,_). com)`set \<sigma>"
+  unfolding coms_of_def by auto
+
+definition "def_returns_com_stack s \<equiv> \<forall>com\<in>coms_of s. def_returns com"
+
+lemma assert_simps[simp]:
+  "assert \<Phi> = None \<longleftrightarrow> \<not>\<Phi>"
+  "assert \<Phi> = Some () \<longleftrightarrow> \<Phi>"
+  unfolding assert_def by auto
+
+lemma "\<not>is_empty_stack s 
+  \<Longrightarrow> lift_transformer tr s = Some (r,s') \<Longrightarrow> coms_of s = coms_of s'"
+  unfolding lift_transformer_def
+  apply (auto 
+    simp: is_empty_stack_def
+    split: option_bind_splits prod.splits list.splits)
+  apply (simp_all add: coms_of_tuple)
+  done  
+
+lemma
+  assumes "cfg ss (en,tr) ss'"
+  assumes "\<not>is_empty_stack s"
+  assumes "def_returns_com_stack s"
+  assumes "tr s = Some s'"
+  shows "def_returns_com_stack s'"
+  using assms
+  apply cases
+  apply (auto simp: def_returns_com_stack_def)
+
+lemma 
+  assumes "s \<rightarrow> Some s'"
+  assumes "def_returns_com_stack s"
+  shows "def_returns_com_stack s'"
+  using assms
+  apply cases
+  
 
 lemma aux:
-  assumes "c\<noteq>SKIP"
-  shows "\<exists>x. (c,s) \<rightarrow> x"
+  assumes "\<not>is_empty_stack s"
+  shows "\<exists>x. s \<rightarrow> x"
   using assms
+proof -
+  from assms obtain c locals rloc \<sigma> \<gamma> \<mu> where "s = ((c,locals,rloc)#\<sigma>, \<gamma>,\<mu>)"
+    unfolding is_empty_stack_def
+    apply (simp add: neq_Nil_conv split: prod.splits)
+    by auto
+
+  from cfg_has_enabled_action[of c] obtain c' en tr 
+    where "cfg c (en, tr) c' \<and> (en s = None \<or> en s = Some True)" 
+
+
 proof (induction c)
   case SKIP thus ?case by simp
 next

@@ -20,10 +20,23 @@ datatype return_loc = Ar addr | Vr vname
 type_synonym valuation = "vname \<Rightarrow> val option option"
 type_synonym mem = "val option list option list"
 
-type_synonym stack_frame = "valuation \<times> return_loc"
+type_synonym stack_frame = "com \<times> valuation \<times> return_loc"
 
 (* Stack, globals, procedure table, memory *)
 type_synonym state = "stack_frame list \<times> valuation \<times> mem"
+
+type_synonym visible_state = "valuation \<times> valuation \<times> mem"
+
+definition lift_transformer :: 
+  "(visible_state \<rightharpoonup> ('a\<times>visible_state))
+  \<Rightarrow> state \<rightharpoonup> ('a \<times> state)"
+where
+  "lift_transformer tr \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
+    (r,(locals,\<gamma>,\<mu>)) \<leftarrow> tr (locals,\<gamma>,\<mu>);
+    Some (r,((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>))
+  }"
+
+
 
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 "(x # xs) !! i = (if i = 0 then x else xs !! (i - 1))"
@@ -94,10 +107,10 @@ definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
     } else
       None"
 
-definition store :: "addr \<Rightarrow> mem \<Rightarrow> val \<Rightarrow> mem option" where
-  "store \<equiv> \<lambda>(i,j) \<mu> v.
+definition store :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state option" where
+  "store \<equiv> \<lambda>(i,j) v (\<sigma>,\<gamma>,\<mu>).
     if valid_mem (i,j) \<mu> then
-      Some (\<mu>[i := Some ( the (\<mu>!i) [nat j := Some v] )])
+      Some (\<sigma>,\<gamma>,\<mu>[i := Some ( the (\<mu>!i) [nat j := Some v] )])
     else
       None"
 
@@ -133,7 +146,7 @@ definition "assert \<Phi> \<equiv> if \<Phi> then Some () else None"
 fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
   "read_var x (\<sigma>,\<gamma>,\<mu>) = do {
     assert (\<sigma> \<noteq> []);
-    let locals = fst (hd \<sigma>);
+    let (_,locals,_) = hd \<sigma>;
     case locals x of
       Some v \<Rightarrow> v
     | None \<Rightarrow> do {
@@ -146,11 +159,11 @@ fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
 fun write_var :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state option" where
   "write_var x v (\<sigma>,\<gamma>,\<mu>) = do {
     assert (\<sigma> \<noteq> []);
-    let locals = fst (hd \<sigma>);
+    let (pc,locals,ra) = hd \<sigma>;
     case locals x of
       Some _ \<Rightarrow> do {
         let locals = locals (x \<mapsto> Some v);
-        let \<sigma> = (locals, snd(hd \<sigma>))#tl \<sigma>;
+        let \<sigma> = (pc,locals, ra)#tl \<sigma>;
         Some (\<sigma>,\<gamma>,\<mu>)
       }
     | None \<Rightarrow> do {
