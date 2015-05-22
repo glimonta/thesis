@@ -178,7 +178,7 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 
 | Return: "cfg (Return a) (en_always, tr_return a) SKIP"
 
-| Block1: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; tr \<noteq> tr_return a\<rbrakk> \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr) (Block c\<^sub>2)"
+| Block1: "\<lbrakk>cfg c\<^sub>1 (en, tr) c\<^sub>2; ALL a. tr \<noteq> tr_return a\<rbrakk> \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr) (Block c\<^sub>2)"
 | Block2: "cfg c\<^sub>1 (en, tr_return a) c\<^sub>2 \<Longrightarrow> cfg (Block c\<^sub>1) (en, tr_id) SKIP"
 
 | Callfun: "cfg (Callfun x f params) (en_always, tr_callfun x f params)
@@ -457,18 +457,12 @@ fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" wher
     Some (Block c, s)
   }"
 | "fstep (Callfun x f params, s) = do {
-    b \<leftarrow> en_callfun f params s;
-    if b then do {
-      s \<leftarrow> tr_callfun x f params s;
-      Some (Block (snd (snd (the (proc_table f)))), s)
-    } else None
+    s \<leftarrow> tr_callfun x f params s;
+    Some (Block (snd (snd (the (proc_table f)))), s)
   }"
 | "fstep (Callfunl x f params, s) = do {
-    b \<leftarrow> en_callfun f params s;
-    if b then do {
-      s \<leftarrow> tr_callfunl x f params s;
-      Some (Block (snd (snd (the (proc_table f)))), s)
-    } else None
+    s \<leftarrow> tr_callfunl x f params s;
+    Some (Block (snd (snd (the (proc_table f)))), s)
   }"
 
 
@@ -629,70 +623,36 @@ next
 next
   case (Callfun x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfun x f params s")
       case None
-        hence "fstep (Callfun x f params, s) = None" by auto
-        moreover have "(Callfun x f params, s) \<rightarrow> None" using None cfg.Callfun small_step.None by blast
+        hence "fstep (Callfun x f params, s) = None" by simp
+        moreover have "(Callfun x f params, s) \<rightarrow> None"
+          using cfg.Callfun small_step.None None by blast
         ultimately show ?thesis using Callfun small_step_determ by simp
     next
-      case (Some b)
-        thus ?thesis
-        proof (cases b)
-          case True
-            thus ?thesis
-            proof (cases "tr_callfun x f params s")
-              case None
-                hence "fstep (Callfun x f params, s) = None" using Some by auto
-                moreover have "(Callfun x f params, s) \<rightarrow> None"
-                  using cfg.Callfun small_step.None None by blast
-                ultimately show ?thesis using Callfun small_step_determ by simp
-            next
-              case (Some s\<^sub>2)
-                hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-                  using `en_callfun f params s = Some b` True by auto
-                moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfun small_step.Base Some `en_callfun f params s = Some b` by metis
-                ultimately show ?thesis using Callfun small_step_determ by simp
-            qed
-        next
-          case False
-          (*This would never happen*)
-            thus ?thesis sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
+          by simp
+        moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfun small_step.Base Some by blast
+        ultimately show ?thesis using Callfun small_step_determ by simp
     qed
 next
   case (Callfunl x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfunl x f params s")
       case None
-        hence "fstep (Callfunl x f params, s) = None" by auto
-        moreover have "(Callfunl x f params, s) \<rightarrow> None" using None cfg.Callfunl small_step.None by blast
+        hence "fstep (Callfunl x f params, s) = None" by simp
+        moreover have "(Callfunl x f params, s) \<rightarrow> None"
+          using cfg.Callfunl small_step.None None by blast
         ultimately show ?thesis using Callfunl small_step_determ by simp
     next
-      case (Some b)
-        thus ?thesis
-        proof (cases b)
-          case True
-            thus ?thesis
-            proof (cases "tr_callfunl x f params s")
-              case None
-                hence "fstep (Callfunl x f params, s) = None" using Some by auto
-                moreover have "(Callfunl x f params, s) \<rightarrow> None"
-                  using cfg.Callfunl small_step.None None by blast
-                ultimately show ?thesis using Callfunl small_step_determ by simp
-            next
-              case (Some s\<^sub>2)
-                hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-                  using `en_callfun f params s = Some b` True by auto
-                moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfunl small_step.Base Some `en_callfun f params s = Some b` by metis
-                ultimately show ?thesis using Callfunl small_step_determ by simp
-            qed
-        next
-          case False
-          (*This would never happen*)
-            thus ?thesis sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
+          by simp
+        moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfunl small_step.Base Some by blast
+        ultimately show ?thesis using Callfunl small_step_determ by simp
     qed
 next
   case (Block c)
@@ -834,70 +794,36 @@ next
 next
   case (Callfun x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfun x f params s")
       case None
-        hence "fstep (Callfun x f params, s) = None" by auto
-        moreover have "(Callfun x f params, s) \<rightarrow> None" using None cfg.Callfun small_step.None by blast
+        hence "fstep (Callfun x f params, s) = None" by simp
+        moreover have "(Callfun x f params, s) \<rightarrow> None"
+          using cfg.Callfun small_step.None None by blast
         ultimately show ?thesis using Callfun small_step_determ by simp
     next
-      case (Some b)
-        thus ?thesis
-        proof (cases b)
-          case True
-            thus ?thesis
-            proof (cases "tr_callfun x f params s")
-              case None
-                hence "fstep (Callfun x f params, s) = None" using Some by auto
-                moreover have "(Callfun x f params, s) \<rightarrow> None"
-                  using cfg.Callfun small_step.None None by blast
-                ultimately show ?thesis using Callfun small_step_determ by simp
-            next
-              case (Some s\<^sub>2)
-                hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-                  using `en_callfun f params s = Some b` True by auto
-                moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfun small_step.Base Some `en_callfun f params s = Some b` by metis
-                ultimately show ?thesis using Callfun small_step_determ by simp
-            qed
-        next
-          case False
-          (*This would never happen*)
-            thus ?thesis sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
+          by simp
+        moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfun small_step.Base Some by blast
+        ultimately show ?thesis using Callfun small_step_determ by simp
     qed
 next
   case (Callfunl x f params)
     thus ?case
-    proof (cases "en_callfun f params s")
+    proof (cases "tr_callfunl x f params s")
       case None
-        hence "fstep (Callfunl x f params, s) = None" by auto
-        moreover have "(Callfunl x f params, s) \<rightarrow> None" using None cfg.Callfunl small_step.None by blast
+        hence "fstep (Callfunl x f params, s) = None" by simp
+        moreover have "(Callfunl x f params, s) \<rightarrow> None"
+          using cfg.Callfunl small_step.None None by blast
         ultimately show ?thesis using Callfunl small_step_determ by simp
     next
-      case (Some b)
-        thus ?thesis
-        proof (cases b)
-          case True
-            thus ?thesis
-            proof (cases "tr_callfunl x f params s")
-              case None
-                hence "fstep (Callfunl x f params, s) = None" using Some by auto
-                moreover have "(Callfunl x f params, s) \<rightarrow> None"
-                  using cfg.Callfunl small_step.None None by blast
-                ultimately show ?thesis using Callfunl small_step_determ by simp
-            next
-              case (Some s\<^sub>2)
-                hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-                  using `en_callfun f params s = Some b` True by auto
-                moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-                  using True cfg.Callfunl small_step.Base Some `en_callfun f params s = Some b` by metis
-                ultimately show ?thesis using Callfunl small_step_determ by simp
-            qed
-        next
-          case False
-          (*This would never happen*)
-            thus ?thesis sorry
-        qed
+      case (Some s\<^sub>2)
+        hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
+          by simp
+        moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
+          using cfg.Callfunl small_step.Base Some by blast
+        ultimately show ?thesis using Callfunl small_step_determ by simp
     qed
 next
   case (Block c)
