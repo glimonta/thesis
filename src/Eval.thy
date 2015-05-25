@@ -122,20 +122,6 @@ definition free :: "addr \<Rightarrow> mem \<Rightarrow> mem option" where
       None"
 
 (*
-fun get_mem :: "val \<Rightarrow> mem \<Rightarrow> val option" where
-  "get_mem (A (i,j)) \<mu> = (if valid_mem (i,j) \<mu> then Some ((\<mu> !! i) !! j) else None)"
-| "get_mem _ _ = None"
-
-value "get_mem (A (0,0)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
-value "get_mem (A (1,2)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
-value "get_mem (A (2,3)) [[(I 1), (I 2)], [(I 3), (I 4), (I 5)]]"
-
-fun index_mem :: "val \<Rightarrow> val \<Rightarrow> mem \<Rightarrow> val option" where
-  "index_mem (A (x,y)) (I i) \<mu> = get_mem (A (x, (y + i))) \<mu>"
-| "index_mem _ _ _ = None"
-*)
-
-(*
   The return here is a pair (val \<times> state) option. The state is necessary because malloc and free
   are expressions and those modify the state. We treat this as an option because None would be
   a special error state in which the evaluation got stuck i.e. sum of two pointers.
@@ -252,14 +238,6 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
     case v of A addr \<Rightarrow> Some (addr,s)
     | _ \<Rightarrow> None
   }"
-(*| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
-    (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
-    (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
-    v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
-    case v of
-      A addr \<Rightarrow> Some (addr,s)
-    | _ \<Rightarrow> None
-  }"*)
 | "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = do {
     (v\<^sub>1,s) \<leftarrow> eval e\<^sub>1 s;
     (v\<^sub>2,s) \<leftarrow> eval e\<^sub>2 s;
@@ -267,29 +245,6 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
       (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+sint incr),s)
     | _ \<Rightarrow> None
   }"
-
-
-(*
-(case (eval e s) of
-                            None \<Rightarrow> None |
-                            Some (v, s') \<Rightarrow> (case v of
-                                               (I _) \<Rightarrow> None |
-                                               NullVal \<Rightarrow> None |
-                                               (A _) \<Rightarrow> Some (v, s')))"
-*)
-(*
-| "eval_l (Indexl e\<^sub>1 e\<^sub>2) s = (case (eval e\<^sub>1 s) of
-                                None \<Rightarrow> None |
-                                Some (v\<^sub>1, s) \<Rightarrow> (case (eval e\<^sub>2 s) of
-                                                  None \<Rightarrow> None |
-                                                  Some (v\<^sub>2, s) \<Rightarrow> (case (plus_val v\<^sub>1 v\<^sub>2) of
-                                                                    None \<Rightarrow> None |
-                                                                    Some v \<Rightarrow> (case v of
-                                                                                 (I _) \<Rightarrow> None |
-                                                                                 NullVal \<Rightarrow> None |
-                                                                                 (A _) \<Rightarrow> Some (v, s)))))"
-*)
-
 
 end
 

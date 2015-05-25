@@ -82,21 +82,6 @@ definition tr_free :: "lexp \<Rightarrow> transformer" where
     Some (\<sigma>, \<gamma>, \<mu>)
   }"
 
-(* Takes the actual values list, the parameter names list and returns the valuation new stack_frame
-   if it returns none it's because the lists had different length \<Rightarrow> error *)
-fun create_locals_stack_frame :: "vname list \<Rightarrow> val list \<Rightarrow> valuation option" where
-  "create_locals_stack_frame [] [] = Some (\<lambda>name. None)"
-| "create_locals_stack_frame (x#xs) [] =  do {
-    sf \<leftarrow> (create_locals_stack_frame xs []);
-    Some (sf (x \<mapsto> None))
-  }"
-| "create_locals_stack_frame (x#xs) (y#ys) = do {
-    sf \<leftarrow> (create_locals_stack_frame xs ys);
-    Some (sf (x \<mapsto> Some y))
-  }"
-| "create_locals_stack_frame _ _ = None"
-  
-
 fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times> state) option" where
   "real_values [] s = Some ([], s)"
 | "real_values (x#xs) s = do {
