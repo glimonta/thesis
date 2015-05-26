@@ -8,19 +8,6 @@ imports
   "~~/src/HOL/Library/Code_Target_Nat"
 begin
 
-  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
-    Option.bind_split{s,_asm}*)
-  lemma option_bind_split: "P (Option.bind m f)
-  \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
-    by (cases m) auto
-
-  lemma option_bind_split_asm: "P (Option.bind m f) = (\<not>(
-      m=None \<and> \<not>P None
-    \<or> (\<exists>x. m=Some x \<and> \<not>P (f x))))"
-    by (cases m) auto
-
-  lemmas option_bind_splits = option_bind_split option_bind_split_asm
-
 (*
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
   "update_locs x a (\<sigma>, \<gamma>, \<mu>) = (\<sigma>(x:=Some a), \<gamma>, \<mu>)"*)
@@ -29,26 +16,25 @@ type_synonym enabled = "state \<rightharpoonup> bool"
 type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
-locale program = 
-  fixes proc_table :: "program"
-  assumes "valid_program proc_table"
-begin
+locale program =
+  fixes proc_table :: program
+  assumes valid: "valid_program proc_table"
 
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
 abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
 
-definition "tr_assign x a s \<equiv> do {
+definition "tr_assign x a \<equiv> lift_transformer_nr (\<lambda>s. do {
   (v,s) \<leftarrow> eval a s;
   s \<leftarrow> write_var x v s;
   Some s
-}"
+})"
 
 definition tr_assignl :: "lexp \<Rightarrow> exp \<Rightarrow> transformer"
-where "tr_assignl x a s \<equiv> do {
+where "tr_assignl x a \<equiv> lift_transformer_nr (\<lambda>s. do {
   (addr,s) \<leftarrow> eval_l x s;
   (v,s) \<leftarrow> eval a s;
   store addr v s
-}"
+})"
 
 fun truth_value_of :: "val \<Rightarrow> bool" where
   "truth_value_of NullVal \<longleftrightarrow> False"
@@ -57,32 +43,32 @@ fun truth_value_of :: "val \<Rightarrow> bool" where
 
 definition en_pos :: "exp \<Rightarrow> enabled" where
   "en_pos e s \<equiv> do {
-    (v,_) \<leftarrow> eval e s;
+    (v,_) \<leftarrow> lift_transformer (eval e) s;
     let b = truth_value_of v;
     Some b
   }"
 
 definition en_neg :: "exp \<Rightarrow> enabled" where
   "en_neg e s \<equiv> do {
-    (v,_) \<leftarrow> eval e s;
+    (v,_) \<leftarrow> lift_transformer (eval e) s;
     let b = truth_value_of v;
     Some (\<not>b)
   }"
 
 definition tr_eval :: "exp \<Rightarrow> transformer" where
-  "tr_eval e s \<equiv> do {
+  "tr_eval e \<equiv> lift_transformer_nr (\<lambda>s. do {
     (_,s) \<leftarrow> eval e s;
     Some s
-  }"
+  })"
 
 definition tr_free :: "lexp \<Rightarrow> transformer" where
-  "tr_free e s \<equiv> do {
-    (addr, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval_l e s;
-    \<mu> \<leftarrow> free addr \<mu>;
-    Some (\<sigma>, \<gamma>, \<mu>)
-  }"
+  "tr_free e \<equiv> lift_transformer_nr (\<lambda>s. do {
+    (addr, s) \<leftarrow> eval_l e s;
+    s \<leftarrow> free addr s;
+    Some s
+  })"
 
-fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times> state) option" where
+fun real_values :: "exp list \<Rightarrow> visible_state \<Rightarrow> (val list \<times> visible_state) option" where
   "real_values [] s = Some ([], s)"
 | "real_values (x#xs) s = do {
     (v,s) \<leftarrow> eval x s;
@@ -90,24 +76,34 @@ fun real_values :: "exp list \<Rightarrow> state \<Rightarrow> (val list \<times
     Some ([v] @ vals, s)
   }"
 
-definition initial_stack :: "stack_frame list" where "initial_stack \<equiv> []"
+context fixes proc_table :: program begin
+
+definition "main_decl \<equiv> the (proc_table ''main'')"
+definition "main_local_names \<equiv> (\<lambda>(_,l,_). l) main_decl"
+definition "main_com \<equiv> (\<lambda>(_,_,c). c) main_decl"
+
+definition initial_stack :: "stack_frame list" where
+  "initial_stack \<equiv> [(main_com,map_of (map (\<lambda>x. (x,None)) main_local_names),Invalid)]"
 definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
 (*definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None" *)
 definition initial_mem :: mem where "initial_mem \<equiv> []"
 definition initial_state :: state 
   where "initial_state \<equiv> (initial_stack, initial_glob, initial_mem)"
 
-value "real_values [(Const 1), (Plus (Const 1) (Const 2))] initial_state"
+end
+
+value (code) "lift_transformer 
+  (real_values [(Const 1), (Plus (Const 1) (Const 2))]) (initial_state proc_table)"
 
 (* A function can be called if the number of parameters from the function and the actual parameters
    used when calling it match, otherwise it can't be called 
    If the number of parameters is wrong we return None instead of False because we want it to stop
    executing \<rightarrow> it's an error. *)
-definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
+(*definition en_callfun :: "fname \<Rightarrow> exp list \<Rightarrow> enabled" where
   "en_callfun f values _ \<equiv> do {
     (params, locals, _) \<leftarrow> proc_table f;
     if (list_size params) = (list_size values) then Some True else None
-  }"
+  }"*)
 
 
 fun push_stack :: "stack_frame \<Rightarrow> transformer" where
@@ -122,42 +118,70 @@ fun top_stack :: "state \<Rightarrow> stack_frame option" where
 | "top_stack _ = None"
 
 
-definition call_function :: "return_loc \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer"
-where "call_function rloc f params_exp s \<equiv> do {
+definition call_function :: "program \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer"
+where "call_function proc_table f params_exp s \<equiv> do {
   (formal_params, locals_names, body) \<leftarrow> proc_table f;
   assert (length params_exp = length formal_params);
-  (params_val, s) \<leftarrow> real_values params_exp s;
+  (params_val, s) \<leftarrow> lift_transformer (real_values params_exp) s;
   let locals = 
      map_of (zip formal_params (map Some params_val)) 
   ++ map_of (map (\<lambda>x. (x,None)) locals_names);
-  let sf = (body,locals,rloc);
+  let sf = (body,locals,Invalid);
   push_stack sf s
 }"
 
-(* The lhs is evaluated before *)
-definition tr_callfunl :: "lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfunl x f call_params s \<equiv> do {
-    (addr, s) \<leftarrow> eval_l x s;
-    call_function (Ar addr) f call_params s
+definition set_rloc :: "return_loc \<Rightarrow> transformer" where
+  "set_rloc rloc \<equiv> \<lambda>((com,locals,_)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> 
+    Some ((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>)
+  "
+
+definition get_rloc :: "state \<Rightarrow> return_loc" where
+  "get_rloc \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> rloc"
+
+
+definition tr_callfunl :: "program \<Rightarrow> lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfunl proc_table x f args s \<equiv> do {
+    (addr,s) \<leftarrow> lift_transformer (eval_l x) s;
+    s \<leftarrow> set_rloc (Ar addr) s;
+    call_function proc_table f args s
   }"
 
-definition tr_callfun :: "vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
-  "tr_callfun x f call_params s \<equiv> do {
-    call_function (Vr x) f call_params s
+definition tr_callfun :: "program \<Rightarrow> vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfun proc_table x f args s \<equiv> do {
+    s \<leftarrow> set_rloc (Vr x) s;
+    call_function proc_table f args s
   }"
+
 
 (* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
    or address where it's supposed to be assigned *)
 definition tr_return :: "exp \<Rightarrow> transformer" where
   "tr_return a s = do {
-    (v,s) \<leftarrow> eval a s;
-    (_,_,ret) \<leftarrow> top_stack s;
+    (v,s) \<leftarrow> lift_transformer (eval a) s;
     s \<leftarrow> pop_stack s;
-    case ret of
-      Vr x \<Rightarrow> write_var x v s
-    | Ar addr \<Rightarrow> store addr v s
+    if \<not>is_empty_stack s then
+      case get_rloc s of
+        Ar addr \<Rightarrow> lift_transformer_nr (store addr v) s
+      | Vr x \<Rightarrow> lift_transformer_nr (write_var x v) s
+      | Invalid \<Rightarrow> Some s
+    else
+      Some s
   }"
     
+definition tr_return_void :: "transformer" where
+  "tr_return_void s = do {
+    s \<leftarrow> pop_stack s;
+    if \<not>is_empty_stack s then
+      case get_rloc s of
+        Ar addr \<Rightarrow> None
+      | Vr x \<Rightarrow> None
+      | Invalid \<Rightarrow> Some s
+    else
+      Some s
+  }"
+
+context program begin
+
 inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bool" where
   Assign: "cfg (x ::= a) (en_always,tr_assign x a) SKIP"
 | Assignl: "cfg (x ::== a) (en_always,tr_assignl x a) SKIP"
@@ -170,17 +194,8 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 
 | Return: "cfg (Return a) (en_always, tr_return a) SKIP"
 
-| Callfun: "cfg (Callfun x f params) (en_always, tr_callfun x f params) SKIP"
-| Callfunl: "cfg (Callfunl x f params) (en_always, tr_callfunl x f params) SKIP"
-
-definition is_empty_stack :: "state \<Rightarrow> bool" where
-  "is_empty_stack \<equiv> \<lambda>(\<sigma>,_,_). \<sigma>=[]"
-
-definition com_of :: "state \<Rightarrow> com" where
-  "com_of \<equiv> \<lambda>((com,_,_)#_,_,_) \<Rightarrow> com"
-
-definition upd_com :: "com \<Rightarrow> state \<Rightarrow> state" where
-  "upd_com \<equiv> \<lambda>com. \<lambda>((_,l,rl)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> ((com,l,rl)#\<sigma>,\<gamma>,\<mu>)"
+| Callfunl: "cfg (Callfunl e f params) (en_always, tr_callfunl proc_table e f params) SKIP"
+| Callfun: "cfg (Callfun x f params) (en_always, tr_callfun proc_table x f params) SKIP"
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
    enabled returns True and the transformer successfully transforms the state into a new one.
@@ -192,6 +207,8 @@ inductive
 where
   Base: "\<lbrakk> \<not>is_empty_stack s; c\<^sub>1=com_of s; cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = Some True; tr (upd_com c\<^sub>2 s) = Some s\<^sub>2\<rbrakk> \<Longrightarrow> s \<rightarrow> Some s\<^sub>2"
 | None: "\<lbrakk> \<not>is_empty_stack s; c\<^sub>1=com_of s; cfg c\<^sub>1 (en, tr) c\<^sub>2; en s = None     \<or> tr (upd_com c\<^sub>2 s) = None\<rbrakk> \<Longrightarrow>    s \<rightarrow> None"
+| Return_void: "\<lbrakk> \<not>is_empty_stack s; com_of s = SKIP; tr_return_void s = Some s' \<rbrakk> \<Longrightarrow> s \<rightarrow> Some s'"
+| Return_void_None: "\<lbrakk> \<not>is_empty_stack s; com_of s = SKIP; tr_return_void s = None \<rbrakk> \<Longrightarrow> s \<rightarrow> None"
 
 inductive
   small_step' :: "(state) option \<Rightarrow> (state) option \<Rightarrow> bool" (infix "\<rightarrow>' " 55)
@@ -261,207 +278,59 @@ lemma cfg_preserves_def_returns:
   apply auto
   done
 
-definition coms_of :: "state \<Rightarrow> com set" where
-  "coms_of \<equiv> \<lambda>(\<sigma>,_,_). (\<lambda>(com,_,_). com)`set \<sigma>"
-
-lemma coms_of_tuple: "coms_of (\<sigma>,\<gamma>,\<mu>) = (\<lambda>(com,_,_). com)`set \<sigma>"
-  unfolding coms_of_def by auto
-
-definition "def_returns_com_stack s \<equiv> \<forall>com\<in>coms_of s. def_returns com"
+definition "def_returns_com_stack s \<equiv> \<forall>com\<in>coms_of_state s. def_returns com"
 
 lemma assert_simps[simp]:
   "assert \<Phi> = None \<longleftrightarrow> \<not>\<Phi>"
   "assert \<Phi> = Some () \<longleftrightarrow> \<Phi>"
   unfolding assert_def by auto
 
-lemma "\<not>is_empty_stack s 
-  \<Longrightarrow> lift_transformer tr s = Some (r,s') \<Longrightarrow> coms_of s = coms_of s'"
-  unfolding lift_transformer_def
-  apply (auto 
-    simp: is_empty_stack_def
-    split: option_bind_splits prod.splits list.splits)
-  apply (simp_all add: coms_of_tuple)
-  done  
-
-lemma
-  assumes "cfg ss (en,tr) ss'"
-  assumes "\<not>is_empty_stack s"
-  assumes "def_returns_com_stack s"
-  assumes "tr s = Some s'"
-  shows "def_returns_com_stack s'"
-  using assms
-  apply cases
-  apply (auto simp: def_returns_com_stack_def)
-
-lemma 
-  assumes "s \<rightarrow> Some s'"
-  assumes "def_returns_com_stack s"
-  shows "def_returns_com_stack s'"
-  using assms
-  apply cases
-  
 
 lemma aux:
-  assumes "\<not>is_empty_stack s"
+  assumes [simp, intro!]: "\<not>is_empty_stack s"
   shows "\<exists>x. s \<rightarrow> x"
   using assms
 proof -
-  from assms obtain c locals rloc \<sigma> \<gamma> \<mu> where "s = ((c,locals,rloc)#\<sigma>, \<gamma>,\<mu>)"
+  from assms obtain c locals rloc \<sigma> \<gamma> \<mu> where 
+    [simp]: "s = ((c,locals,rloc)#\<sigma>, \<gamma>,\<mu>)"
     unfolding is_empty_stack_def
     apply (simp add: neq_Nil_conv split: prod.splits)
     by auto
-
-  from cfg_has_enabled_action[of c] obtain c' en tr 
-    where "cfg c (en, tr) c' \<and> (en s = None \<or> en s = Some True)" 
-
-
-proof (induction c)
-  case SKIP thus ?case by simp
-next
-  case (Assignl x a) [simp] 
-  show ?case
-  proof (cases "tr_assignl x a s")
-    case None[simp]
-      hence "(x ::== a, s) \<rightarrow> None" using small_step.None cfg.Assignl by blast
-      thus ?thesis by auto
-  next
-    case (Some s\<^sub>2)[simp]
-      hence "(x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using small_step.Base cfg.Assignl by blast
-      thus ?thesis by auto
-  qed
-next
-  case (Assign x a)
-  show ?case 
-  proof (cases "tr_assign x a s")
-    case None[simp]
-      hence "(x ::= a, s) \<rightarrow> None" using small_step.None cfg.Assign by blast
-      thus ?thesis using Assign by auto
-    next
-    case (Some s\<^sub>2)[simp]
-      hence "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using small_step.Base cfg.Assign by blast
-      thus ?thesis using Assign by auto
-  qed
-next
-  case (Seq c\<^sub>1 c\<^sub>2)
-  show ?case
-  proof (cases "c\<^sub>1 = SKIP")
-    case True
-    hence "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
-    thus ?thesis using Seq `c\<^sub>1 = SKIP` by auto
-  next
+    
+  show ?thesis proof (cases "c=SKIP")
+    case True[simp]
+    show ?thesis apply auto
+      by (metis Base None Return_void Return_void_None True 
+        `s = ((c, locals, rloc) # \<sigma>, \<gamma>, \<mu>)` assms cfg_has_enabled_action 
+        option.exhaust)
+  next    
     case False
-    from Seq.IH(1)[OF this] obtain a where "(c\<^sub>1,s) \<rightarrow> a" ..
-    thus ?thesis
-    proof cases
-      case (Base en tr c\<^sub>1' s\<^sub>2)
-      from Seq2[OF Base(2), of c\<^sub>2] Base show ?thesis
-        by (auto intro: small_step.Base)
-    next    
-      case (None en tr c\<^sub>1')
-      from Seq2[OF None(2), of c\<^sub>2] None show ?thesis
-        by (auto intro: small_step.None)
-    qed
-  qed
-next
-  case (If b c\<^sub>1 c\<^sub>2)
-  show ?case
-  proof (cases "en_pos b s")
-    case None[simp]
-      hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfTrue small_step.None by blast
-      thus ?thesis using If by auto
-  next
-    case (Some a)[simp]
-      show ?thesis
-      proof (cases "tr_eval b s")
-        case None
-          hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> None" using cfg.IfTrue small_step.None by blast
-          thus ?thesis using If by auto
-      next
-        case (Some s\<^sub>2)
-          show ?thesis
-          proof (cases a)
-            case True
-              hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>1, s\<^sub>2)"
-              using `en_pos b s = Some a` cfg.IfTrue small_step.Base If Some by metis
-              thus ?thesis using If by auto
-          next
-            case False[simp]
-            have "en_pos b s = Some False" by simp
-            hence "en_neg b s = Some True"
-              unfolding en_pos_def en_neg_def
-              by (auto split: option_bind_splits)
-            hence "(IF b THEN c\<^sub>1 ELSE c\<^sub>2,s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-            using `tr_eval b s = Some s\<^sub>2` cfg.IfFalse small_step.Base If Some by metis
-            thus ?thesis using If by auto
-          qed
+    from cfg_has_enabled_action[OF False] obtain c' en tr 
+      where "cfg c (en, tr) c' \<and> (en s = None \<or> en s = Some True)" by blast
+    thus ?thesis proof safe
+      assume "cfg c (en, tr) c'" "en s = None"
+      thus ?thesis apply - apply (rule exI) apply (rule small_step.None)
+      by auto
+    next  
+      assume A: "cfg c (en, tr) c'" "en s = Some True"
+      thus ?thesis proof (cases "tr (upd_com c' s)")
+        case None with A show ?thesis 
+          by (force intro: small_step.None)
+      next    
+        case Some with A show ?thesis 
+          by (force intro: small_step.Base)
       qed
+    qed 
   qed
-next
-case (While b c)
-  thus ?case using small_step.Base cfg.While by blast
-next
-case (Free x)
-  show ?case
-  proof (cases "tr_free x s")
-    case None
-      hence "(FREE x, s) \<rightarrow> None" using cfg.Free small_step.None by blast
-      thus ?thesis using Free by auto
-  next
-    case (Some s\<^sub>2)
-      hence "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using cfg.Free small_step.Base by blast
-      thus ?thesis using Free by auto
-  qed
-next
-  case (Return a)
-    thus ?case
-    proof (cases "tr_return a s")
-      case None
-        hence "(Return a, s) \<rightarrow> None" using cfg.Return small_step.None by blast
-        thus ?thesis by auto
-    next
-      case (Some s\<^sub>2)
-        hence "(Return a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using cfg.Return small_step.Base by blast
-        thus ?thesis by auto
-    qed
-next
-  case (Callfun x f params)
-    thus ?case
-    proof (cases "tr_callfun x f params s")
-      case None
-        hence "(Callfun x f params, s) \<rightarrow> None" using cfg.Callfun small_step.None by blast
-        thus ?thesis by auto
-    next
-      case (Some s\<^sub>2)
-        hence "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfun small_step.Base by blast
-        thus ?thesis by auto
-    qed
-next
-  case (Callfunl x f params)
-    thus ?case
-    proof (cases "tr_callfunl x f params s")
-      case None
-        hence "(Callfunl x f params, s) \<rightarrow> None" using cfg.Callfunl small_step.None by blast
-        thus ?thesis by auto
-    next
-      case (Some s\<^sub>2)
-        hence "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfunl small_step.Base by blast
-        thus ?thesis by auto
-    qed
-next
-  case (Block c)
-    thus ?case sorry
-qed
-
+qed 
 
 lemma cfg_SKIP_stuck[simp]: "\<not> cfg SKIP a c"
   by (auto elim: cfg.cases)
 
-lemma ss_SKIP_stuck[simp]: "\<not>( (SKIP,s) \<rightarrow> cs')"
+lemma ss_empty_stack_stuck[simp]: "is_empty_stack s \<Longrightarrow> \<not>( s \<rightarrow> cs')"
   by (auto elim: small_step.cases)
 
-lemma ss'_SKIP_stuck[simp]: "\<not>( Some (SKIP,s) \<rightarrow>' cs')"
+lemma ss'_SKIP_stuck[simp]: "is_empty_stack s \<Longrightarrow> \<not>( Some s \<rightarrow>' cs')"
   by (auto elim: small_step'.cases)
 
 
@@ -490,456 +359,185 @@ lemma cfg_determ:
   apply (erule cfg.cases, auto) []
   apply (rotate_tac)
   apply (erule cfg.cases, auto) []
-  prefer 3
+  apply (rotate_tac)
   apply (erule cfg.cases, auto) []
-  prefer 3
-  apply (erule cfg.cases, auto) []
-  sorry
+  done
+
+lemma lift_upd_com: "\<not>is_empty_stack s \<Longrightarrow>
+  lift_transformer_nr tr (upd_com c s) = 
+  map_option (upd_com c) (lift_transformer_nr tr s)"
+  unfolding lift_transformer_nr_def
+  by (auto split: prod.splits list.splits option_bind_split)
+
+lemma tr_eval_upd_com: "\<not>is_empty_stack s \<Longrightarrow> 
+  tr_eval e (upd_com c s) = map_option (upd_com c) (tr_eval e s)"
+  unfolding tr_eval_def
+  by (auto simp: lift_upd_com)
 
 lemma small_step_determ:
-  assumes "(c,s) \<rightarrow> c'"
-  assumes "(c,s) \<rightarrow> c''"
-  shows "c'=c''"
+  assumes "s \<rightarrow> s'"
+  assumes "s \<rightarrow> s''"
+  shows "s'=s''"
   using assms
   apply (cases)
   apply (erule small_step.cases)
   apply simp
-  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
   apply simp
-  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
+  apply simp
+  apply simp
+
   apply (erule small_step.cases)
   apply simp
-  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos) []
-  by simp
+  apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
+  apply simp
+  apply simp
+  apply simp
+
+  apply (erule small_step.cases)
+  apply simp
+  apply simp
+  apply simp
+  apply simp
+
+  apply (erule small_step.cases)
+  apply simp
+  apply simp
+  apply simp
+  apply simp
+  done
+
+end
 
 (* Return is undefined because we will never have a Return command outside of a Block or Blockl
    Callfunl is giving me problems *)
-fun fstep :: "com \<times> state \<Rightarrow> (com \<times> state) option" where
-  "fstep (SKIP,s) = Some (SKIP,s)"
-| "fstep (x ::= a,s) = do {
-    s \<leftarrow> tr_assign x a s;
-    Some (SKIP,s)
-  }"
-| "fstep (x ::== a,s) = do {
-    s \<leftarrow> tr_assignl x a s;
-    Some (SKIP,s)
-  }"
-| "fstep (SKIP;;c, s) = Some (c,s)"
-| "fstep (c\<^sub>1;; c\<^sub>2, s) = do {
-    (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
-    Some (c\<^sub>1' ;; c\<^sub>2, s)
-  }"
-| "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = do {
-    v \<leftarrow> en_pos b s;
-    s \<leftarrow> tr_eval b s;
-    if v then Some (c\<^sub>1, s) else Some (c\<^sub>2, s)
-  }"
-| "fstep (WHILE b DO c, s) = Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)"
-| "fstep (FREE x, s) = do {
-    s \<leftarrow> tr_free x s;
-    Some (SKIP, s)
-  }"
-| "fstep (Return a, s) = do {
-    s \<leftarrow> tr_return a s;
-     Some (SKIP, s)
-  }"
-| "fstep (Block c, s) = do {
-    (c, s) \<leftarrow> fstep (c, s);
-    Some (Block c, s)
-  }"
-| "fstep (Callfun x f params, s) = do {
-    s \<leftarrow> tr_callfun x f params s;
-    Some (Block (snd (snd (the (proc_table f)))), s)
-  }"
-| "fstep (Callfunl x f params, s) = do {
-    s \<leftarrow> tr_callfunl x f params s;
-    Some (Block (snd (snd (the (proc_table f)))), s)
-  }"
+
+datatype cfg_edge = Base transformer com | Cond enabled transformer com com
+
+context fixes proc_table :: program begin
+
+fun cfg_step :: "com \<Rightarrow> cfg_edge" where
+  "cfg_step SKIP = undefined"
+| "cfg_step (x ::= a) = Base (tr_assign x a) SKIP"
+| "cfg_step (x ::== a) = Base (tr_assignl x a) SKIP"
+| "cfg_step (SKIP;; c2) = Base tr_id c2"
+| "cfg_step (c1;;c2) = (case cfg_step c1 of
+    Base tr c \<Rightarrow> Base tr (c;;c2)
+  | Cond en tr ca cb \<Rightarrow> Cond en tr (ca;;c2) (cb;;c2)  
+   )"
+| "cfg_step (IF b THEN c1 ELSE c2) = Cond (en_pos b) (tr_eval b) c1 c2"
+| "cfg_step (WHILE b DO c) = Base tr_id (IF b THEN c;; WHILE b DO c ELSE SKIP)"
+| "cfg_step (FREE x) = Base (tr_free x) SKIP"
+| "cfg_step (Return a) = Base (tr_return a) SKIP"
+| "cfg_step (Callfunl e f params) = Base (tr_callfunl proc_table e f params) SKIP"
+| "cfg_step (Callfun x f params) = Base (tr_callfun proc_table x f params) SKIP"
+
+end
+
+context program begin
+
+  lemma step_to_cfg_base: "c \<noteq> SKIP \<Longrightarrow> (cfg_step proc_table c = Base tr c') \<Longrightarrow> cfg c (en_always,tr) c'"
+    apply (induction c arbitrary: tr c' rule: cfg_step.induct)
+    apply (auto intro: cfg.intros elim: cfg.cases split: cfg_edge.splits)
+    done
+
+  lemma step_to_cfg_cond: "c \<noteq> SKIP \<Longrightarrow> (cfg_step proc_table c = Cond en tr c1' c2') \<Longrightarrow>
+    (cfg c (en,tr) c1' \<or> cfg c (map_option HOL.Not o en, tr) c2' )"
+    apply (induction c arbitrary: tr c1' c2' rule: cfg_step.induct)
+    apply (auto 
+      intro: cfg.intros elim: cfg.cases split: cfg_edge.splits simp: en_neg_by_pos)
+    apply (force intro: cfg.intros)
+    done
+
+  lemma cfg_to_stepE:
+    assumes "cfg c a c'"  
+    assumes "c\<noteq>SKIP"
+    obtains 
+      tr where "a = (en_always, tr)" "cfg_step proc_table c = Base tr c'"
+    | b c2' where "a = (en_pos b, tr_eval b)" "cfg_step proc_table c = Cond (en_pos b) (tr_eval b) c' c2'"
+    | b c1' where "a = (en_neg b, tr_eval b)" "cfg_step proc_table c = Cond (en_pos b) (tr_eval b) c1' c'"
+    using assms
+    apply (induction)    
+    apply auto
+    apply (case_tac "c\<^sub>1")
+    apply auto
+    done
+    
+end
 
 
-lemma fstep_seq_nSKIP[simp]: "c\<^sub>1 \<noteq> SKIP \<Longrightarrow> fstep (c\<^sub>1;; c\<^sub>2, s) = do {
-    (c\<^sub>1', s) \<leftarrow> fstep (c\<^sub>1, s);
-    Some (c\<^sub>1' ;; c\<^sub>2, s)
-  }"
-  by (cases c\<^sub>1) auto
+definition fstep :: "program \<Rightarrow> state \<Rightarrow> state option" where
+  "fstep proc_table s \<equiv> 
+    if com_of s = SKIP then
+      tr_return_void s
+    else
+      case cfg_step proc_table (com_of s) of
+          Base tr c' \<Rightarrow> tr (upd_com c' s)
+        | Cond en tr c1 c2 \<Rightarrow> do {
+            b \<leftarrow> en s;
+            if b then
+              tr (upd_com c1 s)
+            else  
+              tr (upd_com c2 s)
+          }"
 
+context program begin
 
-lemma fstep1: "(c,s) \<rightarrow> c' \<Longrightarrow> fstep (c,s) = c'"
-proof (induction c arbitrary: s c')
-  case SKIP
-    hence False using cfg.cases small_step.cases by fastforce
-    thus ?case by auto
-next
-  case (Assignl x a)
-    thus ?case
-    proof (cases "tr_assignl x a s")
-    print_cases
-      case None
-        hence "fstep (x ::== a, s) = None" by auto
-        moreover have "(x ::== a, s) \<rightarrow> None" using None cfg.Assignl small_step.None by blast
-        ultimately show ?thesis using Assignl small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (x ::== a, s) = Some (SKIP, s\<^sub>2)" by auto
-        moreover have "(x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assignl small_step.Base by blast
-        ultimately show ?thesis using Assignl small_step_determ by simp
-    qed
-next
-  case (Assign x a)
-  thus ?case
-  proof (cases "tr_assign x a s")
-  print_cases
-    case None
-      hence "fstep (x ::= a, s) = None" by auto
-      moreover have "(x ::= a, s) \<rightarrow> None" using None cfg.Assign small_step.None by blast
-      ultimately show ?thesis using Assign small_step_determ by simp
-  next
-    case (Some s\<^sub>2)
-      hence "fstep (x ::= a, s) = Some (SKIP, s\<^sub>2)" by auto
-      moreover have "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assign small_step.Base by blast
-      ultimately show ?thesis using Assign small_step_determ by simp
-  qed
-next
-  case (Seq c\<^sub>1 c\<^sub>2)
-  from Seq.prems show ?case
-  proof cases
-    case (Base en tr c\<^sub>1' s\<^sub>2)
-    note [simp] = Base(1)
-    from Base(2) show ?thesis
-    proof cases
-      case Seq1
-      thus ?thesis
-        using Base
-        by simp
-    next
-      case (Seq2 cc\<^sub>1)
-      hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
+  lemma fstep1: 
+    assumes "s \<rightarrow> s'"  
+    shows "fstep proc_table s = s'"
+    using assms
+    apply cases
+    apply (auto simp: fstep_def)
 
-      from Base(3,4) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> Some (cc\<^sub>1,s\<^sub>2)"
-        by (blast intro: small_step.intros)
-      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = Some (cc\<^sub>1, s\<^sub>2)" by simp
+    apply (erule cfg_to_stepE)
+    apply (auto split: option_bind_split simp: en_neg_by_pos)
+    
+    apply (erule cfg_to_stepE)
+    apply (auto split: option_bind_split simp: en_neg_by_pos)
 
-      show ?thesis using \<open>c\<^sub>1' = cc\<^sub>1;; c\<^sub>2\<close>
-        by simp
-    qed
-  next
-    case (None en tr c\<^sub>1')
-    note [simp] = \<open>c'=None\<close>
-    from None(2) show ?thesis
-    proof cases
-      case Seq1 with None(3) have False by auto thus ?thesis ..
-    next
-      case (Seq2 cc1)
-      hence [simp]: "c\<^sub>1 \<noteq> SKIP" by auto
+    apply (erule cfg_to_stepE)
+    apply (auto split: option_bind_split simp: en_neg_by_pos tr_eval_upd_com)
+    done
+    
 
-      from None(3) Seq2(2) have "(c\<^sub>1,s) \<rightarrow> None"
-        by (blast intro: small_step.intros)
-      from Seq.IH(1)[OF this] have [simp]: "fstep (c\<^sub>1, s) = None" .
-      show ?thesis
-        by simp
-    qed
-  qed
-next
-  case (If b c\<^sub>1 c\<^sub>2)
-  thus ?case
-  proof (cases "en_pos b s")
-    case None
-      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
-      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
-      ultimately show ?thesis using If small_step_determ by simp
-  next
-    case (Some v)
-    thus ?thesis
-    proof (cases "tr_eval b s")
-      case None
-      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
-      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
-      ultimately show ?thesis using If small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-      thus ?thesis
-      proof (cases v)
-        case True
-          hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>1, s\<^sub>2)" using Some `en_pos b s = Some v` by auto
-          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1, s\<^sub>2)"
-            using Some cfg.IfTrue small_step.Base `en_pos b s = Some v` `v` by metis
-          ultimately show ?thesis using If small_step_determ by simp
-      next
-        case False[simp]
-          have "en_pos b s = Some False" using `en_pos b s = Some v` by simp
-          hence "en_neg b s = Some True" using en_neg_by_pos by auto
-          moreover have "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>2, s\<^sub>2)"
-            using Some `en_pos b s = Some v` by auto
-          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-            using Some cfg.IfFalse small_step.Base calculation(1) by metis
-          ultimately show ?thesis using If small_step_determ by simp
-      qed
-    qed
-  qed
-next
-  case (While b c)
-    hence "fstep (WHILE b DO c, s) = Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)" by auto
-    moreover have "(WHILE b DO c, s) \<rightarrow> Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)"
-      using cfg.While small_step.Base by blast
-    ultimately show ?case using While small_step_determ by simp
-next
-  case (Free x)
-    thus ?case
-    proof (cases "tr_free x s")
-      case None
-        hence "fstep (FREE x, s) = None" by auto
-        moreover have "(FREE x, s) \<rightarrow> None" using None cfg.Free small_step.None by blast
-        ultimately show ?thesis using Free small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (FREE x, s) = Some (SKIP, s\<^sub>2)" by auto
-        moreover have "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Free small_step.Base by blast
-        ultimately show ?thesis using Free small_step_determ by simp
-    qed
-print_cases
-next
-  case (Return a)
-    thus ?case
-    proof (cases "tr_return a s")
-      case None
-        hence "fstep (Return a, s) = None" by auto
-        moreover have "(Return a, s) \<rightarrow> None" using None cfg.Return small_step.None by blast
-        ultimately show ?thesis using Return small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Return a, s) = Some (SKIP, s\<^sub>2)" by auto
-        moreover have "(Return a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Return small_step.Base by blast
-        ultimately show ?thesis using Return small_step_determ by simp
-    qed
-next
-  case (Callfun x f params)
-    thus ?case
-    proof (cases "tr_callfun x f params s")
-      case None
-        hence "fstep (Callfun x f params, s) = None" by simp
-        moreover have "(Callfun x f params, s) \<rightarrow> None"
-          using cfg.Callfun small_step.None None by blast
-        ultimately show ?thesis using Callfun small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-          by simp
-        moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfun small_step.Base Some by blast
-        ultimately show ?thesis using Callfun small_step_determ by simp
-    qed
-next
-  case (Callfunl x f params)
-    thus ?case
-    proof (cases "tr_callfunl x f params s")
-      case None
-        hence "fstep (Callfunl x f params, s) = None" by simp
-        moreover have "(Callfunl x f params, s) \<rightarrow> None"
-          using cfg.Callfunl small_step.None None by blast
-        ultimately show ?thesis using Callfunl small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-          by simp
-        moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfunl small_step.Base Some by blast
-        ultimately show ?thesis using Callfunl small_step_determ by simp
-    qed
-next
-  case (Block c)
-    thus ?case sorry
-qed
+lemma fstep2: "\<not>is_empty_stack s \<Longrightarrow> s \<rightarrow> (fstep proc_table s)"
+  unfolding fstep_def
+  apply simp apply safe
+  apply (cases "tr_return_void s")
+  apply (auto intro: small_step.intros) [2]
 
-
-lemma fstep2: "c\<noteq>SKIP \<Longrightarrow> (c,s) \<rightarrow> (fstep (c,s))"
-proof (induction c)
-  case SKIP
-    thus ?case by simp
-next
-  case (Assignl x a)
-  thus ?case
-  proof (cases "tr_assignl x a s")
-  print_cases
-    case None
-      hence "fstep (x ::== a, s) = None" by auto
-      moreover have "(x ::== a, s) \<rightarrow> None" using None cfg.Assignl small_step.None by blast
-      ultimately show ?thesis by auto
-  next
-    case (Some s\<^sub>2)
-      hence "fstep (x ::== a, s) = Some (SKIP, s\<^sub>2)" by auto
-      moreover have "(x ::== a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assignl small_step.Base by blast
-      ultimately show ?thesis by auto
-  qed
-next
-  case (Assign x a)
-  thus ?case
-  proof (cases "tr_assign x a s")
-  print_cases
-    case None
-      hence "fstep (x ::= a, s) = None" by auto
-      moreover have "(x ::= a, s) \<rightarrow> None" using None cfg.Assign small_step.None by blast
-      ultimately show ?thesis by auto
-  next
-    case (Some s\<^sub>2)
-      hence "fstep (x ::= a, s) = Some (SKIP, s\<^sub>2)" by auto
-      moreover have "(x ::= a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Assign small_step.Base by blast
-      ultimately show ?thesis by auto
-  qed
-next
-  case (Seq c\<^sub>1 c\<^sub>2)
-  thus ?case
-  proof (cases "c\<^sub>1 = SKIP")
-    case True
-      hence "fstep (SKIP;; c\<^sub>2, s) = Some (c\<^sub>2, s)" using small_step.Base cfg.Seq1 fstep1 by blast
-      moreover have "(SKIP;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s)" using cfg.Seq1 small_step.Base by blast
-      ultimately show ?thesis using Seq `c\<^sub>1 = SKIP` by auto
-  next
-    case False
-      from Seq.IH(1)[OF this] obtain a where "(c\<^sub>1, s) \<rightarrow> a" ..
-      thus ?thesis
-      proof cases
-        case (Base en tr c\<^sub>1' s\<^sub>2)
-          from Seq2[OF Base(2), of c\<^sub>2] Base
-            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using small_step.Base by auto
-          moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = Some (c\<^sub>1' ;; c\<^sub>2, s\<^sub>2)" using fstep1 calculation by blast
-          ultimately show ?thesis by auto
-      next
-        case (None en tr c\<^sub>1')
-          from Seq2[OF None(2), of c\<^sub>2] None
-            have "(c\<^sub>1 ;; c\<^sub>2, s) \<rightarrow>None" using small_step.None by auto
-          moreover have "fstep (c\<^sub>1 ;; c\<^sub>2, s) = None" using fstep1 calculation by blast
-          ultimately show ?thesis by auto
-      qed
-  qed
-next
-  case (If b c\<^sub>1 c\<^sub>2)
-  thus ?case
-  proof (cases "en_pos b s")
-    case None
-      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
-      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
-      ultimately show ?thesis by auto
-  next
-    case (Some v)
-    thus ?thesis
-    proof (cases "tr_eval b s")
-      case None
-      hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = None" by auto
-      moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> None" using None cfg.IfTrue small_step.None by blast
-      ultimately show ?thesis by auto
-    next
-      case (Some s\<^sub>2)
-      thus ?thesis
-      proof (cases v)
-        case True
-          hence "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>1, s\<^sub>2)" using Some `en_pos b s = Some v` by auto
-          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>1, s\<^sub>2)"
-            using Some cfg.IfTrue small_step.Base `en_pos b s = Some v` `v` by metis
-          ultimately show ?thesis by auto
-      next
-        case False[simp]
-          have "en_pos b s = Some False" using `en_pos b s = Some v` by simp
-          hence "en_neg b s = Some True" using en_neg_by_pos by auto
-          moreover have "fstep (IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) = Some (c\<^sub>2, s\<^sub>2)"
-            using Some `en_pos b s = Some v` by auto
-          moreover have "(IF b THEN c\<^sub>1 ELSE c\<^sub>2, s) \<rightarrow> Some (c\<^sub>2, s\<^sub>2)"
-            using Some cfg.IfFalse small_step.Base calculation(1) by metis
-          ultimately show ?thesis by auto
-      qed
-    qed
-  qed
-next
-  case (While b c)
-    hence "fstep (WHILE b DO c, s) = Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)" by auto
-    moreover have "(WHILE b DO c, s) \<rightarrow> Some (IF b THEN c;; WHILE b DO c ELSE SKIP, s)"
-      using cfg.While small_step.Base by blast
-    ultimately show ?case by auto
-next
-  case (Free x)
-    thus ?case
-    proof (cases "tr_free x s")
-      case None
-        hence "fstep (FREE x, s) = None" by auto
-        moreover have "(FREE x, s) \<rightarrow> None" using None cfg.Free small_step.None by blast
-        ultimately show ?thesis by auto
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (FREE x, s) = Some (SKIP, s\<^sub>2)" by auto
-        moreover have "(FREE x, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Free small_step.Base by blast
-        ultimately show ?thesis by auto
-    qed
-next
-  case (Return a)
-    thus ?case
-    proof (cases "tr_return a s")
-      case None
-        hence "fstep (Return a, s) = None" by auto
-        moreover have "(Return a, s) \<rightarrow> None" using None cfg.Return small_step.None by blast
-        ultimately show ?thesis using Return small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Return a, s) = Some (SKIP, s\<^sub>2)" by auto
-        moreover have "(Return a, s) \<rightarrow> Some (SKIP, s\<^sub>2)" using Some cfg.Return small_step.Base by blast
-        ultimately show ?thesis using Return small_step_determ by simp
-    qed
-next
-  case (Callfun x f params)
-    thus ?case
-    proof (cases "tr_callfun x f params s")
-      case None
-        hence "fstep (Callfun x f params, s) = None" by simp
-        moreover have "(Callfun x f params, s) \<rightarrow> None"
-          using cfg.Callfun small_step.None None by blast
-        ultimately show ?thesis using Callfun small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Callfun x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-          by simp
-        moreover have "(Callfun x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfun small_step.Base Some by blast
-        ultimately show ?thesis using Callfun small_step_determ by simp
-    qed
-next
-  case (Callfunl x f params)
-    thus ?case
-    proof (cases "tr_callfunl x f params s")
-      case None
-        hence "fstep (Callfunl x f params, s) = None" by simp
-        moreover have "(Callfunl x f params, s) \<rightarrow> None"
-          using cfg.Callfunl small_step.None None by blast
-        ultimately show ?thesis using Callfunl small_step_determ by simp
-    next
-      case (Some s\<^sub>2)
-        hence "fstep (Callfunl x f params, s) = Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)"
-          by simp
-        moreover have "(Callfunl x f params, s) \<rightarrow> Some (Block (snd (snd (the (proc_table f)))), s\<^sub>2)" 
-          using cfg.Callfunl small_step.Base Some by blast
-        ultimately show ?thesis using Callfunl small_step_determ by simp
-    qed
-next
-  case (Block c)
-    thus ?case sorry
-qed
-
-
-fun is_term :: "(com\<times>state) option \<Rightarrow> bool" where
-  "is_term (Some (SKIP,_)) = True"
+  apply (simp split: cfg_edge.splits, safe)
+  apply (frule (1) step_to_cfg_base)
+  apply (metis (no_types, lifting) aux cfg_edge.simps(5) fstep1 fstep_def)
+  apply (frule (1) step_to_cfg_cond)
+  apply (auto split: option_bind_splits intro: small_step.intros)
+  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  done  
+  
+end
+  
+fun is_term :: "state option \<Rightarrow> bool" where
+  "is_term (Some s) = is_empty_stack s"
 | "is_term None = True"
-| "is_term _ = False"
 
 
-definition interp :: "com \<times> state \<Rightarrow> (com\<times>state) option" where
-  "interp cs \<equiv> (while
+definition interp :: "program \<Rightarrow> state \<Rightarrow> state option" where
+  "interp proc_table cs \<equiv> (while
     (HOL.Not o is_term)
-    (\<lambda>Some cs \<Rightarrow> fstep cs)
+    (\<lambda>Some cs \<Rightarrow> fstep proc_table cs)
     (Some cs))"
 
-lemma interp_unfold: "interp cs = (
+lemma interp_unfold: "interp proc_table cs = (
     if is_term (Some cs) then
       Some cs
     else do {
-      cs \<leftarrow> fstep cs;
-      interp cs
+      cs \<leftarrow> fstep proc_table cs;
+      interp proc_table cs
     }
   )"
   unfolding interp_def
@@ -950,113 +548,124 @@ lemma interp_unfold: "interp cs = (
   done
 
 
-lemma interp_term: "is_term (Some cs) \<Longrightarrow> interp cs = Some cs"
+lemma interp_term: "is_term (Some cs) \<Longrightarrow> interp proc_table cs = Some cs"
   apply (subst interp_unfold)
   by simp
 
-definition "yields == \<lambda>cs cs'. Some cs \<rightarrow>* cs' \<and> is_term cs'"
-definition "terminates == \<lambda>cs. \<exists>cs'. yields cs cs'"
+context program begin
+  definition "yields == \<lambda>cs cs'. Some cs \<rightarrow>* cs' \<and> is_term cs'"
+  definition "terminates == \<lambda>cs. \<exists>cs'. yields cs cs'"
 
-lemma None_star_preserved[simp]: "None \<rightarrow>* z \<longleftrightarrow> z=None"
-proof
-  assume "None \<rightarrow>* z"
-  thus "z=None"
-    apply (induction "None::(com\<times>state) option" z rule: star.induct)
-    apply (auto elim: small_step'.cases)
+  lemma None_star_preserved[simp]: "None \<rightarrow>* z \<longleftrightarrow> z=None"
+  proof
+    assume "None \<rightarrow>* z"
+    thus "z=None"
+      apply (induction "None::(state) option" z rule: star.induct)
+      apply (auto elim: small_step'.cases)
+      done
+  qed auto
+
+  lemma small_step'_determ:
+    assumes "c \<rightarrow>' c1"
+    assumes "c \<rightarrow>' c2"
+    shows "c1=c2"
+    using assms(1)
+    apply cases
+    using assms(2)
+    apply (cases)
+    apply (auto simp: small_step_determ)
     done
-qed auto
 
-lemma small_step'_determ:
-  assumes "c \<rightarrow>' c1"
-  assumes "c \<rightarrow>' c2"
-  shows "c1=c2"
-  using assms(1)
-  apply cases
-  using assms(2)
-  apply (cases)
-  apply (auto simp: small_step_determ)
-  done
-
-
-theorem interp_correct:
-  assumes TERM: "terminates cs"
-  shows "(yields cs cs') \<longleftrightarrow> (cs' = interp cs)"
-proof safe
-  assume "yields cs cs'"
-  hence a: "Some cs \<rightarrow>* cs'" and b: "is_term cs'" unfolding yields_def by auto
-  thus "cs' = interp cs"
-  proof (induction _ "Some cs" _ arbitrary: cs rule: star.induct)
-    case refl with interp_term show ?case by simp
-  next
-    case (step csh cs')
-    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
-      apply (cases)
-      apply (cases cs, cases csh)
-      apply (auto intro: fstep1)
-      done
-
-    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)"
-      apply (cases "Some cs" rule: is_term.cases)
-      by simp_all
-
-    show ?case
-    proof (cases csh)
-      case None[simp]
-
-      from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
-
-      show ?thesis
-        by (subst interp_unfold) simp
+  theorem interp_correct:
+    assumes TERM: "terminates cs"
+    shows "(yields cs cs') \<longleftrightarrow> (cs' = interp proc_table cs)"
+  proof safe
+    assume "yields cs cs'"
+    hence a: "Some cs \<rightarrow>* cs'" and b: "is_term cs'" unfolding yields_def by auto
+    thus "cs' = interp proc_table cs"
+    proof (induction _ "Some cs" _ arbitrary: cs rule: star.induct)
+      case refl with interp_term show ?case by simp
     next
-      case (Some cst)[simp]
+      case (step csh cs')
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep proc_table cs = csh"
+        apply (cases)
+        apply (cases cs, cases csh)
+        apply (auto intro: fstep1)
+        done
+  
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)" 
+        apply (cases "Some cs" rule: is_term.cases)
+        by auto
+  
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_empty_stack cs" 
+        apply (cases "Some cs" rule: is_term.cases)
+        by auto
 
-      have "interp cs = interp cst"
-        by (subst interp_unfold) simp
-      thus ?thesis using step.hyps(3)[OF Some step.prems]
-        by simp
+      show ?case
+      proof (cases csh)
+        case None[simp]
+  
+        from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
+  
+        show ?thesis
+          by (subst interp_unfold) auto
+
+      next
+        case (Some cst)[simp]
+  
+        have "interp proc_table cs = interp proc_table cst"
+          by (subst interp_unfold) simp
+        thus ?thesis using step.hyps(3)[OF Some step.prems]
+          by simp
+      qed
     qed
-  qed
-next
-  from TERM obtain cs' where
-    1: "Some cs \<rightarrow>* cs'" "is_term cs'"
-    unfolding yields_def terminates_def by auto
-  hence "cs'=interp cs"
-  proof (induction "Some cs" _ arbitrary: cs rule: star.induct)
-    case refl thus ?case by (simp add: interp_term)
   next
-    case (step csh cs')
-
-    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep cs = csh"
-      apply (cases)
-      apply (cases cs, cases csh)
-      apply (auto intro: fstep1)
-      done
-
-    from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)"
-      apply (cases "Some cs" rule: is_term.cases)
-      by simp_all
-
-    show ?case
-    proof (cases csh)
-      case None[simp]
-
-      from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
-
-      show ?thesis
-        by (subst interp_unfold) simp
+    from TERM obtain cs' where
+      1: "Some cs \<rightarrow>* cs'" "is_term cs'"
+      unfolding yields_def terminates_def by auto
+    hence "cs'=interp proc_table cs"
+    proof (induction "Some cs" _ arbitrary: cs rule: star.induct)
+      case refl thus ?case by (simp add: interp_term)
     next
-      case (Some cst)[simp]
+      case (step csh cs')
+  
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "fstep proc_table cs = csh"
+        apply (cases)
+        apply (cases cs, cases csh)
+        apply (auto intro: fstep1)
+        done
+  
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_term (Some cs)"
+        apply (cases "Some cs" rule: is_term.cases)
+        by auto
 
-      have "interp cs = interp cst"
-        by (subst interp_unfold) simp
-      thus ?thesis using step.hyps(3)[OF Some step.prems]
-        by simp
+      from \<open>Some cs \<rightarrow>'  csh\<close> have [simp]: "\<not>is_empty_stack cs"
+        apply (cases "Some cs" rule: is_term.cases)
+        by auto
+  
+      show ?case
+      proof (cases csh)
+        case None[simp]
+  
+        from \<open>csh \<rightarrow>* cs'\<close> have [simp]: "cs'=None" by simp
+  
+        show ?thesis
+          by (subst interp_unfold) simp
+      next
+        case (Some cst)[simp]
+  
+        have "interp proc_table cs = interp proc_table cst"
+          by (subst interp_unfold) simp
+        thus ?thesis using step.hyps(3)[OF Some step.prems]
+          by simp
+      qed
     qed
+    with 1 have "Some cs \<rightarrow>* interp proc_table cs" "is_term (interp proc_table cs)" by simp_all
+    thus "yields cs (interp proc_table cs)" by (auto simp: yields_def)
   qed
-  with 1 have "Some cs \<rightarrow>* interp cs" "is_term (interp cs)" by simp_all
-  thus "yields cs (interp cs)" by (auto simp: yields_def)
-qed
-
+  
+  
+  
 
 lemmas [code] = interp_unfold
 

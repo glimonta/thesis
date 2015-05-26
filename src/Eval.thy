@@ -2,6 +2,21 @@ theory Eval
 imports Com Exp
 begin
 
+  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
+    Option.bind_split{s,_asm}*)
+  lemma option_bind_split: "P (Option.bind m f)
+  \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
+    by (cases m) auto
+
+  lemma option_bind_split_asm: "P (Option.bind m f) = (\<not>(
+      m=None \<and> \<not>P None
+    \<or> (\<exists>x. m=Some x \<and> \<not>P (f x))))"
+    by (cases m) auto
+
+  lemmas option_bind_splits = option_bind_split option_bind_split_asm
+
+
+
 (* A value can be either an integer or an address *)
 datatype val = NullVal | I int_val | A addr
 
@@ -14,7 +29,7 @@ datatype val = NullVal | I int_val | A addr
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
 
-datatype return_loc = Ar addr | Vr vname
+datatype return_loc = Ar addr | Vr vname | Invalid
 (* A valuation is a function that maps variable names to values, name of variable where to save the
    return value of the function, address where to save the return value of the function *)
 type_synonym valuation = "vname \<Rightarrow> val option option"
@@ -36,6 +51,53 @@ where
     Some (r,((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>))
   }"
 
+definition lift_transformer_nr 
+  :: "(visible_state \<rightharpoonup> (visible_state)) \<Rightarrow> state \<rightharpoonup> (state)"
+where
+  "lift_transformer_nr tr \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
+    (locals,\<gamma>,\<mu>) \<leftarrow> tr (locals,\<gamma>,\<mu>);
+    Some (((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>))
+  }"
+
+
+definition is_empty_stack :: "state \<Rightarrow> bool" where
+  "is_empty_stack \<equiv> \<lambda>(\<sigma>,_,_). \<sigma>=[]"
+
+lemma is_empty_stack_prod_conv[simp]: "is_empty_stack (\<sigma>,\<mu>\<gamma>) \<longleftrightarrow> \<sigma>=[]"
+  unfolding is_empty_stack_def by auto
+
+
+fun com_of :: "state \<Rightarrow> com" where
+  "com_of ((com,_)#_,_,_) = com"
+
+fun upd_com :: "com \<Rightarrow> state \<Rightarrow> state" where
+  "upd_com com ((_,l)#\<sigma>,\<gamma>,\<mu>) = ((com,l)#\<sigma>,\<gamma>,\<mu>)"
+
+fun coms_of_state :: "state \<Rightarrow> com set" where
+  "coms_of_state (\<sigma>,_) = (\<lambda>(com,_). com)`set \<sigma>"
+
+definition coms_of_stack :: "stack_frame list \<Rightarrow> com set" where
+  "coms_of_stack \<sigma> \<equiv> (\<lambda>(com,_). com)`set \<sigma>"
+
+lemma lift_tr_pres_coms:
+  assumes "\<sigma>\<noteq>[]"
+  assumes "lift_transformer tr (\<sigma>,\<gamma>\<mu>) = Some (r,(\<sigma>',\<gamma>\<mu>'))"
+  shows "coms_of_stack \<sigma>'=coms_of_stack \<sigma>"
+  using assms
+  unfolding lift_transformer_def coms_of_stack_def
+  apply (force 
+    split: option.splits prod.splits option_bind_splits list.splits)
+  done
+
+lemma lift_tr_nr_pres_coms:
+  assumes "\<sigma>\<noteq>[]"
+  assumes "lift_transformer_nr tr (\<sigma>,\<gamma>\<mu>) = Some ((\<sigma>',\<gamma>\<mu>'))"
+  shows "coms_of_stack \<sigma>'=coms_of_stack \<sigma>"
+  using assms
+  unfolding lift_transformer_nr_def coms_of_stack_def
+  apply (force 
+    split: option.splits prod.splits option_bind_splits list.splits)
+  done
 
 
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
@@ -107,17 +169,18 @@ definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
     } else
       None"
 
-definition store :: "addr \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state option" where
-  "store \<equiv> \<lambda>(i,j) v (\<sigma>,\<gamma>,\<mu>).
+definition store :: "addr \<Rightarrow> val \<Rightarrow> visible_state \<Rightarrow> visible_state option"
+   where
+  "store \<equiv> \<lambda>(i,j) v (l,\<gamma>,\<mu>).
     if valid_mem (i,j) \<mu> then
-      Some (\<sigma>,\<gamma>,\<mu>[i := Some ( the (\<mu>!i) [nat j := Some v] )])
+      Some (l,\<gamma>,\<mu>[i := Some ( the (\<mu>!i) [nat j := Some v] )])
     else
       None"
 
-definition free :: "addr \<Rightarrow> mem \<Rightarrow> mem option" where
-  "free \<equiv>  \<lambda>(i,j) \<mu>.
+definition free :: "addr \<Rightarrow> visible_state \<Rightarrow> visible_state option" where
+  "free \<equiv>  \<lambda>(i,j) (l,\<gamma>,\<mu>).
     if valid_mem (i,j) \<mu> then
-      Some (\<mu>[i := None])
+      Some (l,\<gamma>,\<mu>[i := None])
     else
       None"
 
@@ -129,11 +192,9 @@ definition free :: "addr \<Rightarrow> mem \<Rightarrow> mem option" where
 
 definition "assert \<Phi> \<equiv> if \<Phi> then Some () else None"
 
-fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
-  "read_var x (\<sigma>,\<gamma>,\<mu>) = do {
-    assert (\<sigma> \<noteq> []);
-    let (_,locals,_) = hd \<sigma>;
-    case locals x of
+fun read_var :: "vname \<Rightarrow> visible_state \<Rightarrow> val option" where
+  "read_var x (l,\<gamma>,\<mu>) = do {
+    case l x of
       Some v \<Rightarrow> v
     | None \<Rightarrow> do {
         case \<gamma> x of
@@ -142,26 +203,23 @@ fun read_var :: "vname \<Rightarrow> state \<Rightarrow> val option" where
       } 
   }"
 
-fun write_var :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state option" where
-  "write_var x v (\<sigma>,\<gamma>,\<mu>) = do {
-    assert (\<sigma> \<noteq> []);
-    let (pc,locals,ra) = hd \<sigma>;
-    case locals x of
+fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarrow> visible_state option" where
+  "write_var x v (l,\<gamma>,\<mu>) = do {
+    case l x of
       Some _ \<Rightarrow> do {
-        let locals = locals (x \<mapsto> Some v);
-        let \<sigma> = (pc,locals, ra)#tl \<sigma>;
-        Some (\<sigma>,\<gamma>,\<mu>)
+        let l = l (x \<mapsto> Some v);
+        Some (l,\<gamma>,\<mu>)
       }
     | None \<Rightarrow> do {
         assert (\<gamma> x \<noteq> None);
         let \<gamma> = \<gamma>(x \<mapsto> Some v);
-        Some (\<sigma>,\<gamma>,\<mu>)
+        Some (l,\<gamma>,\<mu>)
       }
   }"
 
 
-fun eval :: "exp \<Rightarrow> state \<Rightarrow> (val \<times> state) option"
-and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) option" where
+fun eval :: "exp \<Rightarrow> visible_state \<Rightarrow> (val \<times> visible_state) option"
+and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> visible_state) option" where
   "eval (Const c) s = Some (I c, s)"
 | "eval Null s = Some (NullVal, s)"
 | "eval (V x) s = do {
@@ -207,16 +265,16 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
   Some (v, s)
 }"
 | "eval (New e) s = do {
-  (v, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e s;
+  (v, (l, \<gamma>, \<mu>)) \<leftarrow> eval e s;
   (v, \<mu>) \<leftarrow> new_block v \<mu>;
-  Some (v, (\<sigma>, \<gamma>, \<mu>))
+  Some (v, (l, \<gamma>, \<mu>))
 }"
 | "eval (Deref e) s = do {
-  (v, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e s;
+  (v, (l, \<gamma>, \<mu>)) \<leftarrow> eval e s;
   case v of
     (A addr) \<Rightarrow> do {
       v \<leftarrow> load addr \<mu>;
-      Some (v, (\<sigma>, \<gamma>, \<mu>))
+      Some (v, (l, \<gamma>, \<mu>))
     }
   | _ \<Rightarrow> None
 }"
@@ -225,11 +283,11 @@ and eval_l :: "lexp \<Rightarrow> state \<Rightarrow> (addr \<times> state) opti
                        Some (addr, s) \<Rightarrow> Some (A addr,s))"
 | "eval (Index e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;
-  (v\<^sub>2, (\<sigma>, \<gamma>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
+  (v\<^sub>2, (l, \<gamma>, \<mu>)) \<leftarrow> eval e\<^sub>2 s;
   case (v\<^sub>1, v\<^sub>2) of
     (A addr, I incr) \<Rightarrow> do {
       v \<leftarrow> load (ofs_addr addr incr) \<mu>;
-      Some (v, (\<sigma>, \<gamma>, \<mu>))
+      Some (v, (l, \<gamma>, \<mu>))
     }
   | _ \<Rightarrow> None
 }"

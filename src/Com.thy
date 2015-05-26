@@ -15,7 +15,6 @@ datatype_new
       | is_Return: Return exp
       | Callfunl lexp fname "exp list" ("_ ::== _ '(_')" [1000, 61] 61)
       | Callfun vname fname "exp list" ("_ ::= _ '(_')" [1000, 61] 61)
-      (*| Block com*)
 
 term "''x'' ::= ''fun'' ([])"
 term "(Derefl (V ''x'')) ::== ''fun'' ([])"
@@ -36,7 +35,9 @@ fun valid_fun_decl :: "fun_decl \<Rightarrow> bool"
 type_synonym program = "fname \<Rightarrow> fun_decl option"
 
 definition valid_program :: "program \<Rightarrow> bool" 
-  where "valid_program p \<equiv> \<forall>fd\<in>ran p. valid_fun_decl fd"
+  where "valid_program p \<equiv> (\<forall>fd\<in>ran p. valid_fun_decl fd)
+    \<and> ''main'' \<in> dom p
+    \<and> fst (the (p ''main'')) = []"
 
 
 end
