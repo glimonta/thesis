@@ -17,6 +17,9 @@ datatype exp = Const int_val
              | Null
              | V     vname
              | Plus  exp exp
+             | Minus exp
+             | Div   exp exp
+             | Mod   exp exp
              | Less  exp exp
              | Not   exp
              | And   exp exp
@@ -29,6 +32,5 @@ datatype exp = Const int_val
 
 and lexp = Derefl exp
          | Indexl exp exp
-
 
 end

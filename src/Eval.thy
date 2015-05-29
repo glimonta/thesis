@@ -110,6 +110,14 @@ fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 | "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
+fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "div_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 div i\<^sub>2)) else None)"
+| "div_val a\<^sub>1 a\<^sub>2 = None"
+
+fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "mod_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 mod i\<^sub>2)) else None)"
+| "mod_val a\<^sub>1 a\<^sub>2 = None"
+
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "less_val a\<^sub>1 a\<^sub>2 = None"
@@ -231,6 +239,18 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
   (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
   v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+| "eval (Div i\<^sub>1 i\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
+  v \<leftarrow> div_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+| "eval (Mod i\<^sub>1 i\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
+  v \<leftarrow> mod_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
 | "eval (Less i\<^sub>1 i\<^sub>2) s = do {
