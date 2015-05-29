@@ -1,2 +1,4 @@
 # Isabelle backup theory files
 *.thy~
+\#*\#
+*.marks
