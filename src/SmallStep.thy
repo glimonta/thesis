@@ -410,9 +410,6 @@ lemma small_step_determ:
 
 end
 
-(* Return is undefined because we will never have a Return command outside of a Block or Blockl
-   Callfunl is giving me problems *)
-
 datatype cfg_edge = Base transformer com | Cond enabled transformer com com
 
 context fixes proc_table :: program begin
@@ -672,5 +669,6 @@ lemmas [code] = interp_unfold
 export_code interp in SML
 
 
+end
 end
 

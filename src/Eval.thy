@@ -211,7 +211,8 @@ fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarr
         Some (l,\<gamma>,\<mu>)
       }
     | None \<Rightarrow> do {
-        assert (\<gamma> x \<noteq> None);
+        (*assert (\<gamma> x \<noteq> None);*) (* Why do we assert \<gamma> x \<noteq> None? then no variable can be initialized
+at the beginning *)
         let \<gamma> = \<gamma>(x \<mapsto> Some v);
         Some (l,\<gamma>,\<mu>)
       }
