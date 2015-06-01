@@ -62,7 +62,7 @@ definition init_state :: state
 
 export_code init_state in SML
 
-(* The length of the string should be 5 and be saved in global variable ll *)
+(* The minimum of the array should be 1 and saved in global variable mm *)
 value "case interp proc_table init_state of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> mm,\<mu>)"
 
 end

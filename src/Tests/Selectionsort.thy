@@ -67,7 +67,7 @@ definition init_state :: state
 
 export_code init_state in SML
 
-(* The length of the string should be 5 and be saved in global variable ll *)
+(* The sorted array should be stored in the address indicated by both aa and bb *)
 value "case interp proc_table init_state of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
 
 end

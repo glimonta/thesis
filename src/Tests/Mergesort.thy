@@ -57,14 +57,14 @@ definition merge_decl :: fun_decl
 
 (* Mergesort: Takes an array a and its length n and returns the sorted array *)
 definition mergesort_decl :: fun_decl
-  where "mergesort_decl \<equiv> ([aa, nn], [mm, ''foo'', ''bar'', ''baz''],
+  where "mergesort_decl \<equiv> ([aa, nn], [mm, xx],
     IF (Less (V nn) (Const 2)) THEN
       Return (V aa)
     ELSE
       (mm ::= (Div (V nn) (Const 2));;
-      Callfun ''foo'' ''mergesort'' [V aa, V mm];;
-      Callfun ''bar'' ''mergesort'' [(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]);;
-      Callfun ''baz'' ''merge'' [V aa, V nn, V mm];;
+      Callfun xx ''mergesort'' [V aa, V mm];;
+      Callfun xx ''mergesort'' [(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]);;
+      Callfun xx ''merge'' [V aa, V nn, V mm];;
       Return (V aa))"
 
 
@@ -101,20 +101,8 @@ definition init_state :: state
 
 export_code init_state in SML
 
-value "interp proc_table init_state"
-
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "case interp proc_table init_state of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
-
-.xx
-ML_val {*
-  val interp = @{code interp};
-  val proc_table = @{code proc_table};
-  val s = @{code init_state};
-  val step = @{code fstep};
-  val SOME s = interp proc_table s;
-  (*val r = l [#"l"]*)
-*}
 
 
 end
