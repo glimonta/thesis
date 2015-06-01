@@ -110,6 +110,10 @@ fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 | "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
+fun minus_val :: "val \<Rightarrow> val option" where
+  "minus_val (I i) = Some (I (- i))"
+| "minus_val a = None"
+
 fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "div_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 div i\<^sub>2)) else None)"
 | "div_val a\<^sub>1 a\<^sub>2 = None"
@@ -117,6 +121,10 @@ fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "mod_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 mod i\<^sub>2)) else None)"
 | "mod_val a\<^sub>1 a\<^sub>2 = None"
+
+fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "mult_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 * i\<^sub>2))"
+| "mult_val a\<^sub>1 a\<^sub>2 = None"
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
@@ -241,6 +249,11 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
   v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
+| "eval (Minus i) s = do {
+  (v, s) \<leftarrow> eval i s;
+  v \<leftarrow> minus_val v;
+  Some (v, s)
+}"
 | "eval (Div i\<^sub>1 i\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
@@ -251,6 +264,12 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
   (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
   v \<leftarrow> mod_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+| "eval (Mult i\<^sub>1 i\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
+  v \<leftarrow> mult_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
 | "eval (Less i\<^sub>1 i\<^sub>2) s = do {

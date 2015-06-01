@@ -20,6 +20,7 @@ datatype exp = Const int_val
              | Minus exp
              | Div   exp exp
              | Mod   exp exp
+             | Mult  exp exp
              | Less  exp exp
              | Not   exp
              | And   exp exp
