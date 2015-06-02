@@ -130,7 +130,6 @@ fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "less_val a\<^sub>1 a\<^sub>2 = None"
 
-
 fun not_val :: "val \<Rightarrow> val option" where
   "not_val (I i) = (if i = 0 then Some (I 1) else Some (I 0))"
 | "not_val a = None"
