@@ -38,7 +38,7 @@ definition main_decl :: fun_decl
     (Indexl (V aa) (Const ( 0))) ::== (Const ( 44));;
     (Indexl (V aa) (Const ( 1))) ::== (Const (  1));;
     (Indexl (V aa) (Const ( 2))) ::== (Const ( 60));;
-    (Indexl (V aa) (Const ( 3))) ::== (Const ( 26));;
+    (Indexl (V aa) (Const ( 3))) ::== (Const ( -26));;
     (Indexl (V aa) (Const ( 4))) ::== (Const ( 54));;
     (Indexl (V aa) (Const ( 5))) ::== (Const ( 1));;
     (Indexl (V aa) (Const ( 6))) ::== (Const ( 92));;
@@ -73,6 +73,8 @@ value "case
   (the (fstep proc_table 
   init_state)))))))))
   of Some (\<sigma>,\<gamma>,\<mu>) \<Rightarrow> (fst (snd (hd \<sigma>)) tt, fst (snd (hd \<sigma>)) ii, fst (snd (hd \<sigma>)) jj, \<mu>)"
+
+
 
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "case interp proc_table init_state of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"

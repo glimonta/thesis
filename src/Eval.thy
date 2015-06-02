@@ -1,8 +1,11 @@
 theory Eval
-imports Com Exp
+imports Com Exp 
+  "~~/src/HOL/Library/Code_Char"
+  "~~/src/HOL/Library/Code_Target_Nat"
+  "Native_Word/Word_Misc" (* For signed div and signed mod *)
 begin
 
-  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
+(*  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
     Option.bind_split{s,_asm}*)
   lemma option_bind_split: "P (Option.bind m f)
   \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
@@ -14,7 +17,7 @@ begin
     by (cases m) auto
 
   lemmas option_bind_splits = option_bind_split option_bind_split_asm
-
+*)
 
 
 (* A value can be either an integer or an address *)
@@ -46,17 +49,17 @@ definition lift_transformer ::
   "(visible_state \<rightharpoonup> ('a\<times>visible_state))
   \<Rightarrow> state \<rightharpoonup> ('a \<times> state)"
 where
-  "lift_transformer tr \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
-    (r,(locals,\<gamma>,\<mu>)) \<leftarrow> tr (locals,\<gamma>,\<mu>);
-    Some (r,((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>))
+  "lift_transformer tr \<equiv> \<lambda>s. case s of((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
+    (r,(lvars,\<gamma>,\<mu>)) \<leftarrow> tr (lvars,\<gamma>,\<mu>);
+    Some (r,((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>))
   }"
 
 definition lift_transformer_nr 
   :: "(visible_state \<rightharpoonup> (visible_state)) \<Rightarrow> state \<rightharpoonup> (state)"
 where
-  "lift_transformer_nr tr \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
-    (locals,\<gamma>,\<mu>) \<leftarrow> tr (locals,\<gamma>,\<mu>);
-    Some (((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>))
+  "lift_transformer_nr tr \<equiv> \<lambda>((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> do {
+    (lvars,\<gamma>,\<mu>) \<leftarrow> tr (lvars,\<gamma>,\<mu>);
+    Some (((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>))
   }"
 
 
@@ -86,7 +89,7 @@ lemma lift_tr_pres_coms:
   using assms
   unfolding lift_transformer_def coms_of_stack_def
   apply (force 
-    split: option.splits prod.splits option_bind_splits list.splits)
+    split: option.splits prod.splits Option.bind_splits list.splits)
   done
 
 lemma lift_tr_nr_pres_coms:
@@ -96,7 +99,7 @@ lemma lift_tr_nr_pres_coms:
   using assms
   unfolding lift_transformer_nr_def coms_of_stack_def
   apply (force 
-    split: option.splits prod.splits option_bind_splits list.splits)
+    split: option.splits prod.splits Option.bind_splits list.splits)
   done
 
 
@@ -104,6 +107,20 @@ fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 "(x # xs) !! i = (if i = 0 then x else xs !! (i - 1))"
 
 abbreviation "list_size xs \<equiv> int(length xs)"
+
+value "sbintrunc 3 (-9)"
+
+term sbintrunc
+
+thm Word.sint_word_ariths
+
+term "op sdiv"
+
+value "sint ((5 :: 10 word) sdiv 2)"
+
+value "((2 :: 10 word) < -3)"
+
+
 
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
@@ -114,12 +131,14 @@ fun minus_val :: "val \<Rightarrow> val option" where
   "minus_val (I i) = Some (I (- i))"
 | "minus_val a = None"
 
+text \<open>@{term "op sdiv"} implements truncation towards zero, 
+  conforming to the C99 standard, Sec. 6.5.5/6\<close>
 fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "div_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 div i\<^sub>2)) else None)"
+  "div_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 sdiv i\<^sub>2)) else None)"
 | "div_val a\<^sub>1 a\<^sub>2 = None"
 
 fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "mod_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 mod i\<^sub>2)) else None)"
+  "mod_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 smod i\<^sub>2)) else None)"
 | "mod_val a\<^sub>1 a\<^sub>2 = None"
 
 fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
@@ -127,7 +146,7 @@ fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 | "mult_val a\<^sub>1 a\<^sub>2 = None"
 
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 < i\<^sub>2 then Some (I 1) else Some (I 0))"
+  "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 <s i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "less_val a\<^sub>1 a\<^sub>2 = None"
 
 fun not_val :: "val \<Rightarrow> val option" where
@@ -226,8 +245,7 @@ fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarr
         Some (l,\<gamma>,\<mu>)
       }
     | None \<Rightarrow> do {
-        (*assert (\<gamma> x \<noteq> None);*) (* Why do we assert \<gamma> x \<noteq> None? then no variable can be initialized
-at the beginning *)
+        assert (\<gamma> x \<noteq> None);
         let \<gamma> = \<gamma>(x \<mapsto> Some v);
         Some (l,\<gamma>,\<mu>)
       }
@@ -342,6 +360,9 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
       (A (base,ofs), I incr) \<Rightarrow> Some ((base,ofs+sint incr),s)
     | _ \<Rightarrow> None
   }"
+
+
+export_code eval checking SML
 
 end
 

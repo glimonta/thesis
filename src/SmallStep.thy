@@ -1,12 +1,10 @@
 theory SmallStep
 imports
-  Eval
   "~~/src/HOL/IMP/Star"
   "~~/src/HOL/Library/While_Combinator"
-  "~~/src/HOL/Library/Code_Char"
-  "~~/src/HOL/Library/Code_Target_Int"
-  "~~/src/HOL/Library/Code_Target_Nat"
+  Eval
 begin
+
 
 (*
 fun update_locs :: "vname \<Rightarrow> val \<Rightarrow> state \<Rightarrow> state" where
@@ -17,8 +15,11 @@ type_synonym transformer = "state \<rightharpoonup> state"
 type_synonym cfg_label = "enabled \<times> transformer"
 
 locale program =
-  fixes proc_table :: program
+  fixes program :: program
   assumes valid: "valid_program proc_table"
+begin
+  definition "proc_table == proc_table_of program"
+end
 
 abbreviation en_always :: enabled where "en_always \<equiv> \<lambda>_. Some True"
 abbreviation (input) tr_id :: transformer where "tr_id \<equiv> Some"
@@ -76,24 +77,27 @@ fun real_values :: "exp list \<Rightarrow> visible_state \<Rightarrow> (val list
     Some ([v] @ vals, s)
   }"
 
-context fixes proc_table :: program begin
+context fixes program :: program begin
 
-definition "main_decl \<equiv> the (proc_table ''main'')"
-definition "main_local_names \<equiv> (\<lambda>(_,l,_). l) main_decl"
-definition "main_com \<equiv> (\<lambda>(_,_,c). c) main_decl"
+  private definition "proc_table \<equiv> proc_table_of program"
 
-definition initial_stack :: "stack_frame list" where
-  "initial_stack \<equiv> [(main_com,map_of (map (\<lambda>x. (x,None)) main_local_names),Invalid)]"
-definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
-(*definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None" *)
-definition initial_mem :: mem where "initial_mem \<equiv> []"
-definition initial_state :: state 
-  where "initial_state \<equiv> (initial_stack, initial_glob, initial_mem)"
+  definition "main_decl \<equiv> the (proc_table ''main'')"
+  definition "main_local_names \<equiv> fun_decl.locals main_decl"
+  definition "main_com \<equiv> fun_decl.body main_decl"
+
+  definition initial_stack :: "stack_frame list" where
+    "initial_stack \<equiv> [(main_com,map_of (map (\<lambda>x. (x,None)) main_local_names),Invalid)]"
+  definition initial_glob :: valuation where 
+    "initial_glob \<equiv> map_of (map (\<lambda>x. (x,None)) (program.globals program))"
+  (*definition initial_proc :: proc_table where "initial_proc \<equiv> \<lambda>name. None" *)
+  definition initial_mem :: mem where "initial_mem \<equiv> []"
+  definition initial_state :: state 
+    where "initial_state \<equiv> (initial_stack, initial_glob, initial_mem)"
 
 end
 
 value (code) "lift_transformer 
-  (real_values [(Const 1), (Plus (Const 1) (Const 2))]) (initial_state proc_table)"
+  (real_values [(Const 1), (Plus (Const 1) (Const 2))]) (initial_state p)"
 
 (* A function can be called if the number of parameters from the function and the actual parameters
    used when calling it match, otherwise it can't be called 
@@ -118,15 +122,15 @@ fun top_stack :: "state \<Rightarrow> stack_frame option" where
 | "top_stack _ = None"
 
 
-definition call_function :: "program \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer"
+definition call_function :: "proc_table \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer"
 where "call_function proc_table f params_exp s \<equiv> do {
-  (formal_params, locals_names, body) \<leftarrow> proc_table f;
-  assert (length params_exp = length formal_params);
+  fdecl \<leftarrow> proc_table f;
+  assert (length params_exp = length (fun_decl.params fdecl));
   (params_val, s) \<leftarrow> lift_transformer (real_values params_exp) s;
   let locals = 
-     map_of (zip formal_params (map Some params_val)) 
-  ++ map_of (map (\<lambda>x. (x,None)) locals_names);
-  let sf = (body,locals,Invalid);
+     map_of (zip (fun_decl.params fdecl) (map Some params_val)) 
+  ++ map_of (map (\<lambda>x. (x,None)) (fun_decl.locals fdecl));
+  let sf = ((fun_decl.body fdecl),locals,Invalid);
   push_stack sf s
 }"
 
@@ -139,14 +143,14 @@ definition get_rloc :: "state \<Rightarrow> return_loc" where
   "get_rloc \<equiv> \<lambda>((com,locals,rloc)#\<sigma>,\<gamma>,\<mu>) \<Rightarrow> rloc"
 
 
-definition tr_callfunl :: "program \<Rightarrow> lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+definition tr_callfunl :: "proc_table \<Rightarrow> lexp \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfunl proc_table x f args s \<equiv> do {
     (addr,s) \<leftarrow> lift_transformer (eval_l x) s;
     s \<leftarrow> set_rloc (Ar addr) s;
     call_function proc_table f args s
   }"
 
-definition tr_callfun :: "program \<Rightarrow> vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+definition tr_callfun :: "proc_table \<Rightarrow> vname \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
   "tr_callfun proc_table x f args s \<equiv> do {
     s \<leftarrow> set_rloc (Vr x) s;
     call_function proc_table f args s
@@ -263,13 +267,13 @@ next
         have "en_pos b s = Some False" by simp
         hence "en_neg b s = Some True"
           unfolding en_pos_def en_neg_def
-          by (auto split: option_bind_splits)
+          by (auto split: Option.bind_splits)
         thus ?thesis by (fastforce intro: cfg.intros)
       qed
   qed
 qed (auto intro: cfg.intros)
 
-lemma cfg_preserves_def_returns:
+(*lemma cfg_preserves_def_returns:
   assumes "cfg c a c'"
   assumes "def_returns c"
   shows "def_returns c' \<or> (\<exists>e. a=(en_always,tr_return e))"
@@ -279,6 +283,7 @@ lemma cfg_preserves_def_returns:
   done
 
 definition "def_returns_com_stack s \<equiv> \<forall>com\<in>coms_of_state s. def_returns com"
+*)
 
 lemma assert_simps[simp]:
   "assert \<Phi> = None \<longleftrightarrow> \<not>\<Phi>"
@@ -336,7 +341,7 @@ lemma ss'_SKIP_stuck[simp]: "is_empty_stack s \<Longrightarrow> \<not>( Some s \
 
 lemma en_neg_by_pos: "en_neg e s = map_option (HOL.Not) (en_pos e s)"
   unfolding en_pos_def en_neg_def
-  by (auto split: option_bind_splits)
+  by (auto split: Option.bind_splits)
 
 lemma cfg_determ:
   assumes "cfg c a1 c'"
@@ -367,7 +372,7 @@ lemma lift_upd_com: "\<not>is_empty_stack s \<Longrightarrow>
   lift_transformer_nr tr (upd_com c s) = 
   map_option (upd_com c) (lift_transformer_nr tr s)"
   unfolding lift_transformer_nr_def
-  by (auto split: prod.splits list.splits option_bind_split)
+  by (auto split: prod.splits list.splits Option.bind_split)
 
 lemma tr_eval_upd_com: "\<not>is_empty_stack s \<Longrightarrow> 
   tr_eval e (upd_com c s) = map_option (upd_com c) (tr_eval e s)"
@@ -412,7 +417,7 @@ end
 
 datatype cfg_edge = Base transformer com | Cond enabled transformer com com
 
-context fixes proc_table :: program begin
+context fixes proc_table :: proc_table begin
 
 fun cfg_step :: "com \<Rightarrow> cfg_edge" where
   "cfg_step SKIP = undefined"
@@ -464,7 +469,7 @@ context program begin
 end
 
 
-definition fstep :: "program \<Rightarrow> state \<Rightarrow> state option" where
+definition fstep :: "proc_table \<Rightarrow> state \<Rightarrow> state option" where
   "fstep proc_table s \<equiv> 
     if com_of s = SKIP then
       tr_return_void s
@@ -489,13 +494,13 @@ context program begin
     apply (auto simp: fstep_def)
 
     apply (erule cfg_to_stepE)
-    apply (auto split: option_bind_split simp: en_neg_by_pos)
+    apply (auto split: Option.bind_split simp: en_neg_by_pos)
     
     apply (erule cfg_to_stepE)
-    apply (auto split: option_bind_split simp: en_neg_by_pos)
+    apply (auto split: Option.bind_split simp: en_neg_by_pos)
 
     apply (erule cfg_to_stepE)
-    apply (auto split: option_bind_split simp: en_neg_by_pos tr_eval_upd_com)
+    apply (auto split: Option.bind_split simp: en_neg_by_pos tr_eval_upd_com)
     done
     
 
@@ -509,7 +514,7 @@ lemma fstep2: "\<not>is_empty_stack s \<Longrightarrow> s \<rightarrow> (fstep p
   apply (frule (1) step_to_cfg_base)
   apply (metis (no_types, lifting) aux cfg_edge.simps(5) fstep1 fstep_def)
   apply (frule (1) step_to_cfg_cond)
-  apply (auto split: option_bind_splits intro: small_step.intros)
+  apply (auto split: Option.bind_splits intro: small_step.intros)
   apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
   apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
   apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
@@ -523,7 +528,7 @@ fun is_term :: "state option \<Rightarrow> bool" where
 | "is_term None = True"
 
 
-definition interp :: "program \<Rightarrow> state \<Rightarrow> state option" where
+definition interp :: "proc_table \<Rightarrow> state \<Rightarrow> state option" where
   "interp proc_table cs \<equiv> (while
     (HOL.Not o is_term)
     (\<lambda>Some cs \<Rightarrow> fstep proc_table cs)
@@ -539,7 +544,7 @@ lemma interp_unfold: "interp proc_table cs = (
   )"
   unfolding interp_def
   apply (subst while_unfold)
-  apply (auto split: option_bind_split)
+  apply (auto split: Option.bind_split)
   apply (subst while_unfold)
   apply auto
   done
@@ -666,9 +671,20 @@ context program begin
 
 lemmas [code] = interp_unfold
 
-export_code interp in SML
+export_code interp checking SML
 
 
 end
+
+
+definition execute :: "program \<Rightarrow> state option" where
+  "execute p \<equiv> do {
+    assert (valid_program p);
+    interp (proc_table_of p) (initial_state p)
+  }"
+
+export_code execute checking SML
+
+
 end
 

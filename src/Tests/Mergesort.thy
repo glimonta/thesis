@@ -92,7 +92,10 @@ definition initial_proc :: program where "initial_proc \<equiv> \<lambda>name. N
 definition proc_table :: program where "proc_table \<equiv> 
   ((initial_proc(''main'' := (Some main_decl)))(''mergesort'' := (Some mergesort_decl)))(''merge'' := (Some merge_decl))"
 
-definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
+definition declare_globals :: "string list \<Rightarrow> valuation" where 
+  "declare_globals l = map_of (map (\<lambda>x. (x,None)) l)"
+
+definition initial_glob :: valuation where "initial_glob \<equiv> declare_globals [''a'',''b'',''n'']"
 definition initial_mem :: mem where "initial_mem \<equiv> []"
 definition initial_stack :: "stack_frame list" where
   "initial_stack \<equiv> [(main_body,map_of (map (\<lambda>x. (x,None)) main_loc),Invalid)]"
