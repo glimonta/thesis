@@ -156,6 +156,12 @@ definition tr_callfun :: "proc_table \<Rightarrow> vname \<Rightarrow> fname \<R
     call_function proc_table f args s
   }"
 
+definition tr_callfunv :: "proc_table \<Rightarrow> fname \<Rightarrow> exp list \<Rightarrow> transformer" where
+  "tr_callfunv proc_table f args s \<equiv> do {
+    s \<leftarrow> set_rloc Invalid s;
+    call_function proc_table f args s
+  }"
+
 
 (* Return eliminates the returning function's stack_frame, then assigns the result to the variable 
    or address where it's supposed to be assigned *)
@@ -197,9 +203,11 @@ inductive cfg :: "com \<Rightarrow> cfg_label \<Rightarrow> com \<Rightarrow> bo
 | Free: "cfg (FREE x) (en_always, tr_free x) SKIP"
 
 | Return: "cfg (Return a) (en_always, tr_return a) SKIP"
+| Returnv: "cfg Returnv (en_always, tr_return_void) SKIP"
 
 | Callfunl: "cfg (Callfunl e f params) (en_always, tr_callfunl proc_table e f params) SKIP"
 | Callfun: "cfg (Callfun x f params) (en_always, tr_callfun proc_table x f params) SKIP"
+| Callfunv: "cfg (Callfunv f params) (en_always, tr_callfunv proc_table f params) SKIP"
 
 (* A configuration can take a small step if there's a cfg edge between the two commands, the
    enabled returns True and the transformer successfully transforms the state into a new one.
@@ -366,6 +374,8 @@ lemma cfg_determ:
   apply (erule cfg.cases, auto) []
   apply (rotate_tac)
   apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
+  apply (erule cfg.cases, auto) []
   done
 
 lemma lift_upd_com: "\<not>is_empty_stack s \<Longrightarrow>
@@ -432,8 +442,10 @@ fun cfg_step :: "com \<Rightarrow> cfg_edge" where
 | "cfg_step (WHILE b DO c) = Base tr_id (IF b THEN c;; WHILE b DO c ELSE SKIP)"
 | "cfg_step (FREE x) = Base (tr_free x) SKIP"
 | "cfg_step (Return a) = Base (tr_return a) SKIP"
+| "cfg_step Returnv = Base (tr_return_void) SKIP"
 | "cfg_step (Callfunl e f params) = Base (tr_callfunl proc_table e f params) SKIP"
 | "cfg_step (Callfun x f params) = Base (tr_callfun proc_table x f params) SKIP"
+| "cfg_step (Callfunv f params) = Base (tr_callfunv proc_table f params) SKIP"
 
 end
 

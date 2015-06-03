@@ -13,8 +13,10 @@ datatype
       | While   exp com        ("(WHILE _/ DO _)"  [0, 61] 61)
       | Free    lexp           ("FREE _" [0])
       | is_Return: Return exp
+      | Returnv (* Return for functions that return void *)
       | Callfunl lexp fname "exp list" ("_ ::== _ '(_')" [1000, 61] 61)
       | Callfun vname fname "exp list" ("_ ::= _ '(_')" [1000, 61] 61)
+      | Callfunv fname "exp list" (* Call for functions that return void *)
 
 term "''x'' ::= ''fun'' ([])"
 term "(Derefl (V ''x'')) ::== ''fun'' ([])"
