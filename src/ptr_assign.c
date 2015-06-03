@@ -15,6 +15,11 @@ int f() {
     return 1;
 }
 
+int g() {
+  void * p = malloc (5 * sizeof(int));
+}
+
+
 int main () {
     p = malloc (10*sizeof(int));
     int *q=p;
@@ -24,5 +29,9 @@ int main () {
     *p = f();
   
     printf("%d,%d\n",q[0],q[1]);
-  
+ 
+    
+    g();
+    
+    printf("%d\n", 5 && 7);
 }

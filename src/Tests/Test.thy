@@ -1,5 +1,5 @@
 theory Test
-imports Main "../Eval"
+imports Main "../SmallStep" "../Pretty"
 begin
 
 abbreviation "aa \<equiv> ''a''"  abbreviation "bb \<equiv> ''b''" abbreviation "cc \<equiv> ''c''"
@@ -20,5 +20,12 @@ abbreviation For :: "vname \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> com
   ("(FOR _/ FROM _/ TO _/ DO _)"  [0, 0, 0, 61] 61) where
   "FOR v FROM a1 TO a2 DO c \<equiv>
      v ::= a1 ;;  WHILE (Less (V v) a2) DO (c ;; v ::= Plus (V v) (Const (1)))"
+
+
+term remdups
+
+definition "execute_show vnames p \<equiv> case execute p of
+  Some s \<Rightarrow> show_state (program.globals p @ vnames) s
+  | None \<Rightarrow> show ''<Error>''"
 
 end

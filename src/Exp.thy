@@ -9,7 +9,7 @@ begin
 type_synonym vname = string
 (* Addresses are a pair of integers (block_id, offset) *)
 type_synonym addr = "nat \<times> int"
-type_synonym int_width = 32
+type_synonym int_width = 64
 type_synonym int_val = "int_width word"
 
 (* Null is to separate addresses from values *)

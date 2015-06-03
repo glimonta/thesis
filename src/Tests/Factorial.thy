@@ -1,6 +1,7 @@
 theory Factorial
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Pretty"
 begin
+
 
 (* Factorial: Takes a number and returns the factorial *)
 definition factorial_decl :: fun_decl
@@ -36,6 +37,6 @@ definition p :: program
 export_code p in SML
 
 (* The factorial of the number is on the variable rr *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> rr,\<mu>)"
+value "execute_show [] p"
 
 end

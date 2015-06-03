@@ -49,6 +49,20 @@ definition p :: program
 export_code p in SML
 
 (* The length of the string should be 5 and be saved in global variable ll *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> aa,\<mu>)"
+value "execute_show [] p"
+
+definition "test \<equiv> (
+  shows_fun_decl (bubblesort_decl)
+o shows_fun_decl (main_decl)
+) ''''"
+
+ML_val {*
+  @{code test} |> String.implode |> writeln
+
+*}
+
+value "shows_com 0 (fun_decl.body main_decl) ''''"
+
+
 
 end

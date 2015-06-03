@@ -1,3 +1,7 @@
+// #include <stdlib.h>
+
+#define NULL ((void*)0)
+
 void f() {
   
 }
@@ -12,5 +16,6 @@ int g(int x) {
 
 int main() {
   f();
+  void *foo = NULL;
   return 0;
 }
