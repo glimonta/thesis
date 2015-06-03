@@ -38,8 +38,7 @@ definition merge_decl :: fun_decl
           (Indexl (V aa) (V ii)) ::== (Index (V xx) (V ii));;
           ii ::= (Plus (V ii) (Const 1))
         );;
-        FREE (Derefl (V xx));;
-        Return (V aa)
+        FREE (Derefl (V xx))
     \<rparr>"
 
 (* Mergesort: Takes an array a and its length n and returns the sorted array *)
@@ -50,13 +49,12 @@ definition mergesort_decl :: fun_decl
       fun_decl.locals = [mm, xx],
       fun_decl.body = 
         IF (Less (V nn) (Const 2)) THEN
-          Return (V aa)
+          Returnv
         ELSE
           (mm ::= (Div (V nn) (Const 2));;
-          Callfun xx ''mergesort'' [V aa, V mm];;
-          Callfun xx ''mergesort'' [(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]);;
-          Callfun xx ''merge'' [V aa, V nn, V mm];;
-          Return (V aa)
+          Callfunv ''mergesort'' [V aa, V mm];;
+          Callfunv ''mergesort'' [(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]);;
+          Callfunv ''merge'' [V aa, V nn, V mm]
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -77,19 +75,19 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfun bb ''mergesort'' [(V aa), (V nn)]
+        Callfunv ''mergesort'' [(V aa), (V nn)]
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, bb],
+    \<lparr> program.globals = [aa, nn],
       program.procs = [main_decl, merge_decl, mergesort_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The length of the string should be 5 and be saved in global variable ll *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
+value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> aa,\<mu>)"
 
 
 end

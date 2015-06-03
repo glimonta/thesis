@@ -18,8 +18,7 @@ definition selectionsort_decl :: fun_decl
               tt ::= (V jj)
             ELSE SKIP));;
           (Indexl (V aa) (V tt)) ::== (Index (V aa) (V ii));;
-          (Indexl (V aa) (V ii)) ::== (V mm));;
-        Return (V aa)
+          (Indexl (V aa) (V ii)) ::== (V mm))
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -40,18 +39,18 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfun bb ''selectionsort'' [(V aa), (V nn)]
+        Callfunv ''selectionsort'' [(V aa), (V nn)]
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, bb],
+    \<lparr> program.globals = [aa, nn],
       program.procs = [main_decl, selectionsort_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The sorted array should be stored in the address indicated by both aa and bb *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
+value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> aa,\<mu>)"
 
 end
