@@ -21,62 +21,52 @@ abbreviation For :: "vname \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> com
 
 (* Bubblesort: Takes an array a and its length n and returns the sorted array *)
 definition bubblesort_decl :: fun_decl
-  where "bubblesort_decl \<equiv> ([aa, nn], [ii,jj, tt],
-      tt ::= Const 0;;
-      FOR ii FROM (Const 1) TO (V nn) DO
-        (FOR jj FROM (Const ( 0)) TO (Plus (V nn) (Const ( -1))) DO
-          (IF (Less (Index (V aa) (Plus (V jj) (Const ( 1)))) (Index (V aa) (V jj)))
-          THEN (tt ::= (Index (V aa) (V jj));;
-            (Indexl (V aa) (V jj)) ::== (Index (V aa) (Plus (V jj) (Const ( 1))));;
-            (Indexl (V aa) (Plus (V jj) (Const ( 1)))) ::== (V tt))
-          ELSE SKIP));;
-      Return (V aa))"
+  where "bubblesort_decl \<equiv>
+    \<lparr> fun_decl.name = ''bubblesort'',
+      fun_decl.params = [aa, nn],
+      fun_decl.locals = [ii,jj, tt],
+      fun_decl.body = 
+        tt ::= Const 0;;
+        FOR ii FROM (Const 1) TO (V nn) DO
+          (FOR jj FROM (Const ( 0)) TO (Plus (V nn) (Const ( -1))) DO
+            (IF (Less (Index (V aa) (Plus (V jj) (Const ( 1)))) (Index (V aa) (V jj)))
+            THEN (tt ::= (Index (V aa) (V jj));;
+              (Indexl (V aa) (V jj)) ::== (Index (V aa) (Plus (V jj) (Const ( 1))));;
+              (Indexl (V aa) (Plus (V jj) (Const ( 1)))) ::== (V tt))
+            ELSE SKIP));;
+        Return (V aa)
+    \<rparr>"
 
 definition main_decl :: fun_decl
-  where "main_decl \<equiv> ([], [],
-    aa ::= New (Const ( 10));;
-    (Indexl (V aa) (Const ( 0))) ::== (Const ( 44));;
-    (Indexl (V aa) (Const ( 1))) ::== (Const (  1));;
-    (Indexl (V aa) (Const ( 2))) ::== (Const ( 60));;
-    (Indexl (V aa) (Const ( 3))) ::== (Const ( -26));;
-    (Indexl (V aa) (Const ( 4))) ::== (Const ( 54));;
-    (Indexl (V aa) (Const ( 5))) ::== (Const ( 1));;
-    (Indexl (V aa) (Const ( 6))) ::== (Const ( 92));;
-    (Indexl (V aa) (Const ( 7))) ::== (Const ( 84));;
-    (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
-    (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
-    nn ::= (Const ( 10));;
-    Callfun bb ''bubblesort'' [(V aa), (V nn)])"
+  where "main_decl \<equiv>
+    \<lparr> fun_decl.name = ''main'',
+      fun_decl.params = [],
+      fun_decl.locals = [],
+      fun_decl.body = 
+        aa ::= New (Const ( 10));;
+        (Indexl (V aa) (Const ( 0))) ::== (Const ( 44));;
+        (Indexl (V aa) (Const ( 1))) ::== (Const (  1));;
+        (Indexl (V aa) (Const ( 2))) ::== (Const ( 60));;
+        (Indexl (V aa) (Const ( 3))) ::== (Const ( -26));;
+        (Indexl (V aa) (Const ( 4))) ::== (Const ( 54));;
+        (Indexl (V aa) (Const ( 5))) ::== (Const ( 1));;
+        (Indexl (V aa) (Const ( 6))) ::== (Const ( 92));;
+        (Indexl (V aa) (Const ( 7))) ::== (Const ( 84));;
+        (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
+        (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
+        nn ::= (Const ( 10));;
+        Callfun bb ''bubblesort'' [(V aa), (V nn)]
+    \<rparr>"
 
-definition "main_loc \<equiv> (\<lambda>(_,l,_). l) main_decl"
-definition "main_body \<equiv> (\<lambda>(_,_,c). c) main_decl"
+definition p :: program
+  where "p \<equiv> 
+    \<lparr> program.globals = [aa, nn, bb],
+      program.procs = [main_decl, bubblesort_decl]
+    \<rparr>"
 
-definition initial_proc :: program where "initial_proc \<equiv> \<lambda>name. None"
-
-definition proc_table :: program where "proc_table \<equiv> 
-  (initial_proc(''main'' := (Some main_decl)))(''bubblesort'' := (Some bubblesort_decl))"
-
-definition initial_glob :: valuation where "initial_glob \<equiv> \<lambda>name. None"
-definition initial_mem :: mem where "initial_mem \<equiv> []"
-definition initial_stack :: "stack_frame list" where
-  "initial_stack \<equiv> [(main_body,map_of (map (\<lambda>x. (x,None)) main_loc),Invalid)]"
-definition init_state :: state 
-  where "init_state \<equiv> (initial_stack, initial_glob, initial_mem)"
-
-export_code init_state in SML
-
-value "case
-  (fstep proc_table 
-  (the (fstep proc_table 
-  (the (fstep proc_table 
-  (the (fstep proc_table 
-  (the (fstep proc_table 
-  init_state)))))))))
-  of Some (\<sigma>,\<gamma>,\<mu>) \<Rightarrow> (fst (snd (hd \<sigma>)) tt, fst (snd (hd \<sigma>)) ii, fst (snd (hd \<sigma>)) jj, \<mu>)"
-
-
+export_code p in SML
 
 (* The length of the string should be 5 and be saved in global variable ll *)
-value "case interp proc_table init_state of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
+value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> bb,\<mu>)"
 
 end
