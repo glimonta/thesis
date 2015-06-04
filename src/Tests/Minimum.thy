@@ -41,12 +41,21 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn, mm],
-      program.procs = [main_decl, min_decl]
+      program.procs = [min_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The minimum of the array should be 1 and saved in global variable mm *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> mm,\<mu>)"
+value "execute_show [] p"
+
+definition "minimum \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code minimum} |> String.implode |> writeln;
+
+*}
 
 end

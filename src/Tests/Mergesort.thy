@@ -81,13 +81,22 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn],
-      program.procs = [main_decl, merge_decl, mergesort_decl]
+      program.procs = [merge_decl, mergesort_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The length of the string should be 5 and be saved in global variable ll *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> aa,\<mu>)"
+value "execute_show [] p"
+
+definition "merge \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code merge} |> String.implode |> writeln;
+*}
+
 
 
 end

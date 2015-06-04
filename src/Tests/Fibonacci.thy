@@ -31,18 +31,27 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body = 
+        nn ::= Const 14;;
         Callfun rr ''fib'' [Const 14]
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [rr],
-      program.procs = [main_decl, fib_decl]
+    \<lparr> program.globals = [nn, rr],
+      program.procs = [fib_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The factorial of the number is on the variable rr *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> rr,\<mu>)"
+value "execute_show [] p"
+
+definition "fib \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code fib} |> String.implode |> writeln;
+*}
 
 end

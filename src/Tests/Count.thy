@@ -45,12 +45,22 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn, foo, bar, baz],
-      program.procs = [main_decl, count_decl]
+      program.procs = [count_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
-(* Check how many times 5, 84 and 44 occur in the array bb1 = 0, bb2 = 1, bb3 = 5 *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> foo, \<gamma> bar, \<gamma> baz,\<mu>)"
+(* Check how many times 5, 84 and 44 occur in the array foo = 0, bar = 1, baz = 5 *)
+value "execute_show [] p"
+
+definition "count \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code count} |> String.implode |> writeln;
+*}
+
+
 
 end

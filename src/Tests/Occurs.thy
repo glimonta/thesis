@@ -37,19 +37,30 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
 
+        xx ::= Const 5;;
+        yy ::= Const 84;;
+
         Callfun foo ''occurs'' [(V aa), (V nn), Const 5];;
         Callfun bar ''occurs'' [(V aa), (V nn), Const 84]
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, foo, bar],
+    \<lparr> program.globals = [aa, nn, xx, yy, foo, bar],
       program.procs = [main_decl, occurs_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* Check if 5 and 84 occur in the array bb1 = 0 (False) bb2 = 1 (True) *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> foo, \<gamma> bar,\<mu>)"
+value "execute_show [] p"
+
+definition "occurs \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code occurs} |> String.implode |> writeln;
+*}
 
 end

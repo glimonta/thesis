@@ -43,7 +43,7 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn],
-      program.procs = [main_decl, bubblesort_decl]
+      program.procs = [bubblesort_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
@@ -51,28 +51,13 @@ export_code p in SML
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
 
-definition "test \<equiv> (
-  shows_fun_decl (bubblesort_decl)
-o shows_fun_decl (main_decl)
-) ''''"
-
-definition "test2 \<equiv> (
-  show_state (program.globals p) (initial_state p)
-)"
-
-definition "test3 \<equiv> (
+definition "bubblesort \<equiv> (
   shows_prog p ''''
 )"
 
 ML_val {*
-  @{code test} |> String.implode |> writeln;
-  @{code test2} |> String.implode |> writeln;
-  @{code test3} |> String.implode |> writeln;
+  @{code bubblesort} |> String.implode |> writeln;
 *}
-
-value "shows_com 0 (fun_decl.body main_decl) ''''"
-
-value "execute_show [] p"
 
 
 

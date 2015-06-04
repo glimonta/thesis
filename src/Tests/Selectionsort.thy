@@ -45,12 +45,20 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn],
-      program.procs = [main_decl, selectionsort_decl]
+      program.procs = [selectionsort_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The sorted array should be stored in the address indicated by both aa and bb *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> (\<gamma> aa,\<mu>)"
+value "execute_show [] p"
+
+definition "selection \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code selection} |> String.implode |> writeln;
+*}
 
 end
