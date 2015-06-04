@@ -108,7 +108,7 @@ begin
   | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
   | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
   | "shows_lexp (Derefl exp) = 
-      shows ''&'' o shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
+      (*shows ''&'' o*) shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
   | "shows_lexp (Indexl e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
     
   abbreviation "indent ind s \<equiv> shows (replicate (ind*2) CHR '' '') o s o shows_nl"
@@ -137,7 +137,7 @@ begin
         shows_com (ind + 1) c o
       indent ind (shows ''}'' )"
   | "shows_com ind (Free x) =
-      indent_basic ind ( shows ''free'' o shows_paren (*(shows_cast_to_pointer (shows_paren*) (shows_lexp x))"
+      indent_basic ind ( shows ''free'' o shows_paren (shows ''&'' o (shows_paren (shows_lexp x))))"
   | "shows_com ind (Return e) = indent_basic ind ( shows ''return'' o shows_paren (shows_exp e) )"
   | "shows_com ind (Returnv) = indent_basic ind ( shows ''return'' )"
   | "shows_com ind (Callfunl x f args) = 
