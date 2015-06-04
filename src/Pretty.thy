@@ -179,6 +179,12 @@ begin
 
   abbreviation "show_state vnames s \<equiv> shows_state vnames s ''''"
 
+ definition shows_global :: "string \<Rightarrow> shows" where
+    "shows_global s \<equiv> indent_basic 0 (shows dflt_type o shows_space o shows s)"
 
+  definition shows_prog :: "program \<Rightarrow> shows" where
+    "shows_prog p \<equiv> shows_sep shows_global id (program.globals p) o
+      shows_nl o
+      shows_sep shows_fun_decl shows_nl (program.procs p)"
 
 end
