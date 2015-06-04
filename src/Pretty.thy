@@ -76,24 +76,6 @@ begin
       showsp_list (\<lambda>_. shows_pair) 0 pairs
       "
 
-  fun shows_stack_frame :: "vname list \<Rightarrow> stack_frame \<Rightarrow> shows" where
-    "shows_stack_frame vnames (com,val,rloc) = 
-      shows_valuation vnames val o shows_nl o shows ''rloc = '' o shows rloc"
-
-  definition shows_stack :: "vname list \<Rightarrow> stack_frame list \<Rightarrow> shows" where
-    "shows_stack vnames s \<equiv> shows_sep (shows_stack_frame vnames) (shows_nl o shows ''---------------'' o shows_nl) s"
-
-  fun shows_state :: "vname list \<Rightarrow> state \<Rightarrow> shows" where 
-    "shows_state vnames (\<sigma>,\<gamma>,\<mu>) = 
-      shows_stack vnames \<sigma> o 
-      shows_nl o shows ''================='' o shows_nl o
-      shows_valuation vnames \<gamma> o
-      shows_nl o shows ''================='' o shows_nl o
-      showsp_mem 0 \<mu>
-    "
-
-  abbreviation "show_state vnames s \<equiv> shows_state vnames s ''''"
-
   abbreviation "shows_binop s1 opr s2 \<equiv> 
     shows_paren s1 o shows_space o shows opr o shows_space o shows_paren s2"
 
@@ -179,7 +161,23 @@ begin
             shows_com 1 (fun_decl.body fdecl) o
           shows ''}'' o shows_nl"
           
+  fun shows_stack_frame :: "vname list \<Rightarrow> stack_frame \<Rightarrow> shows" where
+    "shows_stack_frame vnames (com,val,rloc) = 
+      (shows_com 0 com) o shows_valuation vnames val o shows_nl o shows ''rloc = '' o shows rloc"
 
+  definition shows_stack :: "vname list \<Rightarrow> stack_frame list \<Rightarrow> shows" where
+    "shows_stack vnames s \<equiv> shows_sep (shows_stack_frame vnames) (shows_nl o shows ''---------------'' o shows_nl) s"
+
+  fun shows_state :: "vname list \<Rightarrow> state \<Rightarrow> shows" where 
+    "shows_state vnames (\<sigma>,\<gamma>,\<mu>) = 
+      shows_stack vnames \<sigma> o 
+      shows_nl o shows ''================='' o shows_nl o
+      shows_valuation vnames \<gamma> o
+      shows_nl o shows ''================='' o shows_nl o
+      showsp_mem 0 \<mu>
+    "
+
+  abbreviation "show_state vnames s \<equiv> shows_state vnames s ''''"
 
 
 

@@ -56,12 +56,23 @@ definition "test \<equiv> (
 o shows_fun_decl (main_decl)
 ) ''''"
 
-ML_val {*
-  @{code test} |> String.implode |> writeln
+definition "test2 \<equiv> (
+  show_state (program.globals p) (initial_state p)
+)"
 
+definition "test3 \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  @{code test} |> String.implode |> writeln;
+  @{code test2} |> String.implode |> writeln;
+  @{code test3} |> String.implode |> writeln;
 *}
 
 value "shows_com 0 (fun_decl.body main_decl) ''''"
+
+value "execute_show [] p"
 
 
 
