@@ -102,13 +102,13 @@ begin
   | "shows_exp (And e1 e2) = shows_binop (shows_exp e1) ''&&'' (shows_exp e2)"
   | "shows_exp (Or e1 e2) = shows_binop (shows_exp e1) ''||'' (shows_exp e2)"
   | "shows_exp (Eq e1 e2) = shows_binop (shows_exp e1) ''=='' (shows_exp e2)"
-  | "shows_exp (New e) = shows ''malloc (size_of('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')''"
+  | "shows_exp (New e) = shows ''malloc (sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')''"
     (* TODO/CHECK: Assumes size_of(dflt_type) = size_of( void* ). Is this OK?  *)
-  | "shows_exp (Deref e) = shows_unop ''*'' (shows_exp e)"
+  | "shows_exp (Deref e) = shows ''*'' o shows_paren (shows_cast_to_pointer (shows_exp e))"
   | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
   | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
   | "shows_lexp (Derefl exp) = 
-      shows ''*'' o shows_paren (shows_exp exp)"
+      shows ''&'' o shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
   | "shows_lexp (Indexl e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
     
   abbreviation "indent ind s \<equiv> shows (replicate (ind*2) CHR '' '') o s o shows_nl"
@@ -136,7 +136,8 @@ begin
       indent ind (shows ''while '' o shows_paren (shows_exp e) o shows '' {'' ) o
         shows_com (ind + 1) c o
       indent ind (shows ''}'' )"
-  | "shows_com ind (Free x) = indent_basic ind ( shows ''free'' o shows_paren (shows_lexp x) )"
+  | "shows_com ind (Free x) =
+      indent_basic ind ( shows ''free'' o shows_paren (*(shows_cast_to_pointer (shows_paren*) (shows_lexp x))"
   | "shows_com ind (Return e) = indent_basic ind ( shows ''return'' o shows_paren (shows_exp e) )"
   | "shows_com ind (Returnv) = indent_basic ind ( shows ''return'' )"
   | "shows_com ind (Callfunl x f args) = 
@@ -179,11 +180,19 @@ begin
 
   abbreviation "show_state vnames s \<equiv> shows_state vnames s ''''"
 
- definition shows_global :: "string \<Rightarrow> shows" where
+  definition shows_global :: "string \<Rightarrow> shows" where
     "shows_global s \<equiv> indent_basic 0 (shows dflt_type o shows_space o shows s)"
 
+  fun filter_procs :: "(fun_decl \<Rightarrow> bool) \<Rightarrow> fun_decl list \<Rightarrow> fun_decl list" where
+    "filter_procs f l = undefined"
+
   definition shows_prog :: "program \<Rightarrow> shows" where
-    "shows_prog p \<equiv> shows_sep shows_global id (program.globals p) o
+    "shows_prog p \<equiv> 
+      shows ''#include <stdlib.h>'' o
+      shows_nl o
+      shows ''#include <stdio.h>'' o
+      shows_nl o shows_nl o
+      shows_sep shows_global id (program.globals p) o
       shows_nl o
       shows_sep shows_fun_decl shows_nl (program.procs p)"
 
