@@ -47,7 +47,7 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, nn, xx, yy, foo, bar],
-      program.procs = [main_decl, occurs_decl]
+      program.procs = [occurs_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
