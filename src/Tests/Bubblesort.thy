@@ -57,6 +57,11 @@ definition "bubblesort \<equiv> (
 
 ML_val {*
   @{code bubblesort} |> String.implode |> writeln;
+  val os = TextIO.openOut "bubblesorttest";
+  TextIO.outputSubstr (os, Substring.full "hello");
+  TextIO.flushOut os;
+  TextIO.closeOut os
+
 *}
 
 
