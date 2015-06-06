@@ -18,8 +18,9 @@ signed long fact(signed long n) {
 
 signed long main() {
   n = (5);
-  (r) = (fact(5));
+  (r) = (fact(n));
 
-// Code not generated but written by me to check the programs
-  printf("The factorial of %ld is %ld\n", n, r);
+//Code manually added by me to check results
+  printf("the factorial of number %ld is %ld.\n", n, r);
+
 }

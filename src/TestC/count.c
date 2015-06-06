@@ -38,20 +38,20 @@ signed long main() {
   (bar) = (count(a, n, 84));
   (baz) = (count(a, n, 44));
 
-// Code not generated but written by me to check the programs
+//Code manually added by me to check results
  printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
-     (((signed long*)a)[0]),
-     (((signed long*)a)[1]),
-     (((signed long*)a)[2]),
-     (((signed long*)a)[3]),
-     (((signed long*)a)[4]),
-     (((signed long*)a)[5]),
-     (((signed long*)a)[6]),
-     (((signed long*)a)[7]),
-     (((signed long*)a)[8]),
-     (((signed long*)a)[9])
-   );
+   (((signed long*)a)[0]),
+   (((signed long*)a)[1]),
+   (((signed long*)a)[2]),
+   (((signed long*)a)[3]),
+   (((signed long*)a)[4]),
+   (((signed long*)a)[5]),
+   (((signed long*)a)[6]),
+   (((signed long*)a)[7]),
+   (((signed long*)a)[8]),
+   (((signed long*)a)[9])
+ );
 
-  printf("occurrences of 5: %ld, occurrences of 84: %ld, occurrences of 44: %ld\n", foo, bar, baz);
+  printf("the number 5 occurs %ld times, the number 84 occurs %ld times, the number 44 occurs %ld times.\n", foo, bar, baz);
 
 }

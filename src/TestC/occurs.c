@@ -37,22 +37,22 @@ signed long main() {
   n = (10);
   x = (5);
   y = (84);
-  (foo) = (occurs(a, n, 5));
-  (bar) = (occurs(a, n, 84));
+  (foo) = (occurs(a, n, x));
+  (bar) = (occurs(a, n, y));
 
-// Code not generated but written by me to check the programs
+//Code manually added by me to check results
  printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
-     (((signed long*)a)[0]),
-     (((signed long*)a)[1]),
-     (((signed long*)a)[2]),
-     (((signed long*)a)[3]),
-     (((signed long*)a)[4]),
-     (((signed long*)a)[5]),
-     (((signed long*)a)[6]),
-     (((signed long*)a)[7]),
-     (((signed long*)a)[8]),
-     (((signed long*)a)[9])
-   );
+   (((signed long*)a)[0]),
+   (((signed long*)a)[1]),
+   (((signed long*)a)[2]),
+   (((signed long*)a)[3]),
+   (((signed long*)a)[4]),
+   (((signed long*)a)[5]),
+   (((signed long*)a)[6]),
+   (((signed long*)a)[7]),
+   (((signed long*)a)[8]),
+   (((signed long*)a)[9])
+ );
 
-  printf("occurs %ld?: %s, occurs %ld?: %s\n", x, foo ? "True" : "False", y, bar ? "True" : "False");
+  printf("does number %ld occur?: %s, does number %ld occur?: %s.\n", x, foo? "yes" : "no", y, bar? "yes" : "no");
 }

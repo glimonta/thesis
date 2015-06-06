@@ -30,8 +30,9 @@ signed long fib(signed long n) {
 
 signed long main() {
   n = (14);
-  (r) = (fib(14));
+  (r) = (fib(n));
 
-// Code not generated but written by me to check the programs
-  printf("The fibonacci of %ld is %ld\n", n, r);
+//Code manually added by me to check results
+  printf("the fibonacci number of %ld is %ld.\n", n, r);
+
 }

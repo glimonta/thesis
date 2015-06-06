@@ -69,17 +69,17 @@ signed long main() {
   n = (10);
   mergesort(a, n);
 
-// Code not generated but written by me to check the programs
+//Code manually added by me to check results
  printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
-     (((signed long*)a)[0]),
-     (((signed long*)a)[1]),
-     (((signed long*)a)[2]),
-     (((signed long*)a)[3]),
-     (((signed long*)a)[4]),
-     (((signed long*)a)[5]),
-     (((signed long*)a)[6]),
-     (((signed long*)a)[7]),
-     (((signed long*)a)[8]),
-     (((signed long*)a)[9])
-   );
+   (((signed long*)a)[0]),
+   (((signed long*)a)[1]),
+   (((signed long*)a)[2]),
+   (((signed long*)a)[3]),
+   (((signed long*)a)[4]),
+   (((signed long*)a)[5]),
+   (((signed long*)a)[6]),
+   (((signed long*)a)[7]),
+   (((signed long*)a)[8]),
+   (((signed long*)a)[9])
+ );
 }
