@@ -54,8 +54,12 @@ definition "minimum \<equiv> (
 )"
 
 ML_val {*
-  @{code minimum} |> String.implode |> writeln;
-
+  val str = @{code minimum} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/min_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 end

@@ -40,8 +40,8 @@ definition main_decl :: fun_decl
         xx ::= Const 5;;
         yy ::= Const 84;;
 
-        Callfun foo ''occurs'' [(V aa), (V nn), Const 5];;
-        Callfun bar ''occurs'' [(V aa), (V nn), Const 84]
+        Callfun foo ''occurs'' [(V aa), (V nn), V xx];;
+        Callfun bar ''occurs'' [(V aa), (V nn), V yy]
     \<rparr>"
 
 definition p :: program
@@ -60,7 +60,12 @@ definition "occurs \<equiv> (
 )"
 
 ML_val {*
-  @{code occurs} |> String.implode |> writeln;
+  val str = @{code occurs} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/occurs_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 end

@@ -26,7 +26,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         nn ::= Const 5;;
-        Callfun rr ''fact'' [Const 5]
+        Callfun rr ''fact'' [V nn]
     \<rparr>"
 
 definition p :: program
@@ -45,7 +45,12 @@ definition "fact \<equiv> (
 )"
 
 ML_val {*
-  @{code fact} |> String.implode |> writeln;
+  val str = @{code fact} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/fact_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 

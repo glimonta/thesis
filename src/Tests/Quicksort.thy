@@ -88,7 +88,12 @@ definition "quicksort \<equiv> (
 )"
 
 ML_val {*
-  @{code quicksort} |> String.implode |> writeln;
+  val str = @{code quicksort} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/quicksort_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 end

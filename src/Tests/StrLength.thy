@@ -31,7 +31,7 @@ definition str_len_decl :: fun_decl
         ll ::= Const ( 0);;
         WHILE (Deref (V pp)) DO (
           ll ::= Plus (V ll) (Const ( 1));;
-          pp ::= Plus (V pp) (Const ( 1))
+          pp ::= Plus (V pp) (Const ( 8)) (* Size of signed long *)
           );;
         Return (V ll)
     \<rparr>"
@@ -49,12 +49,25 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.globals = [aa, ll],
-      program.procs = [main_decl, create_array_decl, str_len_decl]
+      program.procs = [create_array_decl, str_len_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
 
 (* The length of the string should be 5 and be saved in global variable ll *)
-value "case execute p of Some (_,\<gamma>,\<mu>) \<Rightarrow> \<gamma> ll"
+value "execute_show [] p"
+
+definition "strleng \<equiv> (
+  shows_prog p ''''
+)"
+
+ML_val {*
+  val str = @{code strleng} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/strlen_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
+*}
 
 end

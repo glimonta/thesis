@@ -32,7 +32,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         nn ::= Const 14;;
-        Callfun rr ''fib'' [Const 14]
+        Callfun rr ''fib'' [V nn]
     \<rparr>"
 
 definition p :: program
@@ -51,7 +51,12 @@ definition "fib \<equiv> (
 )"
 
 ML_val {*
-  @{code fib} |> String.implode |> writeln;
+  val str = @{code fib} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/fib_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 end

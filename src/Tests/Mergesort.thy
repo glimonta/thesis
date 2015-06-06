@@ -94,7 +94,12 @@ definition "merge \<equiv> (
 )"
 
 ML_val {*
-  @{code merge} |> String.implode |> writeln;
+  val str = @{code merge} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/mergesort_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 

@@ -58,7 +58,12 @@ definition "count \<equiv> (
 )"
 
 ML_val {*
-  @{code count} |> String.implode |> writeln;
+  val str = @{code count} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/count_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 

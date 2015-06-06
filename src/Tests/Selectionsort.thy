@@ -58,7 +58,12 @@ definition "selection \<equiv> (
 )"
 
 ML_val {*
-  @{code selection} |> String.implode |> writeln;
+  val str = @{code selection} |> String.implode;
+  writeln str;
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/selection_gen.c";
+  TextIO.output (os, str);
+  TextIO.flushOut os;
+  TextIO.closeOut os;
 *}
 
 end
