@@ -40,7 +40,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, mm],
+    \<lparr> program.name = ''min'',
+      program.globals = [aa, nn, mm],
       program.procs = [min_decl, main_decl]
     \<rparr>"
 

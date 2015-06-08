@@ -42,7 +42,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn],
+    \<lparr> program.name = ''bubblesort'',
+      program.globals = [aa, nn],
       program.procs = [bubblesort_decl, main_decl]
     \<rparr>"
 
@@ -58,7 +59,7 @@ definition "bubblesort \<equiv> (
 ML_val {*
   val str = @{code bubblesort} |> String.implode;
   writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/bubblesort_gen.c";
+  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
   TextIO.output (os, str);
   TextIO.flushOut os;
   TextIO.closeOut os;

@@ -44,7 +44,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, foo, bar, baz],
+    \<lparr> program.name = ''count'',
+      program.globals = [aa, nn, foo, bar, baz],
       program.procs = [count_decl, main_decl]
     \<rparr>"
 

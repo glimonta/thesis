@@ -31,7 +31,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [nn, rr],
+    \<lparr> program.name = ''fact'',
+      program.globals = [nn, rr],
       program.procs = [factorial_decl, main_decl]
     \<rparr>"
 

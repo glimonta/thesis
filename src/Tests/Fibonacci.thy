@@ -37,7 +37,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [nn, rr],
+    \<lparr> program.name = ''fib'',
+      program.globals = [nn, rr],
       program.procs = [fib_decl, main_decl]
     \<rparr>"
 

@@ -80,7 +80,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn],
+    \<lparr> program.name = ''mergesort'',
+      program.globals = [aa, nn],
       program.procs = [merge_decl, mergesort_decl, main_decl]
     \<rparr>"
 
