@@ -43,6 +43,7 @@ fun valid_fun_decl :: "fun_decl \<Rightarrow> bool"
 type_synonym global_decl = string
 
 record program =
+  name :: string
   globals :: "vname list"
   procs :: "fun_decl list"
 

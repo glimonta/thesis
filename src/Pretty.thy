@@ -191,6 +191,8 @@ begin
       shows ''#include <stdlib.h>'' o
       shows_nl o
       shows ''#include <stdio.h>'' o
+      shows_nl o
+      shows ''#include \"'' o shows (program.name p) o shows ''_test.h\"'' o
       shows_nl o shows_nl o
       shows_sep shows_global id (program.globals p) o
       shows_nl o
