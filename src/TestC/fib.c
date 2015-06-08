@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "fib_test.h"
 
 signed long n;
 signed long r;
@@ -31,8 +32,5 @@ signed long fib(signed long n) {
 signed long main() {
   n = (14);
   (r) = (fib(n));
-
-//Code manually added by me to check results
-  printf("the fibonacci number of %ld is %ld.\n", n, r);
-
+  test_main(n,r,fib);
 }

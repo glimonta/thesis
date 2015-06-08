@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "fact_test.h"
 
 signed long n;
 signed long r;

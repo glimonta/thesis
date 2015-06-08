@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "fact_test.h"
 
 signed long n;
 signed long r;
@@ -19,8 +20,5 @@ signed long fact(signed long n) {
 signed long main() {
   n = (5);
   (r) = (fact(n));
-
-//Code manually added by me to check results
-  printf("the factorial of number %ld is %ld.\n", n, r);
-
+  test_main(n,r);
 }

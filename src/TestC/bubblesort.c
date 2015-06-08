@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include "bubblesort_test.h"
 
 signed long a;
 signed long n;
@@ -38,19 +39,5 @@ signed long main() {
   (((signed long*)a)[9]) = (80);
   n = (10);
   bubblesort(a, n);
-
-//Code manually added by me to check results
- printf("%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld\n",
-   (((signed long*)a)[0]),
-   (((signed long*)a)[1]),
-   (((signed long*)a)[2]),
-   (((signed long*)a)[3]),
-   (((signed long*)a)[4]),
-   (((signed long*)a)[5]),
-   (((signed long*)a)[6]),
-   (((signed long*)a)[7]),
-   (((signed long*)a)[8]),
-   (((signed long*)a)[9])
- );
-
+  test_main(n,a);
 }
