@@ -57,12 +57,20 @@ definition "bubblesort \<equiv> (
 )"
 
 ML_val {*
+  val p = @{code p};
+  val exec = @{code execute};
+  val st = exec p;
   val str = @{code bubblesort} |> String.implode;
   writeln str;
   val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
   TextIO.output (os, str);
   TextIO.flushOut os;
   TextIO.closeOut os;
+
+  Isabelle_System.bash_output 
+    "gcc -o /home/gabriela/Documents/thesis/src/TestC/bubblesort /home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
+  Isabelle_System.bash_output "/home/gabriela/Documents/thesis/src/TestC/bubblesort"
+
 *}
 
 

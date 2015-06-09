@@ -21,11 +21,14 @@ abbreviation For :: "vname \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> com
   "FOR v FROM a1 TO a2 DO c \<equiv>
      v ::= a1 ;;  WHILE (Less (V v) a2) DO (c ;; v ::= Plus (V v) (Const (1)))"
 
+fun collect_locals :: "fun_decl list \<Rightarrow> vname list" where
+  "collect_locals [] = []"
+| "collect_locals (p#ps) = (fun_decl.locals p) @ (collect_locals ps)"
 
 term remdups
 
 definition "execute_show vnames p \<equiv> case execute p of
-  Some s \<Rightarrow> show_state (program.globals p @ vnames) s
+  Some s \<Rightarrow> show_state (program.globals p @ (remdups (collect_locals (program.procs p))) @ vnames) s
   | None \<Rightarrow> show ''<Error>''"
 
 end
