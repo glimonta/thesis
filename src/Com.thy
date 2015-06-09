@@ -54,6 +54,20 @@ type_synonym proc_table = "fname \<rightharpoonup> fun_decl"
 definition proc_table_of :: "program \<Rightarrow> proc_table" where
   "proc_table_of p = map_of (map (\<lambda>fd. (fun_decl.name fd, fd)) (program.procs p))"
 
+definition reserved_keywords :: "vname list" where
+  "reserved_keywords =
+    [''auto'', ''break'', ''case'', ''char'', ''const'', ''continue'',
+     ''default'', ''do'', ''double'', ''else'', ''enum'', ''extern'',
+     ''float'', ''for'', ''goto'', ''if'', ''inline'', ''int'', ''long'',
+     ''register'', ''restrict'', ''return'', ''short'', ''signed'', ''sizeof'',
+     ''static'', ''struct'', ''switch'', ''typedef'', ''union'', ''unsigned'',
+     ''void'', ''volatile'', ''while'', ''_Bool'', ''_Complex'', ''_Imaginary'']"
+
+
+fun collect_locals :: "fun_decl list \<Rightarrow> vname list" where
+  "collect_locals [] = []"
+| "collect_locals (p#ps) = (fun_decl.locals p) @ (collect_locals ps)"
+
 definition valid_program :: "program \<Rightarrow> bool" 
   where "valid_program p \<equiv> 
       distinct (program.globals p)
@@ -64,6 +78,14 @@ definition valid_program :: "program \<Rightarrow> bool"
         in
          ''main'' \<in> dom pt
        \<and> fun_decl.params (the (pt ''main'')) = []
+      )
+    \<and> ( let
+          prog_vars = set ((program.globals p) @ collect_locals (program.procs p));
+          proc_names = set (map (fun_decl.name) (program.procs p))
+        in
+          (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
+          (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
+          (\<forall>fname \<in> proc_names. (\<forall>vname \<in> prog_vars. fname \<noteq> vname))
       )"
 
 context begin
