@@ -85,7 +85,7 @@ definition valid_program :: "program \<Rightarrow> bool"
         in
           (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
           (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
-          (\<forall>fname \<in> proc_names. (\<forall>vname \<in> prog_vars. fname \<noteq> vname))
+          (\<forall>fname \<in> set (program.globals p). (\<forall>vname \<in> prog_vars. fname \<noteq> vname))
       )"
 
 context begin
