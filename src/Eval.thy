@@ -4,23 +4,11 @@ imports Com Exp
   "~~/src/HOL/Library/Code_Target_Nat"
   "Native_Word/Word_Misc" (* For signed div and signed mod *)
 begin
+section \<open>Eval\<close>
 
-(*  (* TODO: Should be contained in Isabelle since de0a4a76d7aa under
-    Option.bind_split{s,_asm}*)
-  lemma option_bind_split: "P (Option.bind m f)
-  \<longleftrightarrow> (m = None \<longrightarrow> P None) \<and> (\<forall>v. m=Some v \<longrightarrow> P (f v))"
-    by (cases m) auto
+subsection \<open>Type definitions\<close>
 
-  lemma option_bind_split_asm: "P (Option.bind m f) = (\<not>(
-      m=None \<and> \<not>P None
-    \<or> (\<exists>x. m=Some x \<and> \<not>P (f x))))"
-    by (cases m) auto
-
-  lemmas option_bind_splits = option_bind_split option_bind_split_asm
-*)
-
-
-(* A value can be either an integer or an address *)
+text \<open>A value in the semantics can be a Null value, an integer or an address.\<close>
 datatype val = NullVal | I int_val | A addr
 
 (*
@@ -32,19 +20,51 @@ datatype val = NullVal | I int_val | A addr
   state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
 *)
 
+text \<open>A return location for a function can be an address, a variable or Invalid. It's invalid
+  in the case when the function returns void.\<close>
 datatype return_loc = Ar addr | Vr vname | Invalid
-(* A valuation is a function that maps variable names to values, name of variable where to save the
-   return value of the function, address where to save the return value of the function *)
+
+
+text \<open>A valuation is a function that maps a variable name to value. The valuation of a variable
+  name is of type @{term "val option option"}.
+  If the valuation of variable returns None, it means that the variable is undefined.
+  If the valuation of variable returns Some None, it means that the variable is uninitialized.
+  If the valuation of variable returns Some <value>, it means that the content of the variable
+  is <value>.
+\<close>
 type_synonym valuation = "vname \<Rightarrow> val option option"
+
+text \<open>The dynamic memory is represented by a @{term "val option list option list"}.
+  The memory is represented by blocks allocated with @{term New}.
+  We index the memory with the address value, an address is a pair of (base, offset), we index the
+  list with the base that identifies the block. If the block is not allocated, when indexing the
+  list in the base position there will be a None value, if the block is allocated then there's a
+  Some list that denotes the content of the block. We use the offset to index inside the block.
+  If the cell in the block we try to index is uninitialized there will be a None value, otherwise
+  there will be a Some None indicating an uninitialized value, and a Some <value> for an initialized cell
+  with content <value>.\<close>
 type_synonym mem = "val option list option list"
 
+text \<open>We define a stack frame for procedure calls as the command we must execute, the valuation for
+  the locals in that particular stack frame and the return location in which a caller will expect
+  the result of a function call. The caller saves the return location in it's own stack frame.\<close>
 type_synonym stack_frame = "com \<times> valuation \<times> return_loc"
 
-(* Stack, globals, procedure table, memory *)
+text \<open>A state is formed by a stack, a valuation for globals and the dynamic memory.\<close>
 type_synonym state = "stack_frame list \<times> valuation \<times> mem"
 
+text \<open>When executing a command that's not a function call or a return, this command won't make any
+  changes in the stack, therefore it only needs the valuation for the locals, the valuation for the
+  globals and the dynamic memory to be executed. In a visible state there's no possibility that the
+  evaluation of a command modifies the stack since the stack is not available to it.\<close>
 type_synonym visible_state = "valuation \<times> valuation \<times> mem"
 
+text \<open>We then lift the transformations done at a visible state level to states.
+  Here we separate the locals valuation from the rest of the stack frame, apply the transformation
+  to the visible state and then reconstruct the complete state with the part of the stack frame the
+  transformer didn't need in order to be executed, namely the command, and the return location.
+  This way we can now execute transformers at a state level. Applying the transformer will yield a
+  result, we also yield this result with the state in the end.\<close>
 definition lift_transformer :: 
   "(visible_state \<rightharpoonup> ('a\<times>visible_state))
   \<Rightarrow> state \<rightharpoonup> ('a \<times> state)"
@@ -54,6 +74,9 @@ where
     Some (r,((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>))
   }"
 
+text \<open>This is the lift of the transformations done at a visible state level to states.
+  The difference between this lift and @{term lift_transformer} is that the transformer executed
+  in here doesn't return a value, then we return just the state in the end.\<close>
 definition lift_transformer_nr 
   :: "(visible_state \<rightharpoonup> (visible_state)) \<Rightarrow> state \<rightharpoonup> (state)"
 where
@@ -62,13 +85,11 @@ where
     Some (((com,lvars,rloc)#\<sigma>,\<gamma>,\<mu>))
   }"
 
-
 definition is_empty_stack :: "state \<Rightarrow> bool" where
   "is_empty_stack \<equiv> \<lambda>(\<sigma>,_,_). \<sigma>=[]"
 
 lemma is_empty_stack_prod_conv[simp]: "is_empty_stack (\<sigma>,\<mu>\<gamma>) \<longleftrightarrow> \<sigma>=[]"
   unfolding is_empty_stack_def by auto
-
 
 fun com_of :: "state \<Rightarrow> com" where
   "com_of ((com,_)#_,_,_) = com"
@@ -82,55 +103,52 @@ fun coms_of_state :: "state \<Rightarrow> com set" where
 definition coms_of_stack :: "stack_frame list \<Rightarrow> com set" where
   "coms_of_stack \<sigma> \<equiv> (\<lambda>(com,_). com)`set \<sigma>"
 
-lemma lift_tr_pres_coms:
-  assumes "\<sigma>\<noteq>[]"
-  assumes "lift_transformer tr (\<sigma>,\<gamma>\<mu>) = Some (r,(\<sigma>',\<gamma>\<mu>'))"
-  shows "coms_of_stack \<sigma>'=coms_of_stack \<sigma>"
-  using assms
-  unfolding lift_transformer_def coms_of_stack_def
-  apply (force 
-    split: option.splits prod.splits Option.bind_splits list.splits)
-  done
-
-lemma lift_tr_nr_pres_coms:
-  assumes "\<sigma>\<noteq>[]"
-  assumes "lift_transformer_nr tr (\<sigma>,\<gamma>\<mu>) = Some ((\<sigma>',\<gamma>\<mu>'))"
-  shows "coms_of_stack \<sigma>'=coms_of_stack \<sigma>"
-  using assms
-  unfolding lift_transformer_nr_def coms_of_stack_def
-  apply (force 
-    split: option.splits prod.splits Option.bind_splits list.splits)
-  done
-
-
 fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 "(x # xs) !! i = (if i = 0 then x else xs !! (i - 1))"
 
 abbreviation "list_size xs \<equiv> int(length xs)"
 
-value "sbintrunc 3 (-9)"
+text \<open>We're using signed longs in the translation to C, this are the min, and max values that it's
+  possible to represent with signed longs.\<close>
+abbreviation "INT_MIN \<equiv> -2147483647" (* 64 bits, signed long *)
+abbreviation "INT_MAX \<equiv>  2147483647" (* 64 bits, signed long *)
 
-term sbintrunc
+text \<open>In the C99 draft, integer overflow is undefined behaviour, therefore we detect overflow and
+  then return None if overflow occurs and then the execution of the semantics goes to error.\<close>
+fun detect_overflow :: "int \<Rightarrow> val option" where
+  "detect_overflow i = (if (i > INT_MIN \<and> i \<le> INT_MAX) then Some (I (word_of_int i)) else None)"
 
-thm Word.sint_word_ariths
+value "detect_overflow (INT_MAX + 1)"
+value "detect_overflow (INT_MIN - 1)"
 
-term "op sdiv"
-
-value "sint ((5 :: 10 word) sdiv 2)"
-
-value "((2 :: 10 word) < -3)"
-
-
-
+text \<open>We define addition for values, according to the C99 draft we can add two integers or a
+  pointer value and an integer.\<close>
 fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "plus_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 + i\<^sub>2))"
-| "plus_val (A (x,y)) (I i) = Some (A (x, y + sint i))"
+  "plus_val (I i\<^sub>1) (I i\<^sub>2) = detect_overflow (sint i\<^sub>1 + sint i\<^sub>2)"
+| "plus_val (A (x,y)) (I i) = do {
+    v \<leftarrow> detect_overflow (y + sint i);
+    (case v of (I offset) \<Rightarrow> Some (A (x, sint offset)) | _ \<Rightarrow> None)
+  }"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
+(* Maybe check this is doing the right thing *)
+text \<open>We define substraction for values, according to the C99 draft we can substract an integer
+  from another or a pointer value and an integer. C99 draft also allows substraction between two
+  pointers, this semantics doesn't allow that.\<close>
+fun subst_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "subst_val (I i\<^sub>1) (I i\<^sub>2) = detect_overflow (sint i\<^sub>1 - sint i\<^sub>2)"
+| "subst_val (A (x,y)) (I i) = do {
+    v \<leftarrow> detect_overflow (y - sint i);
+    (case v of (I offset) \<Rightarrow> Some (A (x, sint offset)) | _ \<Rightarrow> None)
+  }"
+| "subst_val a\<^sub>1 a\<^sub>2 = None"
+
+text \<open>We define unary minus for values. It detects overflow and returns None if it happens.\<close>
 fun minus_val :: "val \<Rightarrow> val option" where
-  "minus_val (I i) = Some (I (- i))"
+  "minus_val (I i) = detect_overflow (- (sint i))"
 | "minus_val a = None"
 
+(* Add overflow check on div and mod? *)
 text \<open>@{term "op sdiv"} implements truncation towards zero, 
   conforming to the C99 standard, Sec. 6.5.5/6\<close>
 fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
@@ -142,13 +160,17 @@ fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
 | "mod_val a\<^sub>1 a\<^sub>2 = None"
 
 fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "mult_val (I i\<^sub>1) (I i\<^sub>2) = Some (I (i\<^sub>1 * i\<^sub>2))"
+  "mult_val (I i\<^sub>1) (I i\<^sub>2) = detect_overflow (sint i\<^sub>1 * sint i\<^sub>2)"
 | "mult_val a\<^sub>1 a\<^sub>2 = None"
 
+text \<open>We define the less than operator for values, if the first value is smaller than the second we
+  return @{term "I 1"} for True, otherwise we return @{term "I 0"} for False.\<close>
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 <s i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "less_val a\<^sub>1 a\<^sub>2 = None"
 
+text \<open>We define the not operator for values, if the value is 0 (False) we return @{term "I 1"} for
+  True, otherwise we return @{term "I 0"} for False.\<close>
 fun not_val :: "val \<Rightarrow> val option" where
   "not_val (I i) = (if i = 0 then Some (I 1) else Some (I 0))"
 | "not_val a = None"
@@ -264,6 +286,12 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
   (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
   v \<leftarrow> plus_val v\<^sub>1 v\<^sub>2;
+  Some (v, s)
+}"
+| "eval (Subst i\<^sub>1 i\<^sub>2) s = do {
+  (v\<^sub>1, s) \<leftarrow> eval i\<^sub>1 s;
+  (v\<^sub>2, s) \<leftarrow> eval i\<^sub>2 s;
+  v \<leftarrow> subst_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
 | "eval (Minus i) s = do {

@@ -93,6 +93,7 @@ begin
   | "shows_exp (Null) = shows_cast_to_pointer (shows ''0'')"
   | "shows_exp (V x) = shows x"
   | "shows_exp (Plus e1 e2) = shows_binop (shows_exp e1) ''+'' (shows_exp e2)"
+  | "shows_exp (Subst e1 e2) = shows_binop (shows_exp e1) ''-'' (shows_exp e2)"
   | "shows_exp (Minus e) = shows_unop ''-'' (shows_exp e)"
   | "shows_exp (Div e1 e2) = shows_binop (shows_exp e1) ''/'' (shows_exp e2)"
   | "shows_exp (Mod e1 e2) = shows_binop (shows_exp e1) ''%'' (shows_exp e2)"
