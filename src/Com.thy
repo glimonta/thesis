@@ -127,7 +127,7 @@ definition valid_program :: "program \<Rightarrow> bool"
         in
           (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
           (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
-          (\<forall>fname \<in> set (program.globals p). (\<forall>vname \<in> prog_vars. fname \<noteq> vname))
+          (\<forall>fname \<in> proc_names. (\<forall>vname \<in> set (program.globals p). fname \<noteq> vname))
       )"
 
 (* I can't generate SML code for valid_program when using @{term dom} so I redefine it for code
@@ -156,7 +156,7 @@ lemma valid_program_code[code]: "valid_program p \<longleftrightarrow>
         in
           (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
           (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
-          (\<forall>fname \<in> set (program.globals p). (\<forall>vname \<in> prog_vars. fname \<noteq> vname))
+          (\<forall>fname \<in> proc_names. (\<forall>vname \<in> set (program.globals p). fname \<noteq> vname))
       )"
   unfolding valid_program_def
   unfolding Let_def
