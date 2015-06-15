@@ -1,5 +1,5 @@
 theory Bubblesort
-imports "../SmallStep" "Test"
+imports "../SmallStep" "Test" "../GraphTest"
 begin
 
 (* Bubblesort: Takes an array a and its length n and returns the sorted array *)
@@ -52,24 +52,27 @@ export_code p in SML
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
 
+definition "blah \<equiv> case execute p of Some (_,_,\<mu>) \<Rightarrow> shows_graph (construct_graph \<mu>) ''''"
+
+definition "bubblesort_exec \<equiv> execute_show [] p"
+
 definition "bubblesort \<equiv> (
   shows_prog p ''''
 )"
 
 ML_val {*
-  val p = @{code p};
-  val exec = @{code execute};
-  val st = exec p;
   val str = @{code bubblesort} |> String.implode;
   writeln str;
+
+  val mem = @{code blah} |> String.implode |> writeln;
+
   val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
   TextIO.output (os, str);
   TextIO.flushOut os;
   TextIO.closeOut os;
 
-  Isabelle_System.bash_output 
-    "gcc -o /home/gabriela/Documents/thesis/src/TestC/bubblesort /home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
-  Isabelle_System.bash_output "/home/gabriela/Documents/thesis/src/TestC/bubblesort"
+  val res = @{code bubblesort_exec} |> String.implode;
+  writeln res;
 
 *}
 

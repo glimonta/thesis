@@ -30,11 +30,12 @@ static char * all_tests() {
 }
 
 signed long test_main(
-  signed long n,
   signed long a,
+  signed long n,
   signed long foo,
   signed long bar,
-  signed long baz)
+  signed long baz,
+  signed long (*count) (signed long, signed long, signed long))
 {
   n1 = n;
   a1 = a;

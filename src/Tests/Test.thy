@@ -3,7 +3,7 @@ imports Main "../SmallStep" "../Pretty"
 begin
 
 abbreviation "aa \<equiv> ''a''"  abbreviation "bb \<equiv> ''b''" abbreviation "cc \<equiv> ''c''"
-abbreviation "dd \<equiv> ''d''"  abbreviation "ee \<equiv> ''d''" abbreviation "ff \<equiv> ''f''"
+abbreviation "dd \<equiv> ''d''"  abbreviation "ee \<equiv> ''e''" abbreviation "ff \<equiv> ''f''"
 abbreviation "gg \<equiv> ''g''"  abbreviation "hh \<equiv> ''h''" abbreviation "ii \<equiv> ''i''"
 abbreviation "jj \<equiv> ''j''"  abbreviation "kk \<equiv> ''k''" abbreviation "ll \<equiv> ''l''"
 abbreviation "mm \<equiv> ''m''"  abbreviation "nn \<equiv> ''n''" abbreviation "oo \<equiv> ''o''"
@@ -20,10 +20,6 @@ abbreviation For :: "vname \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> com
   ("(FOR _/ FROM _/ TO _/ DO _)"  [0, 0, 0, 61] 61) where
   "FOR v FROM a1 TO a2 DO c \<equiv>
      v ::= a1 ;;  WHILE (Less (V v) a2) DO (c ;; v ::= Plus (V v) (Const (1)))"
-
-fun collect_locals :: "fun_decl list \<Rightarrow> vname list" where
-  "collect_locals [] = []"
-| "collect_locals (p#ps) = (fun_decl.locals p) @ (collect_locals ps)"
 
 term remdups
 

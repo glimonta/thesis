@@ -29,7 +29,7 @@ static char * all_tests() {
   return 0;
 }
 
-signed long test_main(signed long n, signed long a) {
+signed long test_main(signed long a, signed long n, signed long (*mergesort) (signed long, signed long)) {
   n1 = n;
   a1 = a;
   char *result = all_tests();
