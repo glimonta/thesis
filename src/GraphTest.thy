@@ -77,7 +77,7 @@ value "create_pointer_edges (nodesL testgraph) testgraph"
 fun construct_graph :: "mem \<Rightarrow> node list_graph" where
   "construct_graph xs = 
     (let
-      graph = (create_edges mem 0 mem)
+      graph = (create_edges xs 0 xs)
     in
       create_pointer_edges (nodesL graph) graph
     )"
