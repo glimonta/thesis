@@ -37,13 +37,16 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfunv ''bubblesort'' [(V aa), (V nn)]
+        Callfunv ''bubblesort'' [(V aa), (V nn)];;
+        ''num_tests'' ::= Const 0;;
+        ''passed'' ::= Const 0;;
+        ''failed'' ::= Const 0
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.name = ''bubblesort'',
-      program.globals = [aa, nn],
+      program.globals = [aa, nn, ''num_tests'', ''passed'', ''failed''],
       program.procs = [bubblesort_decl, main_decl]
     \<rparr>"
 
@@ -53,6 +56,7 @@ export_code p in SML
 value "execute_show [] p"
 
 definition "blah \<equiv> case execute p of Some (_,_,\<mu>) \<Rightarrow> shows_graph (construct_graph \<mu>) ''''"
+value "case execute p of Some (_,_,\<mu>) \<Rightarrow> shows_graph (construct_graph \<mu>) ''''"
 
 definition "bubblesort_exec \<equiv> execute_show [] p"
 
@@ -73,7 +77,6 @@ ML_val {*
 
   val res = @{code bubblesort_exec} |> String.implode;
   writeln res;
-
 *}
 
 
