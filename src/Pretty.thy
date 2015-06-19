@@ -2,8 +2,26 @@ theory Pretty
 imports Eval "Show/Show_Instances"
 begin
 
-  definition "dflt_type \<equiv> ''signed long''" -- \<open>Important: Must match @{term int_width} !\<close>
+  definition "dflt_type \<equiv> ''intptr_t''" -- \<open>Important: Must match @{term int_width} !\<close>
+  definition "dflt_type_bound_name \<equiv> ''INTPTR''"
 
+  definition "dflt_type_min_bound_name \<equiv> dflt_type_bound_name @ ''_MIN''"
+  definition "dflt_type_max_bound_name \<equiv> dflt_type_bound_name @ ''_MAX''"
+
+  definition "preproc_assert_defined a \<equiv> ''#ifndef '' @ a @ ''\<newline>  #error (\"Macro ''@a@'' undefined\")\<newline>#endif\<newline>''"
+
+  definition "preproc_assert_eq a b \<equiv> ''#if ( '' @ a @ '' != '' @ b 
+    @ '' )\<newline>  #error (\"Assertion '' @ a @ '' == '' @ b @ '' failed\")\<newline>#endif\<newline>''"
+
+  definition integer_bounds_check :: string where
+    "integer_bounds_check \<equiv> 
+      preproc_assert_defined dflt_type_min_bound_name
+    @ preproc_assert_defined dflt_type_max_bound_name
+    @ preproc_assert_eq (dflt_type_min_bound_name @ '' + 1'') (show (INT_MIN + 1))
+      (* TODO: Ughly workaround against the absolute value of INT_MIN 
+        exceeding INT_MAX of the preprocessor, and the preprocessor interprets -number as -(number),
+        and gives a warning it cannot represent number *)
+    @ preproc_assert_eq dflt_type_max_bound_name (show INT_MAX)"
 
   instantiation word :: (len)"show" begin
     definition "shows_prec p w \<equiv> shows_prec p (sint w)"
@@ -85,6 +103,9 @@ begin
   definition shows_cast_to_pointer :: "shows \<Rightarrow> shows" where
     "shows_cast_to_pointer s \<equiv> shows_paren ( shows dflt_type o shows ''*'') o s "
 
+  definition shows_cast_to_dflt_type :: "shows \<Rightarrow> shows" where
+    "shows_cast_to_dflt_type s \<equiv> shows_paren ( shows dflt_type ) o s "
+
   fun 
       shows_exp :: "exp \<Rightarrow> shows" 
   and shows_lexp :: "lexp \<Rightarrow> shows"
@@ -103,8 +124,7 @@ begin
   | "shows_exp (And e1 e2) = shows_binop (shows_exp e1) ''&&'' (shows_exp e2)"
   | "shows_exp (Or e1 e2) = shows_binop (shows_exp e1) ''||'' (shows_exp e2)"
   | "shows_exp (Eq e1 e2) = shows_binop (shows_exp e1) ''=='' (shows_exp e2)"
-  | "shows_exp (New e) = shows ''malloc (sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')''"
-    (* TODO/CHECK: Assumes size_of(dflt_type) = size_of( void* ). Is this OK?  *)
+  | "shows_exp (New e) = shows_cast_to_dflt_type ( shows ''malloc (sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')'')"
   | "shows_exp (Deref e) = shows ''*'' o shows_paren (shows_cast_to_pointer (shows_exp e))"
   | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
   | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
@@ -193,10 +213,48 @@ begin
       shows_nl o
       shows ''#include <stdio.h>'' o
       shows_nl o
-      shows ''#include \"'' o shows (program.name p) o shows ''_test.h\"'' o
+      shows ''#include <limits.h>'' o
+      shows_nl o
+      shows ''#include <stdint.h>'' o
+      shows_nl o
+      shows integer_bounds_check o
       shows_nl o shows_nl o
       shows_sep shows_global id (program.globals p) o
       shows_nl o
       shows_sep shows_fun_decl shows_nl (program.procs p)"
+
+
+
+ML \<open>
+  fun export_c_code code rel_path name thy =
+    let 
+      (*val str = @{code shows_prog} prog [] |> String.implode;
+      val name = @{code program.name} prog |> String.implode;;
+      *)
+      val str = code |> String.implode
+    in
+      if rel_path="" orelse name="" then
+        (writeln str; thy)
+      else let  
+        val base_path = Resources.master_directory thy
+        val rel_path = Path.explode rel_path
+        val name_path = Path.basic name |> Path.ext "c"
+      
+        val abs_path = Path.appends [base_path, rel_path, name_path]
+        val abs_path = Path.implode abs_path
+     
+        val _ = writeln ("Writing to file " ^ abs_path)
+ 
+        val os = TextIO.openOut abs_path;
+        val _ = TextIO.output (os, str);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+      in thy end  
+    end  
+\<close>
+
+
+
+
 
 end

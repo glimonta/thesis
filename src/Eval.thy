@@ -108,15 +108,11 @@ fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 
 abbreviation "list_size xs \<equiv> int(length xs)"
 
-text \<open>We're using signed longs in the translation to C, this are the min, and max values that it's
-  possible to represent with signed longs.\<close>
-abbreviation "INT_MIN \<equiv> -2147483647" (* 64 bits, signed long *)
-abbreviation "INT_MAX \<equiv>  2147483647" (* 64 bits, signed long *)
 
 text \<open>In the C99 draft, integer overflow is undefined behaviour, therefore we detect overflow and
   then return None if overflow occurs and then the execution of the semantics goes to error.\<close>
 fun detect_overflow :: "int \<Rightarrow> val option" where
-  "detect_overflow i = (if (i > INT_MIN \<and> i \<le> INT_MAX) then Some (I (word_of_int i)) else None)"
+  "detect_overflow i = (if (INT_MIN \<le> i \<and> i \<le> INT_MAX) then Some (I (word_of_int i)) else None)"
 
 value "detect_overflow (INT_MAX + 1)"
 value "detect_overflow (INT_MIN - 1)"
@@ -149,14 +145,30 @@ fun minus_val :: "val \<Rightarrow> val option" where
 | "minus_val a = None"
 
 (* Add overflow check on div and mod? *)
-text \<open>@{term "op sdiv"} implements truncation towards zero, 
+text \<open>Integer division with truncation towards zero, 
   conforming to the C99 standard, Sec. 6.5.5/6\<close>
+definition div_towards_zero :: "int \<Rightarrow> int \<Rightarrow> int" where
+  "div_towards_zero a b \<equiv> (\<bar>a\<bar> div \<bar>b\<bar>) * sgn a * sgn b"
+
+definition mod_towards_zero :: "int \<Rightarrow> int \<Rightarrow> int" where
+  "mod_towards_zero a b \<equiv> a - (div_towards_zero a b) * b "
+
+lemma div_mod_conform_to_c99: 
+  "div_towards_zero a b * b + mod_towards_zero a b = a"
+  unfolding mod_towards_zero_def by auto
+
 fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "div_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 sdiv i\<^sub>2)) else None)"
+  "div_val (I i\<^sub>1) (I i\<^sub>2) = (
+    if (i\<^sub>2 \<noteq> 0) then 
+      detect_overflow (div_towards_zero (sint i\<^sub>1) (sint i\<^sub>2)) 
+    else None)"
 | "div_val a\<^sub>1 a\<^sub>2 = None"
 
 fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "mod_val (I i\<^sub>1) (I i\<^sub>2) = (if (i\<^sub>2 \<noteq> 0) then Some (I (i\<^sub>1 smod i\<^sub>2)) else None)"
+  "mod_val (I i\<^sub>1) (I i\<^sub>2) = (
+    if (i\<^sub>2 \<noteq> 0) then 
+      detect_overflow (mod_towards_zero (sint i\<^sub>1) (sint i\<^sub>2)) 
+    else None)"
 | "mod_val a\<^sub>1 a\<^sub>2 = None"
 
 fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where

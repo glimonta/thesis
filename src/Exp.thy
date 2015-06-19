@@ -20,6 +20,20 @@ type_synonym addr = "nat \<times> int"
 type_synonym int_width = 64
 type_synonym int_val = "int_width word"
 
+text \<open>We're using signed longs in the translation to C, this are the min, and max values that it's
+  possible to represent with signed longs.
+  
+  Note: We are assuming 2's complement representation here. 
+  TODO: The C99-draft requires less numbers to be representable,
+    we need to insert a check in the generated program that ensures a 
+    compiler implementation compatible with these numbers.
+\<close>
+
+abbreviation "int_width \<equiv> len_of TYPE(int_width)"
+abbreviation INT_MIN :: int where "INT_MIN \<equiv> - ((2^(int_width - 1)))"
+abbreviation INT_MAX :: int where "INT_MAX \<equiv> ((2^(int_width - 1)) - 1)"
+
+
 subsection \<open>Expressions definition\<close>
 text \<open>An expression can be:
   *  @{term "Const i"} to represent an integer constant.

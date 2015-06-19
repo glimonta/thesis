@@ -1,5 +1,5 @@
 theory Bubblesort
-imports "../SmallStep" "Test" "../GraphTest"
+imports "../SmallStep" "Test" "../Test_Harness"
 begin
 
 (* Bubblesort: Takes an array a and its length n and returns the sorted array *)
@@ -26,6 +26,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         aa ::= New (Const ( 10));;
+        xx ::= New (Const ( 3));;
         (Indexl (V aa) (Const ( 0))) ::== (Const ( 44));;
         (Indexl (V aa) (Const ( 1))) ::== (Const (  1));;
         (Indexl (V aa) (Const ( 2))) ::== (Const ( 60));;
@@ -46,7 +47,7 @@ definition main_decl :: fun_decl
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.name = ''bubblesort'',
-      program.globals = [aa, nn, ''num_tests'', ''passed'', ''failed''],
+      program.globals = [aa, nn, xx, ''num_tests'', ''passed'', ''failed''],
       program.procs = [bubblesort_decl, main_decl]
     \<rparr>"
 
@@ -64,20 +65,44 @@ definition "bubblesort \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code bubblesort} |> String.implode;
-  writeln str;
+definition "bubblesort_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests '''';
+  let instrs = tests_instructions tests '''';
+  Some (vars, instrs)
+}"
 
-  val mem = @{code blah} |> String.implode |> writeln;
 
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/bubblesort.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
+ML_val \<open> @{code bubblesort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-  val res = @{code bubblesort_exec} |> String.implode;
-  writeln res;
-*}
+setup \<open>export_c_code @{code bubblesort} "../TestC" "bubblesort"\<close>
+
+
+(*ML_val {*
+  let 
+    val thy = @{theory}
+  
+    val str = @{code bubblesort} |> String.implode;
+    val _ = writeln str;
+  
+    val base_path = Resources.master_directory thy
+    val rel_path = "../TestC/bubblesort.c"
+    val rel_path = Path.explode rel_path
+  
+    val abs_path = Path.append base_path rel_path
+    val abs_path = Path.implode abs_path
+  
+    val os = TextIO.openOut abs_path;
+    val _ = TextIO.output (os, str);
+    val _ = TextIO.flushOut os;
+    val _ = TextIO.closeOut os;
+  
+    val res = @{code bubblesort_exec} |> String.implode;
+    val _ = writeln res;
+  in () end  
+*}*)
 
 
 end
