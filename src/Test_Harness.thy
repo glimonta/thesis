@@ -12,16 +12,12 @@ begin
     -- \<open>Adjust address to beginning of its block\<close>
     where
     "adjust_addr ofs ca = shows_binop (shows ca) (''-'') (shows ofs) ''''"
-
   definition ofs_addr :: "int \<Rightarrow> string \<Rightarrow> string"
     where 
-    "ofs_addr ofs ca = shows_binop (shows ca) (''+'') (shows ofs) ''''"
+    "ofs_addr ofs ca = (shows ''*'' o shows_paren (shows_binop (shows ca) (''+'') (shows ofs))) ''''"
 
   definition base_var_name :: "nat \<Rightarrow> string" where
     "base_var_name i \<equiv> ''__test_harness_x_'' @ show i"
-
-  definition follow :: "string \<Rightarrow> string" where
-    "follow ca \<equiv> ''__TEST_HARNESS_FOLLOW (''@ ca @ '')''"
 
   term fold
 
@@ -81,7 +77,7 @@ begin
               | Some (I v) \<Rightarrow> Some (D,emit @ [Assert_Eq cai v])
               | Some (NullVal) \<Rightarrow> Some (D,emit @ [Assert_Eq_Null cai] )
               | Some (A addr) \<Rightarrow> do {
-                  (D,emit')\<leftarrow>dfs D addr (follow cai);
+                  (D,emit')\<leftarrow>dfs D addr cai;
                   Some (D,emit@emit')
                 }
             })
@@ -107,7 +103,7 @@ begin
               | Some (I v) \<Rightarrow> Some (D,emit @ [Assert_Eq cai v])
               | Some (NullVal) \<Rightarrow> Some (D,emit @ [Assert_Eq_Null cai] )
               | Some (A addr) \<Rightarrow> do {
-                  (D,emit')\<leftarrow>dfs \<mu> D addr (follow cai);
+                  (D,emit')\<leftarrow>dfs \<mu> D addr cai;
                   Some (D,emit@emit')
                 }
           }
@@ -123,10 +119,10 @@ begin
 
   definition tests_instructions :: "test_instr list \<Rightarrow> shows" where
     "tests_instructions l \<equiv> foldr (\<lambda>                   
-        (Discover ca i) \<Rightarrow> shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows_nl
-      | (Assert_Eq ca v) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v) o shows_nl
-      | (Assert_Eq_Null ca) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ) o shows_nl
-      | (Assert_Eq_Ptr ca i) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows_nl
+        (Discover ca i) \<Rightarrow> shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows '';'' o shows_nl
+      | (Assert_Eq ca v) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v) o shows '';'' o shows_nl
+      | (Assert_Eq_Null ca) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ) o shows '';'' o shows_nl
+      | (Assert_Eq_Ptr ca i) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows '';'' o shows_nl
       ) l"
 
 
