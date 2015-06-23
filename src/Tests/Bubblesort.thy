@@ -56,9 +56,6 @@ export_code p in SML
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
 
-definition "blah \<equiv> case execute p of Some (_,_,\<mu>) \<Rightarrow> shows_graph (construct_graph \<mu>) ''''"
-value "case execute p of Some (_,_,\<mu>) \<Rightarrow> shows_graph (construct_graph \<mu>) ''''"
-
 definition "bubblesort_exec \<equiv> execute_show [] p"
 
 definition "bubblesort \<equiv> (

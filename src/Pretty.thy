@@ -18,7 +18,7 @@ begin
       preproc_assert_defined dflt_type_min_bound_name
     @ preproc_assert_defined dflt_type_max_bound_name
     @ preproc_assert_eq (dflt_type_min_bound_name @ '' + 1'') (show (INT_MIN + 1))
-      (* TODO: Ughly workaround against the absolute value of INT_MIN 
+      (* TODO: Ugly workaround against the absolute value of INT_MIN 
         exceeding INT_MAX of the preprocessor, and the preprocessor interprets -number as -(number),
         and gives a warning it cannot represent number *)
     @ preproc_assert_eq dflt_type_max_bound_name (show INT_MAX)"
