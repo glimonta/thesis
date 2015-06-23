@@ -94,6 +94,11 @@ definition reserved_keywords :: "vname list" where
      ''static'', ''struct'', ''switch'', ''typedef'', ''union'', ''unsigned'',
      ''void'', ''volatile'', ''while'', ''_Bool'', ''_Complex'', ''_Imaginary'']"
 
+text \<open>We define a list containing the reserved keywords we will use for testing\<close>
+definition test_keywords :: "vname list" where
+  "test_keywords =
+    [''num_tests'', ''passed'', ''failed'']"
+
 
 text \<open>We define a @{term collect_locals} function that collect the names of the local variables in
   all the procedures in the program.\<close>
@@ -125,8 +130,8 @@ definition valid_program :: "program \<Rightarrow> bool"
           prog_vars = set ((program.globals p) @ collect_locals (program.procs p));
           proc_names = set (map (fun_decl.name) (program.procs p))
         in
-          (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
-          (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
+          (\<forall>name \<in> prog_vars. name \<notin> set (reserved_keywords @ test_keywords)) \<and>
+          (\<forall>name \<in> proc_names. name \<notin> set (reserved_keywords @ test_keywords)) \<and>
           (\<forall>fname \<in> proc_names. (\<forall>vname \<in> set (program.globals p). fname \<noteq> vname))
       )"
 
@@ -154,8 +159,8 @@ lemma valid_program_code[code]: "valid_program p \<longleftrightarrow>
           prog_vars = set ((program.globals p) @ collect_locals (program.procs p));
           proc_names = set (map (fun_decl.name) (program.procs p))
         in
-          (\<forall>name \<in> prog_vars. name \<notin> set reserved_keywords) \<and>
-          (\<forall>name \<in> proc_names. name \<notin> set reserved_keywords) \<and>
+          (\<forall>name \<in> prog_vars. name \<notin> set (reserved_keywords @ test_keywords)) \<and>
+          (\<forall>name \<in> proc_names. name \<notin> set (reserved_keywords @ test_keywords)) \<and>
           (\<forall>fname \<in> proc_names. (\<forall>vname \<in> set (program.globals p). fname \<noteq> vname))
       )"
   unfolding valid_program_def
