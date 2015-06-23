@@ -1,7 +1,6 @@
 theory Factorial
-imports "../SmallStep" Test "../Pretty"
+imports "../SmallStep" Test "../Test_Harness"
 begin
-
 
 (* Factorial: Takes a number and returns the factorial *)
 definition factorial_decl :: fun_decl
@@ -41,19 +40,25 @@ export_code p in SML
 (* The factorial of the number is on the variable rr *)
 value "execute_show [] p"
 
+definition "fact_exec \<equiv> execute_show [] p"
+
 definition "fact \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code fact} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/fact_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "fact_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
 
+
+ML_val \<open> @{code fact_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code fact} "../TestC" "fact"\<close>
 
 
 end

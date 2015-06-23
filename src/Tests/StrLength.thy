@@ -1,5 +1,5 @@
 theory StrLength
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Takes a number n and returns an array of length n + 1 initialized with numbers from 1 to n in
@@ -31,10 +31,12 @@ definition str_len_decl :: fun_decl
         ll ::= Const ( 0);;
         WHILE (Deref (V pp)) DO (
           ll ::= Plus (V ll) (Const ( 1));;
-          pp ::= Plus (V pp) (Const ( 8)) (* Size of signed long *)
+          pp ::= (Ref (Indexl (V pp) (Const (1)))) (* Size of signed long *)
           );;
         Return (V ll)
     \<rparr>"
+
+value "plus_val (A (0,0)) (I 8)"
 
 definition main_decl :: fun_decl
   where "main_decl \<equiv> 
@@ -48,7 +50,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, ll],
+    \<lparr> program.name = ''strlen'',
+      program.globals = [aa, ll],
       program.procs = [create_array_decl, str_len_decl, main_decl]
     \<rparr>"
 
@@ -57,17 +60,24 @@ export_code p in SML
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
 
-definition "strleng \<equiv> (
+definition "strlen_exec \<equiv> execute_show [] p"
+
+definition "strlen \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code strleng} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/strlen_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "strlen_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
+
+
+ML_val \<open> @{code strlen_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code strlen} "../TestC" "strlen"\<close>
 
 end

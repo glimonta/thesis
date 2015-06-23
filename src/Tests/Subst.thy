@@ -1,5 +1,5 @@
 theory Subst
-imports "../SmallStep" "Test"
+imports "../SmallStep" "Test" "../Test_Harness"
 begin
 
 definition main_decl :: fun_decl
@@ -11,9 +11,9 @@ definition main_decl :: fun_decl
         aa ::= (Subst (Const 2) (Const 2));; (* Substraction positive values *)
         bb ::= (Subst (Const (-1)) (Const (-3)));; (* Substraction negative values *)
         cc ::= (New (Const 4));;
-        dd ::= (Subst (Plus (V cc) (Const 2)) (Const 2));; (* Addition address + positive value - positive value *)
-        ee ::= (Subst (Const (-2147483647)) (Const 4));; (* Overflow *)
-        ff ::= (Div (Const 3) (Const 0))
+        dd ::= (Subst (Plus (V cc) (Const 2)) (Const 2)) (* Addition address + positive value - positive value *)
+ (*       ee ::= (Subst (Const (-2147483647)) (Const 4));; (* Overflow *)
+        ff ::= (Div (Const 3) (Const 0))*)
     \<rparr>"
 
 definition p :: program
@@ -27,17 +27,25 @@ export_code p in SML
 
 value "execute_show [] p"
 
+definition "subst_exec \<equiv> execute_show [] p"
+
 definition "subst_ex \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code subst_ex} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/subst_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "subst_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
+
+
+ML_val \<open> @{code subst_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code subst_ex} "../TestC" "subst"\<close>
+
 
 end

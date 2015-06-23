@@ -1,11 +1,11 @@
 theory Selectionsort
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Selectionsort: Takes an array a and its length n and returns the sorted array *)
-definition selectionsort_decl :: fun_decl
-  where "selectionsort_decl \<equiv> 
-    \<lparr> fun_decl.name = ''selectionsort'',
+definition selection_decl :: fun_decl
+  where "selection_decl \<equiv> 
+    \<lparr> fun_decl.name = ''selection'',
       fun_decl.params = [aa, nn],
       fun_decl.locals = [ii, mm, tt, jj],
       fun_decl.body = 
@@ -39,13 +39,14 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfunv ''selectionsort'' [(V aa), (V nn)]
+        Callfunv ''selection'' [(V aa), (V nn)]
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn],
-      program.procs = [selectionsort_decl, main_decl]
+    \<lparr> program.name = ''selection'',
+      program.globals = [aa, nn],
+      program.procs = [selection_decl, main_decl]
     \<rparr>"
 
 export_code p in SML
@@ -53,17 +54,24 @@ export_code p in SML
 (* The sorted array should be stored in the address indicated by both aa and bb *)
 value "execute_show [] p"
 
+definition "selection_exec \<equiv> execute_show [] p"
+
 definition "selection \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code selection} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/selection_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "selection_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
+
+
+ML_val \<open> @{code selection_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code selection} "../TestC" "selection"\<close>
 
 end

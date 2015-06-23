@@ -1,5 +1,5 @@
 theory Occurs
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Occurs: Takes an array a, its length n and an element x, returns 0 if the element x doesn't exist
@@ -46,7 +46,8 @@ definition main_decl :: fun_decl
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.globals = [aa, nn, xx, yy, foo, bar],
+    \<lparr> program.name = ''occurs'',
+      program.globals = [aa, nn, xx, yy, foo, bar],
       program.procs = [occurs_decl, main_decl]
     \<rparr>"
 
@@ -55,17 +56,24 @@ export_code p in SML
 (* Check if 5 and 84 occur in the array bb1 = 0 (False) bb2 = 1 (True) *)
 value "execute_show [] p"
 
+definition "occurs_exec \<equiv> execute_show [] p"
+
 definition "occurs \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code occurs} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/occurs_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "occurs_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
+
+
+ML_val \<open> @{code occurs_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code occurs} "../TestC" "occurs"\<close>
 
 end

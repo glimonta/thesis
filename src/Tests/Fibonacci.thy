@@ -1,5 +1,5 @@
 theory Fibonacci
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Fibonacci: Takes a number and returns its fibonacci number *)
@@ -47,17 +47,24 @@ export_code p in SML
 (* The factorial of the number is on the variable rr *)
 value "execute_show [] p"
 
+definition "fib_exec \<equiv> execute_show [] p"
+
 definition "fib \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code fib} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/fib_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "fib_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
+
+
+ML_val \<open> @{code fib_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code fib} "../TestC" "fib"\<close>
 
 end

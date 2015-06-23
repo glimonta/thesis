@@ -1,5 +1,5 @@
 theory Mergesort
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Merge: Takes an array a and its length n and merges the two ordered parts of the array *)
@@ -90,19 +90,25 @@ export_code p in SML
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
 
-definition "merge \<equiv> (
+definition "mergesort_exec \<equiv> execute_show [] p"
+
+definition "mergesort \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code merge} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/mergesort_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "mergesort_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
 
+
+ML_val \<open> @{code mergesort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code mergesort} "../TestC" "mergesort"\<close>
 
 
 end

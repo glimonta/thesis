@@ -34,11 +34,9 @@ definition "bubblesort_test_show \<equiv> (
   shows_prog p' ''''
 )"
 
-definition "init_disc_bubble \<equiv> init_discovered 1 ''''"
+definition "bubblesort_failed_check \<equiv> failed_check p'"
 
-definition "failed_check_bubble \<equiv> failed_check (program.name p') 1 ''''"
-
-setup \<open>generate_c_test_code @{code bubblesort_test_show} @{code bubblesort_test} @{code bubblesort_test}
-  @{code init_disc_bubble} @{code failed_check_bubble} "../TestC" "bubblesort_test"\<close>
+setup \<open>generate_c_test_code @{code bubblesort_test_show} @{code bubblesort_test}
+  @{code init_disc} @{code bubblesort_failed_check} "../TestC" "bubblesort_test"\<close>
 
 end

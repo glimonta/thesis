@@ -125,23 +125,27 @@ begin
       | (Assert_Eq_Ptr ca i) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
       ) l"
 
-  definition init_discovered :: "nat \<Rightarrow> shows" where
-    "init_discovered ind \<equiv> indent_basic ind (shows ''discovered = hashset_create()'')"
+  definition init_discovered_shows :: "nat \<Rightarrow> shows" where
+    "init_discovered_shows ind \<equiv> indent_basic ind (shows ''discovered = hashset_create()'')"
 
-  definition failed_check :: "string \<Rightarrow> nat \<Rightarrow> shows" where
-    "failed_check program_name ind \<equiv> indent ind (
+  definition failed_check_shows :: "string \<Rightarrow> nat \<Rightarrow> shows" where
+    "failed_check_shows program_name ind \<equiv> indent ind (
       shows ''if (failed > 0)'' o shows_nl o
        (indent_basic (ind + 1) (
         shows ''printf(\"Failed %d test(s) in file '' o shows program_name o shows ''.c\", failed)''
        ))
     )"
 
+    definition "init_disc \<equiv> init_discovered_shows 1 ''''"
+
+    definition "failed_check p' \<equiv> failed_check_shows (program.name p') 1 ''''"
+
 ML \<open>
-  fun generate_c_test_code code vars tests_code init_hash failed_check rel_path name thy =
+  fun generate_c_test_code code vars_tests init_hash failed_check rel_path name thy =
     let 
       val code = code |> String.implode
-      val vars = vars |> the |> fst |> String.implode;
-      val tests_code = tests_code |> the |> snd |> String.implode;
+      val vars = vars_tests |> the |> fst |> String.implode;
+      val tests_code = vars_tests |> the |> snd |> String.implode;
       val init_hash = init_hash |> String.implode;
       val failed_check = failed_check |> String.implode;
       val nl = "\n";

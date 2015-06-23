@@ -1,5 +1,5 @@
 theory Count
-imports "../SmallStep" Test
+imports "../SmallStep" Test "../Test_Harness"
 begin
 
 (* Count: Takes an array a, its length n and an element x, returns the number of occurences of e
@@ -54,19 +54,24 @@ export_code p in SML
 (* Check how many times 5, 84 and 44 occur in the array foo = 0, bar = 1, baz = 5 *)
 value "execute_show [] p"
 
+definition "count_exec \<equiv> execute_show [] p"
+
 definition "count \<equiv> (
   shows_prog p ''''
 )"
 
-ML_val {*
-  val str = @{code count} |> String.implode;
-  writeln str;
-  val os = TextIO.openOut "/home/gabriela/Documents/thesis/src/TestC/count_gen.c";
-  TextIO.output (os, str);
-  TextIO.flushOut os;
-  TextIO.closeOut os;
-*}
+definition "count_test \<equiv> do {
+  s \<leftarrow> execute p;
+  let vnames = program.globals p;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  Some (vars, instrs)
+}"
 
 
+ML_val \<open> @{code count_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
+
+setup \<open>export_c_code @{code count} "../TestC" "count"\<close>
 
 end
