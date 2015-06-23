@@ -111,19 +111,69 @@ begin
       }
       ) vnames ({},[])"
 
-  definition tests_variables :: "test_instr list \<Rightarrow> shows" where
-    "tests_variables l \<equiv> foldr (\<lambda>                   
-      (Discover _ i) \<Rightarrow> shows dflt_type o shows '' *'' o shows (base_var_name i) o shows '';'' o shows_nl
+  definition tests_variables :: "test_instr list \<Rightarrow> nat \<Rightarrow> shows" where
+    "tests_variables l ind \<equiv> foldr (\<lambda>                   
+      (Discover _ i) \<Rightarrow> indent_basic ind (shows dflt_type o shows '' *'' o shows (base_var_name i))
       | _ \<Rightarrow> id
       ) l"
 
-  definition tests_instructions :: "test_instr list \<Rightarrow> shows" where
-    "tests_instructions l \<equiv> foldr (\<lambda>                   
-        (Discover ca i) \<Rightarrow> shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows '';'' o shows_nl
-      | (Assert_Eq ca v) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v) o shows '';'' o shows_nl
-      | (Assert_Eq_Null ca) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ) o shows '';'' o shows_nl
-      | (Assert_Eq_Ptr ca i) \<Rightarrow> shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)) o shows '';'' o shows_nl
+  definition tests_instructions :: "test_instr list \<Rightarrow> nat \<Rightarrow> shows" where
+    "tests_instructions l ind \<equiv> foldr (\<lambda>                   
+        (Discover ca i) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
+      | (Assert_Eq ca v) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v))
+      | (Assert_Eq_Null ca) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ))
+      | (Assert_Eq_Ptr ca i) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
       ) l"
+
+  definition init_discovered :: "nat \<Rightarrow> shows" where
+    "init_discovered ind \<equiv> indent_basic ind (shows ''discovered = hashset_create()'')"
+
+  definition failed_check :: "string \<Rightarrow> nat \<Rightarrow> shows" where
+    "failed_check program_name ind \<equiv> indent ind (
+      shows ''if (failed > 0)'' o shows_nl o
+       (indent_basic (ind + 1) (
+        shows ''printf(\"Failed %d test(s) in file '' o shows program_name o shows ''.c\", failed)''
+       ))
+    )"
+
+ML \<open>
+  fun generate_c_test_code code vars tests_code init_hash failed_check rel_path name thy =
+    let 
+      val code = code |> String.implode
+      val vars = vars |> the |> fst |> String.implode;
+      val tests_code = tests_code |> the |> snd |> String.implode;
+      val init_hash = init_hash |> String.implode;
+      val failed_check = failed_check |> String.implode;
+      val nl = "\n";
+      val str = nl ^ vars ^ nl ^ init_hash ^ nl ^ tests_code ^ nl ^ failed_check ^ nl ^ "}";
+ 
+    in
+      if rel_path="" orelse name="" then
+        (writeln str; thy)
+      else let  
+        val base_path = Resources.master_directory thy
+        val rel_path = Path.explode rel_path
+        val name_path = Path.basic name |> Path.ext "c"
+      
+        val abs_path = Path.appends [base_path, rel_path, name_path]
+        val abs_path = Path.implode abs_path
+     
+        val _ = writeln ("Writing to file " ^ abs_path)
+
+        val os = TextIO.openOut abs_path;
+        val _ = TextIO.output (os, code);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+
+        val _ = Isabelle_System.bash ("sed -i '$d ' " ^ abs_path);
+      
+        val os = TextIO.openAppend abs_path;
+        val _ = TextIO.output (os, str);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+      in thy end  
+    end  
+\<close>
 
 
 end

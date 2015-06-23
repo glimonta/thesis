@@ -131,7 +131,7 @@ begin
   | "shows_lexp (Derefl exp) = 
       (*shows ''&'' o*) shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
   | "shows_lexp (Indexl e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
-    
+                                                                             
   abbreviation "indent ind s \<equiv> shows (replicate (ind*2) CHR '' '') o s o shows_nl"
   abbreviation "indent_basic ind s \<equiv> shows (replicate (ind*2) CHR '' '') o s o shows '';'' o shows_nl"
 
@@ -217,6 +217,8 @@ begin
       shows_nl o
       shows ''#include <stdint.h>'' o
       shows_nl o
+      shows ''#include \"../test_harness.h\"'' o
+      shows_nl o
       shows integer_bounds_check o
       shows_nl o shows_nl o
       shows_sep shows_global id (program.globals p) o
@@ -228,9 +230,6 @@ begin
 ML \<open>
   fun export_c_code code rel_path name thy =
     let 
-      (*val str = @{code shows_prog} prog [] |> String.implode;
-      val name = @{code program.name} prog |> String.implode;;
-      *)
       val str = code |> String.implode
     in
       if rel_path="" orelse name="" then
