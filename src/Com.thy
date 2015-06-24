@@ -112,7 +112,8 @@ text \<open>A program is considered valid if it complies with the following cond
   * The names for the procedures in the program are different.
   * Every function declaration for every procedure in the program must be a valid.
   * The main procedure must be defined.
-  * None of the variable names or procedure names in the program must be a reserved keyword.
+  * None of the variable names or procedure names in the program must be a reserved keyword from C
+    or a reserved keyword for testing.
   * The global variables and the procedure names in a program can't be the same.
 \<close>
 definition valid_program :: "program \<Rightarrow> bool" 

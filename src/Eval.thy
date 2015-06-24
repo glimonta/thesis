@@ -11,15 +11,6 @@ subsection \<open>Type definitions\<close>
 text \<open>A value in the semantics can be a Null value, an integer or an address.\<close>
 datatype val = NullVal | I int_val | A addr
 
-(*
-  A state is a pair in which the first element represents the content of the local variables
-  and the second element represents the content of the blocked memory.
-  The memory is organized in blocks and it is accesed with the address of the block and the index
-  of the block we want to access. The memory is encoded as a list of blocks, and each block is
-  a list of values.
-  state = (\<sigma>, \<mu>) \<sigma>: content of local variables, \<mu>: content of memory
-*)
-
 text \<open>A return location for a function can be an address, a variable or Invalid. It's invalid
   in the case when the function returns void.\<close>
 datatype return_loc = Ar addr | Vr vname | Invalid
@@ -127,7 +118,6 @@ fun plus_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   }"
 | "plus_val a\<^sub>1 a\<^sub>2 = None"
 
-(* Maybe check this is doing the right thing *)
 text \<open>We define substraction for values, according to the C99 draft we can substract an integer
   from another or a pointer value and an integer. C99 draft also allows substraction between two
   pointers, this semantics doesn't allow that.\<close>
@@ -144,19 +134,25 @@ fun minus_val :: "val \<Rightarrow> val option" where
   "minus_val (I i) = detect_overflow (- (sint i))"
 | "minus_val a = None"
 
-(* Add overflow check on div and mod? *)
 text \<open>Integer division with truncation towards zero, 
   conforming to the C99 standard, Sec. 6.5.5/6\<close>
 definition div_towards_zero :: "int \<Rightarrow> int \<Rightarrow> int" where
   "div_towards_zero a b \<equiv> (\<bar>a\<bar> div \<bar>b\<bar>) * sgn a * sgn b"
 
+text \<open>Integer modulo with truncation towards zero, 
+  conforming to the C99 standard, Sec. 6.5.5/6\<close>
 definition mod_towards_zero :: "int \<Rightarrow> int \<Rightarrow> int" where
   "mod_towards_zero a b \<equiv> a - (div_towards_zero a b) * b "
 
+text \<open>The C99 standard, Sec. 6.5.5/6 states that "If the quotient a/b is representable,
+  the expression (a/b)*b + a%b shall equal a"\<close>
 lemma div_mod_conform_to_c99: 
   "div_towards_zero a b * b + mod_towards_zero a b = a"
   unfolding mod_towards_zero_def by auto
 
+text \<open>We define integer division conforming to the C99 standard and check for overflow.
+  Division can only happen between two integers. Division by zero is checked and will
+  yield a None val which means it's an error in our semantics.\<close>
 fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "div_val (I i\<^sub>1) (I i\<^sub>2) = (
     if (i\<^sub>2 \<noteq> 0) then 
@@ -164,6 +160,9 @@ fun div_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
     else None)"
 | "div_val a\<^sub>1 a\<^sub>2 = None"
 
+text \<open>We define integer modulo conforming to the C99 standard and check for overflow.
+  Modulo can only happen between two integers. Modulo by zero is checked and will
+  yield a None val which means it's an error in our semantics.\<close>
 fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "mod_val (I i\<^sub>1) (I i\<^sub>2) = (
     if (i\<^sub>2 \<noteq> 0) then 
@@ -171,26 +170,54 @@ fun mod_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
     else None)"
 | "mod_val a\<^sub>1 a\<^sub>2 = None"
 
+text \<open>We define integer multiplication conforming to the C99 standard.
+  Multiplication can only occur for integer values, we check for overflow, in case there
+  is overflow then we go to an error state.\<close>
 fun mult_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "mult_val (I i\<^sub>1) (I i\<^sub>2) = detect_overflow (sint i\<^sub>1 * sint i\<^sub>2)"
 | "mult_val a\<^sub>1 a\<^sub>2 = None"
 
-text \<open>We define the less than operator for values, if the first value is smaller than the second we
-  return @{term "I 1"} for True, otherwise we return @{term "I 0"} for False.\<close>
+text \<open>We define the less than operator for values conforming to the C99 standard Sec. 6.5.8.6,
+  if the first value is smaller than the second it yields @{term "I 1"} for True,
+  otherwise it yields @{term "I 0"} for False. Only integers can be compared.\<close>
 fun less_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "less_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 <s i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "less_val a\<^sub>1 a\<^sub>2 = None"
 
-text \<open>We define the not operator for values, if the value is 0 (False) we return @{term "I 1"} for
-  True, otherwise we return @{term "I 0"} for False.\<close>
+text \<open>We define the logical negation operator for values conforming to the C99 Standard
+  Sec. 6.5.3.3.5, if the value is compares equal to @{term "I 0"} (False) we return
+  @{term "I 1"} for True, otherwise we return @{term "I 0"} for False.
+  Only integers can be compared.\<close>
 fun not_val :: "val \<Rightarrow> val option" where
   "not_val (I i) = (if i = 0 then Some (I 1) else Some (I 0))"
 | "not_val a = None"
 
+text \<open>We define the logical OR operator, conforming to the C99 Standard Sec. 6.5.14.3/4.
+  if either of its operands compare unequal to @{term "I 0"} (either operand is True)
+  then it yields @{term "I 1"} for True, otherwise it yields @{term "I 0"} for False.
+  It guarantees left-to-right short-circuit evaluation; if the first operand compares
+  equal to @{term "I 1"} then the second operand is not evaluated and @{term "I 1"} is
+  yielded. OR operator can only operate between two integers.\<close>
+fun or_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
+  "or_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 \<noteq> 0 then Some (I 1) else (if i\<^sub>2 \<noteq> 0 then Some (I 1) else Some (I 0)))"
+| "or_val a\<^sub>1 a\<^sub>2 = None"
+
+text \<open>We define the logical AND operator, conforming to the C99 Standard Sec. 6.5.13.3/4.
+  if both operands compare unequal to @{term "I 0"} (both operands are True) then it yields @{term "I 1"}
+  for True, otherwise it yields @{term "I 0"} for False. It guarantees left-to-right
+  short-circuit evaluation; if the first operand compares equal to @{term "I 0"} then the
+  second operand is not evaluated and @{term "I 0"} is yielded. AND operator can only operate
+  between two integers.\<close>
 fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "and_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = 0 then Some (I 0) else (if i\<^sub>2 = 0 then Some (I 0) else Some (I 1)))"
 | "and_val a\<^sub>1 a\<^sub>2 = None"
 
+text \<open>We define the equal operator for values conforming to the C99 standard Sec. 6.5.9.3,
+  if both values are equal it yields @{term "I 1"} for True, otherwise it yields
+  @{term "I 0"} for False. Both two integer values or two address values can be compared,
+  but comparing an integer and an address will lead to error. When comparing two addresses
+  these fulfill the equality relation if both the base of the block and the offset of the block
+  is equal in the values.\<close>
 fun eq_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   "eq_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = i\<^sub>2 then Some (I 1) else Some (I 0))"
 | "eq_val (A (i\<^sub>1,j\<^sub>1)) (A (i\<^sub>2,j\<^sub>2)) = (if i\<^sub>1 = i\<^sub>2 \<and> j\<^sub>1 = j\<^sub>2 then Some (I 1) else Some (I 0))"
@@ -346,13 +373,10 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
   v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
-(* p \<or> q \<equiv> \<not>(\<not> p \<and> \<not>q)*)
 | "eval (Or b\<^sub>1 b\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval b\<^sub>1 s;
   (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
-  v\<^sub>1 \<leftarrow> not_val v\<^sub>1;
-  v\<^sub>2 \<leftarrow> not_val v\<^sub>2;
-  v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
+  v \<leftarrow> or_val v\<^sub>1 v\<^sub>2;
   Some (v, s)
 }"
 | "eval (Eq e\<^sub>1 e\<^sub>2) s = do {
