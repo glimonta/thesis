@@ -2,6 +2,8 @@ theory Test_Harness
 imports SmallStep Pretty 
 begin
 
+section \<open>Test Harness\<close>
+
   datatype test_instr = 
     Discover string nat
   | Assert_Eq string int_val   
