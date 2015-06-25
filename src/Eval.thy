@@ -50,6 +50,8 @@ text \<open>When executing a command that's not a function call or a return, thi
   evaluation of a command modifies the stack since the stack is not available to it.\<close>
 type_synonym visible_state = "valuation \<times> valuation \<times> mem"
 
+subsection \<open>Auxiliary functions to handle states\<close>
+
 text \<open>We then lift the transformations done at a visible state level to states.
   Here we separate the locals valuation from the rest of the stack frame, apply the transformation
   to the visible state and then reconstruct the complete state with the part of the stack frame the
@@ -99,6 +101,7 @@ fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
 
 abbreviation "list_size xs \<equiv> int(length xs)"
 
+subsection \<open>Auxiliary functions to handle evaluations\<close>
 
 text \<open>In the C99 draft, integer overflow is undefined behaviour, therefore we detect overflow and
   then return None if overflow occurs and then the execution of the semantics goes to error.\<close>
@@ -129,7 +132,8 @@ fun subst_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
   }"
 | "subst_val a\<^sub>1 a\<^sub>2 = None"
 
-text \<open>We define unary minus for values. It detects overflow and returns None if it happens.\<close>
+text \<open>We define unary minus operator for values conforming to the C99 Standard Sec. 6.5.3.3.3.
+  It detects overflow and returns None if it happens.\<close>
 fun minus_val :: "val \<Rightarrow> val option" where
   "minus_val (I i) = detect_overflow (- (sint i))"
 | "minus_val a = None"
@@ -235,16 +239,29 @@ value "eq_val (I 1) (A (6,5))"
   This is using conversions between int and nat I don't know what happens if the number in 
   (I i) is neg
 *)
+text \<open>We define a function @{term new_block} that allocates a new block in the memory.
+  a new block of size @{term "I i"} is allocated in memory. The list containing the memory
+  representation will increase in size and the function will return a pair with the value of
+  the address where the new block starts and the updated memory with the new block allocated.
+  An allocation of a new block will always be successful unless the size is less or equal than
+  @{term "I 0"} or if the value used as an argument is different from an integer, i.e. an address.
+  The C99 Standard Sec. 7.20.3 states that "If the size of the space requested is zero, the
+  behavior is implementation defined" therefore we don't allow the allocation of a new block of
+  size 0.\<close>
 fun new_block :: "val \<Rightarrow> mem \<Rightarrow> (val \<times> mem) option" where
   "new_block (I i) \<mu> = (
-    if sint i < 0 then None
+    if sint i \<le> 0 then None
     else
       Some ((A (length \<mu>, 0)), \<mu> @ [ Some (replicate (nat (sint i)) None)])
   )"
 | "new_block _ _ = None"
 
-value "new_block (I 2) [Some []]"
+value "new_block (I 1) [Some [Some (I 0)]]"
+value "new_block (I 0) [Some [None]]"
 
+subsection \<open>Auxiliary functions to handle memory evaluations\<close>
+
+text \<open>Verifies if an address is in the allocated memory range.\<close>
 fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
   "valid_mem (i,j) \<mu> = (
     if i<length \<mu> then (
@@ -256,14 +273,22 @@ fun valid_mem :: "addr \<Rightarrow> mem \<Rightarrow> bool" where
 fun ofs_addr :: "addr \<Rightarrow> int_val \<Rightarrow> addr" where
   "ofs_addr (i,j) ofs = (i,j + sint ofs)"
 
+text \<open>Loads the content of an address. Checks if we try to access a valid address in the memory
+  and proceeds to return the value of the memory location in this address. It will yield None
+  if the memory location is not initialized.\<close>
 definition load :: "addr \<Rightarrow> mem \<Rightarrow> val option" where
   "load \<equiv> \<lambda>(i,j) \<mu>.
     if valid_mem (i,j) \<mu> then do {
-      v \<leftarrow> (the (\<mu>!i) !! j);  (* Yields None if memory location is uninitialized *)
+      v \<leftarrow> (the (\<mu>!i) !! j);
       Some v
     } else
       None"
 
+text \<open>Stores a value in the memory location indicated by the address. It checks if we try to
+  access a valid address in the memory and proceeds to save the value in this memory location.
+  This works in the @{term visible_state} level since the execution stack won't get modificated
+  by a store operation. None will be yielded if the memory location to which we want to store
+  a value is invalid.\<close>
 definition store :: "addr \<Rightarrow> val \<Rightarrow> visible_state \<Rightarrow> visible_state option"
    where
   "store \<equiv> \<lambda>(i,j) v (l,\<gamma>,\<mu>).
@@ -272,6 +297,11 @@ definition store :: "addr \<Rightarrow> val \<Rightarrow> visible_state \<Righta
     else
       None"
 
+text \<open>Deallocates the memory block indicated by the address. It checks if we try to
+  deallocate a valid address in the memory and proceeds to leave a @{term None} value in the
+  address of the block to indicate this memory is deallocated. This works in the
+  @{term visible_state} level since the execution stack won't get modificated by a free
+  operation. None will be yielded if the memory location we want to deallocate is invalid.\<close>
 definition free :: "addr \<Rightarrow> visible_state \<Rightarrow> visible_state option" where
   "free \<equiv>  \<lambda>(i,j) (l,\<gamma>,\<mu>).
     if valid_mem (i,j) \<mu> then
@@ -287,6 +317,25 @@ definition free :: "addr \<Rightarrow> visible_state \<Rightarrow> visible_state
 
 definition "assert \<Phi> \<equiv> if \<Phi> then Some () else None"
 
+text \<open>About variable scoping: When writing to or reading a variable and there's different
+  variables with the same name in different scope, or the variable we want to modify is in a
+  more general scope we must know in which order these scopes are traversed.
+  We can face different situations:
+
+  * Two variables with the same name in different scopes:
+      We will always be selected the variable in the local procedure scope over the global
+      variable.
+  * The variable is in the local scope:
+      We select the variable in the local scope.
+  * The variable is in the global scope:
+      We will check the local scope for the variable, when it's not found then we proceed to
+      check the global scope and select the correct variable.\<close>
+
+text \<open>Reads a variable from a state. This works at the level of the visible state because it
+  doesn't temper with the stack but only needs the valuation for the local variables.
+  First the local variables will be checked for the variable we try to read, we return it's value
+  if it's found. If the variable we try to read is not in the locals then we check the globals,
+  we return the value of the global, if it exists, otherwise we return None.\<close>
 fun read_var :: "vname \<Rightarrow> visible_state \<Rightarrow> val option" where
   "read_var x (l,\<gamma>,\<mu>) = do {
     case l x of
@@ -298,6 +347,13 @@ fun read_var :: "vname \<Rightarrow> visible_state \<Rightarrow> val option" whe
       } 
   }"
 
+text \<open>Writes a variable in a state. This works at the level of the visible state because it
+  doesn't temper with the stack but only needs the valuation for the local variables.
+  First the local variables will be checked for the variable we try to write to, we update the
+  value of it if it's found. If the variable we try to write to is not in the locals then we
+  check the globals, we update the value of the global variable, if it exists, otherwise
+  we return None. In the case where the write was successful we return the visible state with
+  the updated variable.\<close>
 fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarrow> visible_state option" where
   "write_var x v (l,\<gamma>,\<mu>) = do {
     case l x of
@@ -312,6 +368,58 @@ fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarr
       }
   }"
 
+subsection \<open>Evaluation function\<close>
+
+text \<open>We define an evaluation function for @{term exp} and @{term lexp}. It works at the
+  @{term visible_state} level, since the evaluation of expressions will not temper with the
+  stack and it's only dependent on the locals valuation of the current @{term stack_frame}.
+
+  In the case for @{term "Const c"} and @{term Null} expressions we return the constant values
+  @{term "I c"} and @{term NullVal} respectively without modifying the state.
+
+  For a @{term "V x"} we use the @{term read_var} definition and return the read value.
+
+  For expressions that consist of two operands (@{term Plus}, @{term Subst}, @{term Div},
+  @{term Mod}, @{term Mult}, @{term Less}, @{term And}, @{term Or}, @{term Eq}) we call
+  recursively the evaluate function and then use the correspondent auxiliary evaluation
+  function on the values yielded by the recursive call and return the value obtained from it.
+
+  For expressions @{term Minus} and @{term Not} that consist of one operand we call recursively
+  the evaluate function and then use the correspondent auxiliary evaluation function on the
+  values yieled by the recursive call and return the value obtained from it.
+
+  For the @{term New} the expression is evaluated with a recursive call of @{term eval} and
+  then the auxiliary function that allocates a new block is called and we return the value
+  obtained from it.
+
+  The interesting cases come with pointer evaluation, the evaluation of pointer expressions will
+  depend on whether the pointer expression is on the right-hand-side or the left-hand-side.
+
+  Right-hand-side evaluation of expressions:
+
+  A @{term Deref} expression will be evaluated by doing a recursive call on its operand
+  and if this is an address then return the result of calling the load function. If not, this
+  is an error and None is returned.
+
+  A @{term Ref} will be evaluated by a call of @{term eval_l} with the operator as argument.
+  If this call returns an address we return this and the visible state, if it returns None, we
+  return None.
+
+  An @{term "Index e\<^sub>1 e\<^sub>2"} will be evaluated by doing a recursive call with both operands as
+  arguments and if it returns an address and an integer value then we attempt to load the
+  value in that memory location and return that and the state, if what is returned is different
+  from an address and an integer then None is returned.
+
+  Left-hand-side evaluation of l-expressions:
+
+  A @{term Derefl} l-expression will be evaluated by doing a call of @{term eval} on its
+  operand, if the value returned is an address, we return that address and the state.
+
+  An @{term "Indexl e\<^sub>1 e\<^sub>2"} will be evaluated by doing a call of @{term eval} with both operands
+  as arguments and if it returns an address and an integer value then we return the address
+  with its offset field updated by adding the integer to it and the state, if what is returned
+  is different from an address and an integer then None is returned.
+\<close>
 
 fun eval :: "exp \<Rightarrow> visible_state \<Rightarrow> (val \<times> visible_state) option"
 and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> visible_state) option" where
