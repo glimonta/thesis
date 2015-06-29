@@ -387,28 +387,32 @@ text \<open>We define a function in ML code that takes the code we want to gener
   the Isabelle output view.
 \<close>
 ML \<open>
-  fun export_c_code code rel_path name thy =
+  fun export_c_code code ex_show rel_path name thy =
     let 
-      val str = code |> String.implode
+      val str = code |> String.implode;
+      val ex_show = ex_show |> String.implode
     in
-      if rel_path="" orelse name="" then
-        (writeln str; thy)
-      else let  
-        val base_path = Resources.master_directory thy
-        val rel_path = Path.explode rel_path
-        val name_path = Path.basic name |> Path.ext "c"
-      
-        val abs_path = Path.appends [base_path, rel_path, name_path]
-        val abs_path = Path.implode abs_path
-     
-        val _ = writeln ("Writing to file " ^ abs_path)
- 
-        val os = TextIO.openOut abs_path;
-        val _ = TextIO.output (os, str);
-        val _ = TextIO.flushOut os;
-        val _ = TextIO.closeOut os;
-      in thy end  
-    end  
+      if ex_show="<Error>" then
+        (error "The program has an erroneous execution, no code is generated."; thy)
+      else
+        if rel_path="" orelse name="" then
+          (writeln str; thy)
+        else let  
+          val base_path = Resources.master_directory thy
+          val rel_path = Path.explode rel_path
+          val name_path = Path.basic name |> Path.ext "c"
+        
+          val abs_path = Path.appends [base_path, rel_path, name_path]
+          val abs_path = Path.implode abs_path
+       
+          val _ = writeln ("Writing to file " ^ abs_path)
+   
+          val os = TextIO.openOut abs_path;
+          val _ = TextIO.output (os, str);
+          val _ = TextIO.flushOut os;
+          val _ = TextIO.closeOut os;
+          in thy end  
+        end
 \<close>
 
 
