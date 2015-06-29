@@ -1,5 +1,5 @@
 theory Factorial
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Factorial: Takes a number and returns the factorial *)
@@ -58,7 +58,7 @@ definition "fact_test \<equiv> do {
 
 ML_val \<open> @{code fact_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code fact} "../TestC" "fact"\<close>
+setup \<open>export_c_code @{code fact} @{code fact_exec} "../TestC" "fact"\<close>
 
 
 end

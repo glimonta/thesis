@@ -1,5 +1,5 @@
 theory Occurs
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Occurs: Takes an array a, its length n and an element x, returns 0 if the element x doesn't exist
@@ -74,6 +74,6 @@ definition "occurs_test \<equiv> do {
 
 ML_val \<open> @{code occurs_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code occurs} "../TestC" "occurs"\<close>
+setup \<open>export_c_code @{code occurs} @{code occurs_exec} "../TestC" "occurs"\<close>
 
 end

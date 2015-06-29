@@ -1,5 +1,5 @@
 theory Quicksort
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Swap: swaps two elements in an array, takes the address of the first element xx and the second 
@@ -102,6 +102,6 @@ definition "quicksort_test \<equiv> do {
 
 ML_val \<open> @{code quicksort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code quicksort} "../TestC" "quicksort"\<close>
+setup \<open>export_c_code @{code quicksort} @{code quicksort_exec} "../TestC" "quicksort"\<close>
 
 end

@@ -1,5 +1,5 @@
 theory Mergesort
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Merge: Takes an array a and its length n and merges the two ordered parts of the array *)
@@ -108,7 +108,7 @@ definition "mergesort_test \<equiv> do {
 
 ML_val \<open> @{code mergesort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code mergesort} "../TestC" "mergesort"\<close>
+setup \<open>export_c_code @{code mergesort} @{code mergesort_exec} "../TestC" "mergesort"\<close>
 
 
 end

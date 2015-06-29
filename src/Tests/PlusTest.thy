@@ -1,5 +1,5 @@
 theory PlusTest
-imports "../SmallStep" Plus
+imports Plus
 begin
 
 definition plus_main_decl :: fun_decl

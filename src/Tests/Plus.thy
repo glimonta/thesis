@@ -1,5 +1,5 @@
 theory Plus
-imports "../SmallStep" "Test" "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 definition main_decl :: fun_decl
@@ -12,13 +12,12 @@ definition main_decl :: fun_decl
         bb ::= (Plus (Const (-1)) (Const (-3)));; (* Addition negative values *)
         cc ::= (New (Const 4));;
         dd ::= (Plus (V cc) (Const 2)) (* Addition address + positive value *)
-        (*ee ::= (Plus (Const 2147483647) (Const 1)) (* Overflow *)*)
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
     \<lparr> program.name = ''plus'',
-      program.globals = [aa,bb,cc,dd,ee],
+      program.globals = [aa,bb,cc,dd],
       program.procs = [main_decl]
     \<rparr>"
 
@@ -44,7 +43,7 @@ definition "plus_test \<equiv> do {
 
 ML_val \<open> @{code plus_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code plus_ex} "../TestC" "plus"\<close>
+setup \<open>export_c_code @{code plus_ex} @{code plus_exec} "../TestC" "plus"\<close>
 
 
 end

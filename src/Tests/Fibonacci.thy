@@ -1,5 +1,5 @@
 theory Fibonacci
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Fibonacci: Takes a number and returns its fibonacci number *)
@@ -65,6 +65,6 @@ definition "fib_test \<equiv> do {
 
 ML_val \<open> @{code fib_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code fib} "../TestC" "fib"\<close>
+setup \<open>export_c_code @{code fib} @{code fib_exec} "../TestC" "fib"\<close>
 
 end

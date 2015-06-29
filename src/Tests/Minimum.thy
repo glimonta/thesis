@@ -1,5 +1,5 @@
 theory Minimum
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Min: Takes an array a and its length n and returns the minimum element of the array *)
@@ -68,6 +68,6 @@ definition "minimum_test \<equiv> do {
 
 ML_val \<open> @{code minimum_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code minimum} "../TestC" "min"\<close>
+setup \<open>export_c_code @{code minimum} @{code minimum_exec} "../TestC" "min"\<close>
 
 end

@@ -1,5 +1,5 @@
 theory StrLength
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Takes a number n and returns an array of length n + 1 initialized with numbers from 1 to n in
@@ -78,6 +78,6 @@ definition "strlen_test \<equiv> do {
 
 ML_val \<open> @{code strlen_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code strlen} "../TestC" "strlen"\<close>
+setup \<open>export_c_code @{code strlen} @{code strlen_exec} "../TestC" "strlen"\<close>
 
 end

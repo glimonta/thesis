@@ -1,5 +1,5 @@
 theory Bubblesort
-imports "../SmallStep" "Test" "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Bubblesort: Takes an array a and its length n and returns the sorted array *)
@@ -17,7 +17,7 @@ definition bubblesort_decl :: fun_decl
               (Indexl (V aa) (V jj)) ::== (Index (V aa) (Plus (V jj) (Const ( 1))));;
               (Indexl (V aa) (Plus (V jj) (Const ( 1)))) ::== (V tt))
             ELSE SKIP))
-    \<rparr>"
+    \<rparr>"                                
 
 definition main_decl :: fun_decl
   where "main_decl \<equiv>
@@ -70,6 +70,6 @@ definition "bubblesort_test \<equiv> do {
 
 ML_val \<open> @{code bubblesort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code bubblesort} "../TestC" "bubblesort"\<close>
+setup \<open>export_c_code @{code bubblesort} @{code bubblesort_exec}"../TestC" "bubblesort"\<close>
 
 end

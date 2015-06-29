@@ -1,5 +1,5 @@
 theory Subst
-imports "../SmallStep" "Test" "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 definition main_decl :: fun_decl
@@ -45,7 +45,7 @@ definition "subst_test \<equiv> do {
 
 ML_val \<open> @{code subst_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code subst_ex} "../TestC" "subst"\<close>
+setup \<open>export_c_code @{code subst_ex} @{code subst_exec} "../TestC" "subst"\<close>
 
 
 end

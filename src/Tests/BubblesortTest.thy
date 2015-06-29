@@ -1,5 +1,5 @@
 theory BubblesortTest
-imports "../SmallStep" "Bubblesort"
+imports "Bubblesort"
 begin
 
 definition bubblesort_main_decl :: fun_decl

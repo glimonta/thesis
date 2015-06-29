@@ -1,5 +1,5 @@
 theory Count
-imports "../SmallStep" Test "../Test_Harness"
+imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Count: Takes an array a, its length n and an element x, returns the number of occurences of e
@@ -72,6 +72,6 @@ definition "count_test \<equiv> do {
 
 ML_val \<open> @{code count_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
 
-setup \<open>export_c_code @{code count} "../TestC" "count"\<close>
+setup \<open>export_c_code @{code count} @{code count_exec} "../TestC" "count"\<close>
 
 end
