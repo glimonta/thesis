@@ -387,12 +387,12 @@ text \<open>We define a function in ML code that takes the code we want to gener
   the Isabelle output view.
 \<close>
 ML \<open>
-  fun export_c_code code ex_show rel_path name thy =
+  fun export_c_code code exec_result rel_path name thy =
     let 
       val str = code |> String.implode;
-      val ex_show = ex_show |> String.implode
+      val exec_result = exec_result |> String.implode
     in
-      if ex_show="<Error>" then
+      if exec_result="<Error>" then
         (error "The program has an erroneous execution, no code is generated."; thy)
       else
         if rel_path="" orelse name="" then

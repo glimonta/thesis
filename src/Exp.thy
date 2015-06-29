@@ -46,7 +46,8 @@ text \<open>An expression can be:
   *  @{term "Mod i\<^sub>1 i\<^sub>2"} to represent the modulo operation over two expressions.
   *  @{term "Mult i\<^sub>1 i\<^sub>2"} to represent the multiplication of two expressions.
   *  @{term "Less i\<^sub>1 i\<^sub>2"} to represent the less than operation over two expressions.
-  *  @{term "And b\<^sub>1 b\<^sub>2"} to represent the and operation over two expressions.
+  *  @{term "Not b"} to represent the not operation over an expression.
+  *  @{term "And b\<^sub>1 b\<^sub>2"} to represent the and operation over two  expressions.
   *  @{term "Or b\<^sub>1 b\<^sub>2"} to represent the or operation over two expressions.
   *  @{term "Eq b\<^sub>1 b\<^sub>2"} to represent the equality operation over two expressions.
   *  @{term "New e"} to represent the allocation of a new memory block of length e.
@@ -56,7 +57,7 @@ text \<open>An expression can be:
   *  @{term "Index a ofs"} to represent the indexing of an array a in the ofs position (@{term "a[ofs]"} in C).
   *  @{term "Derefl e"} to represent the dereferencing operation over an expression (@{term "op *"} in C)
     this expression is used as an lvalue.
-  *  @{term "Index a ofs"} to represent the indexing of an array a in the ofs position (@{term "a[ofs]"} in C)
+  *  @{term "Indexl a ofs"} to represent the indexing of an array a in the ofs position (@{term "a[ofs]"} in C)
     this expression is used as an lvalue.
 \<close>
 
