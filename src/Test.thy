@@ -1,5 +1,5 @@
 theory Test
-imports Main "../SmallStep" "../Pretty"
+imports Main SmallStep Pretty
 begin
 
 abbreviation "aa \<equiv> ''a''"  abbreviation "bb \<equiv> ''b''" abbreviation "cc \<equiv> ''c''"
