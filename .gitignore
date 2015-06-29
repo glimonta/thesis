@@ -5,3 +5,4 @@
 *.out
 *.swp
 *.c
+src/TestC/*
