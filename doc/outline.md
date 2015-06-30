@@ -3,6 +3,8 @@ Thesis Outline
 
 1. Introduction
 
+    *** Motivation: Why do we need verified programs
+
     1.1. Theoretical Background
 
             1.1.1. What is the semantics of a programming language
@@ -18,6 +20,17 @@ Thesis Outline
                 1.1.2.1. Static semantics
 
     1.2 Previous and related work
+
+      Related work:                
+    *** Compcert project (they use the same memory model)
+      *** Andrew W. Appel: Program Logics
+    *** Michael Norrish: C formalised in HOL
+    *** Auto-Corres ssrg.nicta.com.au/projects/TS/autocorres/
+      This is an example for parsing C-code and abstracting it, while we *generate* C code.
+      There are more VCGs for C out there.
+      I would not go to deep into this!
+                
+                
 
 2. Problem statement
 
@@ -122,4 +135,4 @@ Thesis Outline
 
 6. Results
 
-7. Conclusion
+7. Conclusion + Future Work
