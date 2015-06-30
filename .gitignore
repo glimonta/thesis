@@ -4,5 +4,7 @@
 *.marks
 *.out
 *.swp
+*.swo
 *.c
 src/TestC/*
+*.pdf
