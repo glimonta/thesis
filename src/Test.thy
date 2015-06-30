@@ -24,7 +24,7 @@ abbreviation For :: "vname \<Rightarrow> exp \<Rightarrow> exp \<Rightarrow> com
 term remdups
 
 definition "execute_show vnames p \<equiv> case execute p of
-  Some s \<Rightarrow> show_state (program.globals p @ (remdups (collect_locals (program.procs p))) @ vnames) s
+  Some s \<Rightarrow> show_state (remdups (program.globals p @ (collect_locals (program.procs p))) @ vnames) s
   | None \<Rightarrow> show ''<Error>''"
 
 fun is_addr :: "(nat \<times> val) \<Rightarrow> bool" where

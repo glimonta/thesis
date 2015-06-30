@@ -12,3 +12,17 @@
 ./strlen_test
 ./plus_test
 ./subst_test
+./outer_scope_test
+./local_scope_test
+./global_scope_test
+./global_scope2_test
+./mod_test
+./div_test
+./mult_test
+./less_test
+./and_test
+./or_test
+./not_test
+./eq_test
+./new_test
+./deref_test

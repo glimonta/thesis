@@ -27,7 +27,6 @@ definition p' :: program
 
 export_code p' in SML
 
-(* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p'"
 
 definition "plus_test_show \<equiv> (

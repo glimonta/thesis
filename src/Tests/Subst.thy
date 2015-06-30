@@ -10,15 +10,15 @@ definition main_decl :: fun_decl
       fun_decl.body = 
         aa ::= (Subst (Const 2) (Const 2));; (* Substraction positive values *)
         bb ::= (Subst (Const (-1)) (Const (-3)));; (* Substraction negative values *)
-        cc ::= (New (Const 4));;
-        dd ::= (Subst (Plus (V cc) (Const 2)) (Const 2)) (* Addition address + positive value - positive value *)
- (*       ee ::= (Subst (Const (-2147483647)) (Const 4));; (* Overflow *)
-        ff ::= (Div (Const 3) (Const 0))*)
+        cc ::= (Subst (Const (-3)) (Const (2)));; (* Substraction negative + postive = negative *)
+        dd ::= (Subst (Const (3)) (Const (-2)));; (* Substraction postive + negative = positive *)
+        ee ::= (New (Const 4));;
+        ff ::= (Subst (Plus (V ee) (Const 2)) (Const 2)) (* Addition address + positive value - positive value *)
     \<rparr>"
 
 definition p :: program
   where "p \<equiv> 
-    \<lparr> program.name = ''plus'',
+    \<lparr> program.name = ''subst'',
       program.globals = [aa,bb,cc,dd,ee,ff],
       program.procs = [main_decl]
     \<rparr>"
