@@ -37,6 +37,6 @@ definition "mergesort_test_show \<equiv> (
 definition "mergesort_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code mergesort_test_show} @{code mergesort_test}
-  @{code init_disc} @{code mergesort_failed_check} "../TestC" "mergesort_test"\<close>
+   @{code mergesort_failed_check} "../TestC" "mergesort_test"\<close>
 
 end

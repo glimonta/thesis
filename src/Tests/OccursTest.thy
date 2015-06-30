@@ -37,6 +37,6 @@ definition "occurs_test_show \<equiv> (
 definition "occurs_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code occurs_test_show} @{code occurs_test}
-  @{code init_disc} @{code occurs_failed_check} "../TestC" "occurs_test"\<close>
+   @{code occurs_failed_check} "../TestC" "occurs_test"\<close>
 
 end

@@ -37,6 +37,6 @@ definition "min_test_show \<equiv> (
 definition "min_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code min_test_show} @{code minimum_test}
-  @{code init_disc} @{code min_failed_check} "../TestC" "min_test"\<close>
+   @{code min_failed_check} "../TestC" "min_test"\<close>
 
 end

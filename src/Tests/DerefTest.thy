@@ -36,6 +36,6 @@ definition "deref_test_show \<equiv> (
 definition "deref_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code deref_test_show} @{code deref_test}
-  @{code init_disc} @{code deref_failed_check} "../TestC" "deref_test"\<close>
+   @{code deref_failed_check} "../TestC" "deref_test"\<close>
 
 end

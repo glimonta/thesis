@@ -36,6 +36,6 @@ definition "new_test_show \<equiv> (
 definition "new_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code new_test_show} @{code new_test}
-  @{code init_disc} @{code new_failed_check} "../TestC" "new_test"\<close>
+   @{code new_failed_check} "../TestC" "new_test"\<close>
 
 end

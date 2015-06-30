@@ -37,6 +37,6 @@ definition "count_test_show \<equiv> (
 definition "count_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code count_test_show} @{code count_test}
-  @{code init_disc} @{code count_failed_check} "../TestC" "count_test"\<close>
+   @{code count_failed_check} "../TestC" "count_test"\<close>
 
 end

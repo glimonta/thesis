@@ -1,5 +1,5 @@
 theory Test_Harness
-imports SmallStep Pretty 
+imports SmallStep Pretty "~~/src/HOL/ex/Cartouche_Examples"
 begin
 
 section \<open>Test Harness\<close>
@@ -73,13 +73,13 @@ section \<open>Test Harness\<close>
             
             fold_option (\<lambda>i (D,emit). do {
               let i=int i;
-              let cai = (ofs_addr i (base_var_name base));
+              let cval = (ofs_addr i (base_var_name base));
               case b!!i of
                 None \<Rightarrow> Some (D,emit)
-              | Some (I v) \<Rightarrow> Some (D,emit @ [Assert_Eq cai v])
-              | Some (NullVal) \<Rightarrow> Some (D,emit @ [Assert_Eq_Null cai] )
+              | Some (I v) \<Rightarrow> Some (D,emit @ [Assert_Eq cval v])
+              | Some (NullVal) \<Rightarrow> Some (D,emit @ [Assert_Eq_Null cval] )
               | Some (A addr) \<Rightarrow> do {
-                  (D,emit')\<leftarrow>dfs D addr cai;
+                  (D,emit')\<leftarrow>dfs D addr cval;
                   Some (D,emit@emit')
                 }
             })
@@ -130,27 +130,89 @@ section \<open>Test Harness\<close>
   definition init_discovered_shows :: "nat \<Rightarrow> shows" where
     "init_discovered_shows ind \<equiv> indent_basic ind (shows ''discovered = hashset_create()'')"
 
+
   definition failed_check_shows :: "string \<Rightarrow> nat \<Rightarrow> shows" where
     "failed_check_shows program_name ind \<equiv> indent ind (
       shows ''if (failed > 0)'' o shows_nl o
-       (indent_basic (ind + 1) (
-        shows ''printf(\"Failed %d test(s) in file '' o shows program_name o shows ''.c\", failed)''
-       ))
+        (indent_basic (ind + 1) (
+          shows \<open>printf(\"Failed %d test(s) in file (passed %d) \<close> o shows program_name o shows \<open>.c\\n\", failed, passed)\<close>
+        )) o shows_nl o
+      shows ''else'' o shows_nl o  
+      (indent_basic (ind + 1) (
+          shows \<open>printf(\"Passed all %d test(s) in file \<close> o shows program_name o shows \<open>.c\\n\", passed)\<close>
+        )) o shows_nl
     )"
 
     definition "init_disc \<equiv> init_discovered_shows 1 ''''"
 
     definition "failed_check p' \<equiv> failed_check_shows (program.name p') 1 ''''"
 
+
+definition prepare_test_export :: "program \<Rightarrow> (string \<times> string) option"
+where "prepare_test_export prog \<equiv> do {
+  code \<leftarrow> prepare_export prog;
+  s \<leftarrow> execute prog;
+  let vnames = program.globals prog;
+  (_,tests) \<leftarrow> emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  let failed_check = failed_check prog;
+  let init_hash = init_disc;
+  let nl = ''\<newline>'';
+  let test_code = nl @ vars @ nl @ init_hash @ nl @ instrs @ nl @ failed_check @ nl @ ''}'';
+  Some (code,test_code)
+}"
+
 ML \<open>
-  fun generate_c_test_code code vars_tests init_hash failed_check rel_path name thy =
+  fun generate_c_test_code (SOME (code,test_code)) rel_path name thy =
+    let 
+      val code = code |> String.implode
+      val test_code = test_code |> String.implode
+    in
+      if rel_path="" orelse name="" then
+        (writeln (code ^ " <rem last line> " ^ test_code); thy)
+      else let  
+        val base_path = Resources.master_directory thy
+        val rel_path = Path.explode rel_path
+        val name_path = Path.basic name |> Path.ext "c"
+      
+        val abs_path = Path.appends [base_path, rel_path, name_path]
+        val abs_path = Path.implode abs_path
+     
+        val _ = writeln ("Writing to file " ^ abs_path)
+
+        val os = TextIO.openOut abs_path;
+        val _ = TextIO.output (os, code);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+
+        val _ = Isabelle_System.bash ("sed -i '$d ' " ^ abs_path);
+      
+        val os = TextIO.openAppend abs_path;
+        val _ = TextIO.output (os, test_code);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+      in thy end  
+    end
+  | generate_c_test_code NONE _ _ _ = 
+      error "Invalid program or failed execution"
+
+
+  fun expect_failed_test (SOME _) = error "Expected Failed test"
+    | expect_failed_test NONE = ()
+
+\<close>
+
+(*
+ML \<open>
+  fun generate_c_test_code code vars_tests failed_check rel_path name thy =
     let 
       val code = code |> String.implode
       val vars = vars_tests |> the |> fst |> String.implode;
       val tests_code = vars_tests |> the |> snd |> String.implode;
-      val init_hash = init_hash |> String.implode;
       val failed_check = failed_check |> String.implode;
       val nl = "\n";
+      val init_hash = @{code init_disc} |> String.implode;
       val str = nl ^ vars ^ nl ^ init_hash ^ nl ^ tests_code ^ nl ^ failed_check ^ nl ^ "}";
  
     in
@@ -180,6 +242,6 @@ ML \<open>
       in thy end  
     end  
 \<close>
-
+*)
 
 end

@@ -61,7 +61,7 @@ text \<open>An expression can be:
     this expression is used as an lvalue.
 \<close>
 
-datatype exp = Const int_val
+datatype exp = Const int
              | Null
              | V     vname
              | Plus  exp exp

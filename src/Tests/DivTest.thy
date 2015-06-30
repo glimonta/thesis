@@ -36,6 +36,6 @@ definition "div_test_show \<equiv> (
 definition "div_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code div_test_show} @{code div_test}
-  @{code init_disc} @{code div_failed_check} "../TestC" "div_test"\<close>
+   @{code div_failed_check} "../TestC" "div_test"\<close>
 
 end

@@ -1,0 +1,32 @@
+theory All_Tests
+imports
+  AndTest
+  BubblesortTest
+  CountTest
+  DerefTest
+  DivTest
+  EqTest
+  FactorialTest
+  FibonacciTest
+  Global_Scope2_Test
+  Global_Scope_Test
+  LessTest
+  Local_Scope_Test
+  MergesortTest
+  MinimumTest
+  MinusTest
+  ModTest
+  MultTest
+  NewTest
+  NotTest
+  OccursTest
+  OrTest
+  Outer_Scope_Test
+  PlusTest
+  QuicksortTest
+  SelectionsortTest
+  StrLengthTest
+  SubstTest
+begin
+
+end

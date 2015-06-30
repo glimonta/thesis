@@ -36,6 +36,6 @@ definition "local_scope_test_show \<equiv> (
 definition "local_scope_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code local_scope_test_show} @{code local_scope_test}
-  @{code init_disc} @{code local_scope_failed_check} "../TestC" "local_scope_test"\<close>
+   @{code local_scope_failed_check} "../TestC" "local_scope_test"\<close>
 
 end

@@ -36,6 +36,6 @@ definition "less_test_show \<equiv> (
 definition "less_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code less_test_show} @{code less_test}
-  @{code init_disc} @{code less_failed_check} "../TestC" "less_test"\<close>
+   @{code less_failed_check} "../TestC" "less_test"\<close>
 
 end

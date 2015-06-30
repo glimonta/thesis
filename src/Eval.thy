@@ -368,6 +368,13 @@ fun write_var :: "vname \<Rightarrow> val \<Rightarrow> visible_state \<Rightarr
       }
   }"
 
+fun to_bool :: "val \<Rightarrow> bool option" where
+  "to_bool (I i) = Some (i\<noteq>0)"
+| "to_bool _ = None"
+
+definition false_val :: val where "false_val = I 0"
+definition true_val :: val where "true_val = I 1"
+
 subsection \<open>Evaluation function\<close>
 
 text \<open>We define an evaluation function for @{term exp} and @{term lexp}. It works at the
@@ -423,7 +430,10 @@ text \<open>We define an evaluation function for @{term exp} and @{term lexp}. I
 
 fun eval :: "exp \<Rightarrow> visible_state \<Rightarrow> (val \<times> visible_state) option"
 and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> visible_state) option" where
-  "eval (Const c) s = Some (I c, s)"
+  "eval (Const c) s = do {
+    c \<leftarrow> detect_overflow c;
+    Some (c, s)
+  }  "
 | "eval Null s = Some (NullVal, s)"
 | "eval (V x) s = do {
     v \<leftarrow> read_var x s;
@@ -477,15 +487,24 @@ and eval_l :: "lexp \<Rightarrow> visible_state \<Rightarrow> (addr \<times> vis
 }"
 | "eval (And b\<^sub>1 b\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval b\<^sub>1 s;
-  (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
-  v \<leftarrow> and_val v\<^sub>1 v\<^sub>2;
-  Some (v, s)
+  b\<^sub>1 \<leftarrow> to_bool v\<^sub>1;
+  if b\<^sub>1 then do {
+    (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
+    b\<^sub>2 \<leftarrow> to_bool v\<^sub>2;
+    if b\<^sub>2 then Some (true_val,s) else Some (false_val,s)
+  } else do {
+    Some (false_val,s)
+  }
 }"
 | "eval (Or b\<^sub>1 b\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval b\<^sub>1 s;
-  (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
-  v \<leftarrow> or_val v\<^sub>1 v\<^sub>2;
-  Some (v, s)
+  b\<^sub>1 \<leftarrow> to_bool v\<^sub>1;
+  if b\<^sub>1 then Some (true_val,s)
+  else do {
+    (v\<^sub>2, s) \<leftarrow> eval b\<^sub>2 s;
+    b\<^sub>2 \<leftarrow> to_bool v\<^sub>2;
+    if b\<^sub>2 then Some (true_val,s) else Some (false_val,s)
+  }  
 }"
 | "eval (Eq e\<^sub>1 e\<^sub>2) s = do {
   (v\<^sub>1, s) \<leftarrow> eval e\<^sub>1 s;

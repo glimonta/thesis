@@ -36,6 +36,6 @@ definition "eq_test_show \<equiv> (
 definition "eq_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code eq_test_show} @{code eq_test}
-  @{code init_disc} @{code eq_failed_check} "../TestC" "eq_test"\<close>
+   @{code eq_failed_check} "../TestC" "eq_test"\<close>
 
 end

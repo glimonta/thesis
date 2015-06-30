@@ -36,6 +36,6 @@ definition "outer_scope_test_show \<equiv> (
 definition "outer_scope_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code outer_scope_test_show} @{code outer_scope_test}
-  @{code init_disc} @{code outer_scope_failed_check} "../TestC" "outer_scope_test"\<close>
+   @{code outer_scope_failed_check} "../TestC" "outer_scope_test"\<close>
 
 end

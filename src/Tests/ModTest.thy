@@ -36,6 +36,6 @@ definition "mod_test_show \<equiv> (
 definition "mod_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code mod_test_show} @{code mod_test}
-  @{code init_disc} @{code mod_failed_check} "../TestC" "mod_test"\<close>
+   @{code mod_failed_check} "../TestC" "mod_test"\<close>
 
 end

@@ -37,6 +37,6 @@ definition "selection_test_show \<equiv> (
 definition "selection_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code selection_test_show} @{code selection_test}
-  @{code init_disc} @{code selection_failed_check} "../TestC" "selection_test"\<close>
+   @{code selection_failed_check} "../TestC" "selection_test"\<close>
 
 end

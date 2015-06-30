@@ -36,6 +36,6 @@ definition "not_test_show \<equiv> (
 definition "not_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code not_test_show} @{code not_test}
-  @{code init_disc} @{code not_failed_check} "../TestC" "not_test"\<close>
+   @{code not_failed_check} "../TestC" "not_test"\<close>
 
 end

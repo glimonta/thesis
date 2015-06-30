@@ -36,6 +36,6 @@ definition "mult_test_show \<equiv> (
 definition "mult_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code mult_test_show} @{code mult_test}
-  @{code init_disc} @{code mult_failed_check} "../TestC" "mult_test"\<close>
+   @{code mult_failed_check} "../TestC" "mult_test"\<close>
 
 end

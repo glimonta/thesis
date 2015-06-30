@@ -37,6 +37,6 @@ definition "subst_test_show \<equiv> (
 definition "subst_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code subst_test_show} @{code subst_test}
-  @{code init_disc} @{code subst_failed_check} "../TestC" "subst_test"\<close>
+   @{code subst_failed_check} "../TestC" "subst_test"\<close>
 
 end

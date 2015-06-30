@@ -36,6 +36,6 @@ definition "global_scope_test_show \<equiv> (
 definition "global_scope_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code global_scope_test_show} @{code global_scope_test}
-  @{code init_disc} @{code global_scope_failed_check} "../TestC" "global_scope_test"\<close>
+   @{code global_scope_failed_check} "../TestC" "global_scope_test"\<close>
 
 end

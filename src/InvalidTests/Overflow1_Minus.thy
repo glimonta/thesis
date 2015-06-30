@@ -3,7 +3,7 @@ imports "../SmallStep" "../Test" "../Test_Harness"
 begin
 
 (* Works but not as I want it to *)
-value "shows_exp (Minus (Const (word_of_int INT_MAX + 1))) ''''"
+value "shows_exp (Minus (Const (INT_MAX + 1))) ''''"
 
 definition main_decl :: fun_decl
   where "main_decl \<equiv>
@@ -11,7 +11,7 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body =
-        xx ::= (Minus (Const (word_of_int INT_MAX + 1))) (* Overflow *)
+        xx ::= (Minus (Const (INT_MAX + 1))) (* Overflow *)
     \<rparr>"
 
 definition p :: program

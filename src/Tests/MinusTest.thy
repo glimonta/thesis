@@ -36,6 +36,6 @@ definition "minus_test_show \<equiv> (
 definition "minus_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code minus_test_show} @{code minus_test}
-  @{code init_disc} @{code minus_failed_check} "../TestC" "minus_test"\<close>
+   @{code minus_failed_check} "../TestC" "minus_test"\<close>
 
 end

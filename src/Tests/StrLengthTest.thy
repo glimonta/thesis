@@ -37,6 +37,6 @@ definition "strlen_test_show \<equiv> (
 definition "strlen_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code strlen_test_show} @{code strlen_test}
-  @{code init_disc} @{code strlen_failed_check} "../TestC" "strlen_test"\<close>
+   @{code strlen_failed_check} "../TestC" "strlen_test"\<close>
 
 end

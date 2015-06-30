@@ -47,29 +47,10 @@ definition p :: program
       program.procs = [bubblesort_decl, main_decl]
     \<rparr>"
 
-export_code p in SML
+definition "bubblesort_export \<equiv> prepare_export p"
+setup \<open>export_c_code @{code bubblesort_export}"../TestC" "bubblesort"\<close>
 
 (* The length of the string should be 5 and be saved in global variable ll *)
 value "execute_show [] p"
-
-definition "bubblesort_exec \<equiv> execute_show [] p"
-
-definition "bubblesort \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "bubblesort_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-
-ML_val \<open> @{code bubblesort_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
-
-setup \<open>export_c_code @{code bubblesort} @{code bubblesort_exec}"../TestC" "bubblesort"\<close>
 
 end

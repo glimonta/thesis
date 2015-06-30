@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [bubblesort_decl, bubblesort_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "bubblesort_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "bubblesort_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code bubblesort_test_show} @{code bubblesort_test}
-  @{code init_disc} @{code bubblesort_failed_check} "../TestC" "bubblesort_test"\<close>
+definition "bubblesort_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code bubblesort_test} "../TestC" "bubblesort_test"\<close>
 
 end

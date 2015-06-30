@@ -37,6 +37,6 @@ definition "quicksort_test_show \<equiv> (
 definition "quicksort_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code quicksort_test_show} @{code quicksort_test}
-  @{code init_disc} @{code quicksort_failed_check} "../TestC" "quicksort_test"\<close>
+   @{code quicksort_failed_check} "../TestC" "quicksort_test"\<close>
 
 end

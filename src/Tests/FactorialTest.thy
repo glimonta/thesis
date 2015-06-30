@@ -37,6 +37,6 @@ definition "fact_test_show \<equiv> (
 definition "fact_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code fact_test_show} @{code fact_test}
-  @{code init_disc} @{code fact_failed_check} "../TestC" "fact_test"\<close>
+   @{code fact_failed_check} "../TestC" "fact_test"\<close>
 
 end

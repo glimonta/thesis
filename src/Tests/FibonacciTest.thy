@@ -37,6 +37,6 @@ definition "fib_test_show \<equiv> (
 definition "fib_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code fib_test_show} @{code fib_test}
-  @{code init_disc} @{code fib_failed_check} "../TestC" "fib_test"\<close>
+   @{code fib_failed_check} "../TestC" "fib_test"\<close>
 
 end

@@ -36,6 +36,6 @@ definition "and_test_show \<equiv> (
 definition "and_failed_check \<equiv> failed_check p'"
 
 setup \<open>generate_c_test_code @{code and_test_show} @{code and_test}
-  @{code init_disc} @{code and_failed_check} "../TestC" "and_test"\<close>
+   @{code and_failed_check} "../TestC" "and_test"\<close>
 
 end
