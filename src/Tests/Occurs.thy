@@ -51,29 +51,7 @@ definition p :: program
       program.procs = [occurs_decl, main_decl]
     \<rparr>"
 
-export_code p in SML
-
-(* Check if 5 and 84 occur in the array bb1 = 0 (False) bb2 = 1 (True) *)
-value "execute_show [] p"
-
-definition "occurs_exec \<equiv> execute_show [] p"
-
-definition "occurs \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "occurs_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-
-ML_val \<open> @{code occurs_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
-
-setup \<open>export_c_code @{code occurs} @{code occurs_exec} "../TestC" "occurs"\<close>
+definition "occurs_export \<equiv> prepare_export p"
+setup \<open>export_c_code @{code occurs_export}"../TestC" "occurs"\<close>
 
 end

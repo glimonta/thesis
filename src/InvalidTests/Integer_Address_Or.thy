@@ -8,8 +8,12 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body =
-        xx ::= (Or (Const 21) (New (Const 21)))
-        (* Cannot perform or between an integer or an address *)
+        xx ::= (Or (Const 21) (New (Const 21)));;
+        (* Cannot perform or between an integer or an address.
+           The or between an integer and an address will only fail
+           when the first operand is false, otherwise it'll go through
+           because of the short-circuit evaluation (the address will never be evaluated) *)
+        xx ::= (Or (Const 0) (New (Const 21)))
     \<rparr>"
 
 definition p :: program
@@ -19,26 +23,9 @@ definition p :: program
       program.procs = [main_decl]
     \<rparr>"
 
-export_code p in SML
+value "execute_show (program.globals p) p"
 
-value "execute_show [] p"
-
-definition "integer_address_or_exec \<equiv> execute_show [] p"
-
-definition "integer_address_or_ex \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "integer_address_or_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-setup \<open>export_c_code @{code integer_address_or_ex} @{code integer_address_or_exec} "../TestC" "integer_address_or"\<close>
-
+definition "test \<equiv> prepare_test_export p"
+ML \<open>expect_failed_test @{code test}\<close>
 
 end

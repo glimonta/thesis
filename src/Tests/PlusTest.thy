@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [plus_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "plus_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "plus_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code plus_test_show} @{code plus_test}
-   @{code plus_failed_check} "../TestC" "plus_test"\<close>
+definition "plus_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code plus_test} "../TestC" "plus_test"\<close>
 
 end

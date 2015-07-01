@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [swap_decl, quicksort_decl, quicksort_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "quicksort_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "quicksort_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code quicksort_test_show} @{code quicksort_test}
-   @{code quicksort_failed_check} "../TestC" "quicksort_test"\<close>
+definition "quicksort_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code quicksort_test} "../TestC" "quicksort_test"\<close>
 
 end

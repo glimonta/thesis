@@ -45,29 +45,7 @@ definition p :: program
       program.procs = [min_decl, main_decl]
     \<rparr>"
 
-export_code p in SML
-
-(* The minimum of the array should be 1 and saved in global variable mm *)
-value "execute_show [] p"
-
-definition "minimum_exec \<equiv> execute_show [] p"
-
-definition "minimum \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "minimum_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-
-ML_val \<open> @{code minimum_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
-
-setup \<open>export_c_code @{code minimum} @{code minimum_exec} "../TestC" "min"\<close>
+definition "minimum_export \<equiv> prepare_export p"
+setup \<open>export_c_code @{code minimum_export}"../TestC" "min"\<close>
 
 end

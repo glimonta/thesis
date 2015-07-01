@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [selection_decl, selection_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "selection_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "selection_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code selection_test_show} @{code selection_test}
-   @{code selection_failed_check} "../TestC" "selection_test"\<close>
+definition "selection_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code selection_test} "../TestC" "selection_test"\<close>
 
 end

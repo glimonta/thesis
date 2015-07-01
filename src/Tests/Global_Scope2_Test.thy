@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [mult_decl, doub_decl, global_scope2_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "global_scope2_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "global_scope2_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code global_scope2_test_show} @{code global_scope2_test}
-   @{code global_scope2_failed_check} "../TestC" "global_scope2_test"\<close>
+definition "global_scope2_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code global_scope2_test} "../TestC" "global_scope2_test"\<close>
 
 end

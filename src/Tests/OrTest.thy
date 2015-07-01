@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [or_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "or_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "or_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code or_test_show} @{code or_test}
-   @{code or_failed_check} "../TestC" "or_test"\<close>
+definition "or_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code or_test} "../TestC" "or_test"\<close>
 
 end

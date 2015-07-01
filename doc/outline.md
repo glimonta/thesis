@@ -21,7 +21,7 @@ Thesis Outline
 
     1.2 Previous and related work
 
-      Related work:                
+      Related work:
     *** Compcert project (they use the same memory model)
       *** Andrew W. Appel: Program Logics
     *** Michael Norrish: C formalised in HOL
@@ -29,8 +29,6 @@ Thesis Outline
       This is an example for parsing C-code and abstracting it, while we *generate* C code.
       There are more VCGs for C out there.
       I would not go to deep into this!
-                
-                
 
 2. Problem statement
 

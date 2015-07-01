@@ -55,29 +55,7 @@ definition p :: program
       program.procs = [create_array_decl, str_len_decl, main_decl]
     \<rparr>"
 
-export_code p in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p"
-
-definition "strlen_exec \<equiv> execute_show [] p"
-
-definition "strlen \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "strlen_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-
-ML_val \<open> @{code strlen_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
-
-setup \<open>export_c_code @{code strlen} @{code strlen_exec} "../TestC" "strlen"\<close>
+definition "strlen_export \<equiv> prepare_export p"
+setup \<open>export_c_code @{code strlen_export}"../TestC" "strlen"\<close>
 
 end

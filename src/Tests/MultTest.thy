@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [mult_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "mult_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "mult_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code mult_test_show} @{code mult_test}
-   @{code mult_failed_check} "../TestC" "mult_test"\<close>
+definition "mult_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code mult_test} "../TestC" "mult_test"\<close>
 
 end

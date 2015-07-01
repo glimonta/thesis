@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [not_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "not_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "not_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code not_test_show} @{code not_test}
-   @{code not_failed_check} "../TestC" "not_test"\<close>
+definition "not_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code not_test} "../TestC" "not_test"\<close>
 
 end

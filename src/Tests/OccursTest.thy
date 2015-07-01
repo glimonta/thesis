@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [occurs_decl, occurs_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "occurs_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "occurs_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code occurs_test_show} @{code occurs_test}
-   @{code occurs_failed_check} "../TestC" "occurs_test"\<close>
+definition "occurs_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code occurs_test} "../TestC" "occurs_test"\<close>
 
 end

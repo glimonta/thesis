@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [create_array_decl, str_len_decl, strlen_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "strlen_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "strlen_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code strlen_test_show} @{code strlen_test}
-   @{code strlen_failed_check} "../TestC" "strlen_test"\<close>
+definition "strlen_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code strlen_test} "../TestC" "strlen_test"\<close>
 
 end

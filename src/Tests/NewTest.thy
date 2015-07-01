@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [new_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "new_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "new_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code new_test_show} @{code new_test}
-   @{code new_failed_check} "../TestC" "new_test"\<close>
+definition "bubblesort_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code bubblesort_test} "../TestC" "bubblesort_test"\<close>
 
 end

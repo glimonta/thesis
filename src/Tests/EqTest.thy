@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [eq_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "eq_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "eq_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code eq_test_show} @{code eq_test}
-   @{code eq_failed_check} "../TestC" "eq_test"\<close>
+definition "eq_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code eq_test} "../TestC" "eq_test"\<close>
 
 end

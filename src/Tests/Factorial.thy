@@ -35,30 +35,7 @@ definition p :: program
       program.procs = [factorial_decl, main_decl]
     \<rparr>"
 
-export_code p in SML
-
-(* The factorial of the number is on the variable rr *)
-value "execute_show [] p"
-
-definition "fact_exec \<equiv> execute_show [] p"
-
-definition "fact \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "fact_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-
-ML_val \<open> @{code fact_test} |> the |> apply2 String.implode |> apply2 writeln \<close>
-
-setup \<open>export_c_code @{code fact} @{code fact_exec} "../TestC" "fact"\<close>
-
+definition "fact_export \<equiv> prepare_export p"
+setup \<open>export_c_code @{code fact_export}"../TestC" "fact"\<close>
 
 end

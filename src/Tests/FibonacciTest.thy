@@ -25,18 +25,7 @@ definition p' :: program
       program.procs = [fib_decl, fib_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p'"
-
-definition "fib_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "fib_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code fib_test_show} @{code fib_test}
-   @{code fib_failed_check} "../TestC" "fib_test"\<close>
+definition "fib_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code fib_test} "../TestC" "fib_test"\<close>
 
 end

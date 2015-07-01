@@ -18,26 +18,8 @@ definition p :: program
       program.procs = [main_decl]
     \<rparr>"
 
-export_code p in SML
 
-value "execute_show [] p"
-
-definition "null_address_subst_exec \<equiv> execute_show [] p"
-
-definition "null_address_subst_ex \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "null_address_subst_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-setup \<open>export_c_code @{code null_address_subst_ex} @{code null_address_subst_exec} "../TestC" "null_address_subst"\<close>
-
+definition "test \<equiv> prepare_test_export p"
+ML \<open>expect_failed_test @{code test}\<close>
 
 end

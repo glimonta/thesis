@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [init_decl, deref_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "deref_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "deref_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code deref_test_show} @{code deref_test}
-   @{code deref_failed_check} "../TestC" "deref_test"\<close>
+definition "deref_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code deref_test} "../TestC" "deref_test"\<close>
 
 end

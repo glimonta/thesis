@@ -25,17 +25,7 @@ definition p' :: program
       program.procs = [mult_decl, local_scope_main_decl, main_test_decl]
     \<rparr>"
 
-export_code p' in SML
-
-value "execute_show [] p'"
-
-definition "local_scope_test_show \<equiv> (
-  shows_prog p' ''''
-)"
-
-definition "local_scope_failed_check \<equiv> failed_check p'"
-
-setup \<open>generate_c_test_code @{code local_scope_test_show} @{code local_scope_test}
-   @{code local_scope_failed_check} "../TestC" "local_scope_test"\<close>
+definition "local_scope_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code local_scope_test} "../TestC" "local_scope_test"\<close>
 
 end

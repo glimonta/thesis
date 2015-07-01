@@ -8,7 +8,7 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body =
-        xx ::= (Const (word_of_int INT_MAX + 1)) (* Overflow *)
+        xx ::= (Const (INT_MAX + 1)) (* Overflow *)
     \<rparr>"
 
 definition p :: program
@@ -18,26 +18,8 @@ definition p :: program
       program.procs = [main_decl]
     \<rparr>"
 
-export_code p in SML
 
-value "execute_show [] p"
-
-definition "overflow1_const_exec \<equiv> execute_show [] p"
-
-definition "overflow1_const_ex \<equiv> (
-  shows_prog p ''''
-)"
-
-definition "overflow1_const_test \<equiv> do {
-  s \<leftarrow> execute p;
-  let vnames = program.globals p;
-  (_,tests) \<leftarrow> emit_globals_tests vnames s;
-  let vars = tests_variables tests 1 '''';
-  let instrs = tests_instructions tests 1 '''';
-  Some (vars, instrs)
-}"
-
-setup \<open>export_c_code @{code overflow1_const_ex} @{code overflow1_const_exec} "../TestC" "overflow1_const"\<close>
-
+definition "test \<equiv> prepare_test_export p"
+ML \<open>expect_failed_test @{code test}\<close>
 
 end

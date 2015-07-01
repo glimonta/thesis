@@ -1,0 +1,64 @@
+1. Introduction
+    1.1. Motivation
+    1.2. Theoretical Background
+        1.2.1. Semantics of a programming language
+          Definition and types of semantics.
+        1.2.2. HOL
+        1.2.3. Language used in this work
+2. Previous and Related Work
+    2.1. CompCert Project
+      The memory model used in this work is the same as the one used in the compcert project.
+    2.2. C formalized in HOL
+    2.3. The inverted process, from C code to semantics
+3. Syntax and Semantics
+    3.1. Isabelle
+    3.2. Expressions
+        3.2.1. Syntax
+          3.2.1.1. Memory
+          3.2.1.2. Types
+            Addresses and integers
+        3.2.2. Semantics
+    3.3. Commands
+        3.3.1. Syntax
+        3.3.2. Semantics
+    3.4. Functions
+    3.5. Programs
+    3.6. Restrictions
+    3.7. States
+        3.7.1. Valuation
+        3.7.2. Stack
+        3.7.3. Procedure Table
+    3.8. Small Step Semantics
+        3.8.1. CFG
+        3.8.2. Small Step semantics rules
+    3.9. Interpreter
+        3.9.1. Single step
+        3.9.2. Execution and Interpretation
+        3.9.3. Correctness
+4. Pretty Printer
+    4.1. Values
+    4.2. Memory
+    4.3. Expressions
+    4.4. Commands
+    4.5. Declarations
+    4.6. States
+    4.7. Programs
+    4.8. Exporting C code
+5. Testing
+    5.1. Test Harness in Isabelle
+    5.2. Test Harness in C
+    5.3. Tests
+        5.3.1. Equality of final states
+          Final state of reachable memory and global variables yielded by the Isabelle interpreter is the same as the one yielded by the generated, compiled and run C code.
+        5.3.2. Generation of Tests
+          Integer values and pointers.
+        5.3.3. Generation of code with tests
+          Using the test harness.
+          What is covered by this test suite?
+    5.4 Example programs
+6. Results
+7. Conclusion and Future work
+  7.1. Parsing C tests from the gcc torture test suite, translating them to our semantics and generate tests from them
+  7.2. Formalize proof rules for the language using separation logic for the pointers
+  7.3. Link the language with the Isabelle Refinement Framework so programs from the Isabelle Refinement Framework can be refined to programs in this language
+  7.4. Add a type system

@@ -50,7 +50,4 @@ definition p :: program
 definition "bubblesort_export \<equiv> prepare_export p"
 setup \<open>export_c_code @{code bubblesort_export}"../TestC" "bubblesort"\<close>
 
-(* The length of the string should be 5 and be saved in global variable ll *)
-value "execute_show [] p"
-
 end
