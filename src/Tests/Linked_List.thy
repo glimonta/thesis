@@ -135,9 +135,7 @@ definition linked_list_delete_decl :: fun_decl
             IF (Eq (V dd) (V cc)) THEN (
               Callfun aa ''get_next'' [V nn];;
               Callfunv ''set_next'' [V pp, V aa];;
-              Callfun ss ''get_size'' [V hh];;
-              Callfunv ''set_size'' [V ss, (Subst (V ss) (Const 1))](*;;
-              FREE (Derefl (V nn))*)
+              FREE (Derefl (V nn))
             ) ELSE (
               SKIP
             );;
@@ -166,8 +164,8 @@ definition p :: program
   where "p \<equiv> 
     \<lparr> program.name = ''linked_list'',
       program.globals = [aa],
-      program.procs = [linked_list_create_decl, get_first_decl, set_first_decl, get_size_decl,
-        set_size_decl, create_elem_decl, get_data_decl, get_next_decl, set_data_decl,
+      program.procs = [linked_list_create_decl, get_first_decl, set_first_decl, create_elem_decl,
+      get_data_decl, get_next_decl, set_data_decl,
         set_next_decl, linked_list_add_decl, linked_list_delete_decl, main_decl]
     \<rparr>"
 
