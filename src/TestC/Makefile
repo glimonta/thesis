@@ -3,7 +3,7 @@ HASH = ../hashset.h ../hashset.c
 TEST = ../test_harness.h
 .PHONY: all clean
 
-all: bubblesort bubblesort_test count count_test fact fact_test fib fib_test mergesort mergesort_test min min_test occurs occurs_test quicksort quicksort_test selection selection_test strlen strlen_test plus plus_test subst subst_test outer_scope outer_scope_test local_scope local_scope_test global_scope global_scope_test global_scope2 global_scope2_test mod mod_test div div_test mult mult_test less less_test and and_test or or_test not not_test eq eq_test new new_test deref deref_test
+all: bubblesort bubblesort_test count count_test fact fact_test fib fib_test mergesort mergesort_test min min_test occurs occurs_test quicksort quicksort_test selection selection_test strlen strlen_test plus plus_test subst subst_test outer_scope outer_scope_test local_scope local_scope_test global_scope global_scope_test global_scope2 global_scope2_test mod mod_test div div_test mult mult_test less less_test and and_test or or_test not not_test eq eq_test new new_test deref deref_test while while_test returnv returnv_test linked_list linked_list_test
 
 # Executables for the regular programs.
 bubblesort:    bubblesort.c;    gcc $(COPTS) -o $@ $^
@@ -32,6 +32,9 @@ not:           not.c;           gcc $(COPTS) -o $@ $^
 eq:            eq.c;            gcc $(COPTS) -o $@ $^
 new:           new.c;           gcc $(COPTS) -o $@ $^
 deref:         deref.c;         gcc $(COPTS) -o $@ $^
+while:         while.c;         gcc $(COPTS) -o $@ $^
+returnv:       returnv.c;       gcc $(COPTS) -o $@ $^
+linked_list:   linked_list.c;   gcc $(COPTS) -o $@ $^
 
 # Executables for the programs that include the tests.
 bubblesort_test:    bubblesort_test.c;    gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
@@ -60,5 +63,8 @@ not_test:           not_test.c;           gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
 eq_test:            eq_test.c;            gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
 new_test:           new_test.c;           gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
 deref_test:         deref_test.c;         gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
+while_test:         while_test.c;         gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
+returnv_test:       returnv_test.c;       gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
+linked_list_test:   linked_list_test.c;   gcc $(COPTS) -o $@ $^ $(TEST) $(HASH)
 
-clean: ; rm -f ./*.o bubblesort count fact fib mergesort min occurs quicksort selection strlen bubblesort_test count_test fact_test fib_test mergesort_test min_test occurs_test quicksort_test selection_test strlen_test plus plus_test subst subst_test outer_scope outer_scope_test local_scope local_scope_test global_scope global_scope_test global_scope2 global_scope2_test mod mod_test div div_test mult mult_test less less_test and and_test or or_test not not_test eq eq_test new new_test deref deref_test
+clean: ; rm -f ./*.o bubblesort count fact fib mergesort min occurs quicksort selection strlen bubblesort_test count_test fact_test fib_test mergesort_test min_test occurs_test quicksort_test selection_test strlen_test plus plus_test subst subst_test outer_scope outer_scope_test local_scope local_scope_test global_scope global_scope_test global_scope2 global_scope2_test mod mod_test div div_test mult mult_test less less_test and and_test or or_test not not_test eq eq_test new new_test deref deref_test while while_test returnv returnv_test linked_list linked_list_test

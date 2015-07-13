@@ -26,3 +26,6 @@
 ./eq_test
 ./new_test
 ./deref_test
+./while_test
+./returnv_test
+./linked_list_test

@@ -12,6 +12,7 @@ imports
   Global_Scope2_Test
   Global_Scope_Test
   LessTest
+  Linked_List_Test
   Local_Scope_Test
   MergesortTest
   MinimumTest
@@ -25,9 +26,11 @@ imports
   Outer_Scope_Test
   PlusTest
   QuicksortTest
+  Returnv_Test
   SelectionsortTest
   StrLengthTest
   SubstTest
+  WhileTest
 
 (* Invalid *)
   "../InvalidTests/Address_And"

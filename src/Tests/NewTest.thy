@@ -25,7 +25,7 @@ definition p' :: program
       program.procs = [new_main_decl, main_test_decl]
     \<rparr>"
 
-definition "bubblesort_test \<equiv> prepare_test_export p'"
-setup \<open>generate_c_test_code @{code bubblesort_test} "../TestC" "bubblesort_test"\<close>
+definition "new_test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code new_test} "../TestC" "new_test"\<close>
 
 end

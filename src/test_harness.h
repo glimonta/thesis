@@ -13,6 +13,6 @@ int failed = 0;
 
 #define __TEST_HARNESS_ASSERT_EQ(var, val) ++num_tests; (var != val) ? ++failed : ++passed;
 
-#define __TEST_HARNESS_ASSERT_EQ_NULL(var) ++num_tests; (&var != NULL) ? ++failed : ++passed;
+#define __TEST_HARNESS_ASSERT_EQ_NULL(var) ++num_tests; (var != NULL) ? ++failed : ++passed;
 
 #define __TEST_HARNESS_ASSERT_EQ_PTR(var, val) ++num_tests; (var != val) ? ++failed : ++passed;

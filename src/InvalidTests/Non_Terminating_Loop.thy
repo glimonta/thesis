@@ -21,6 +21,6 @@ definition p :: program
 
 
 definition "test \<equiv> prepare_test_export p"
-ML \<open>expect_failed_test @{code test}\<close>
+(*ML \<open>expect_failed_test @{code test}\<close>*)
 
 end
