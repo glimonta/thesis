@@ -1,0 +1,4 @@
+* Add a more refined testing script in run_tests.sh that catches when there's a segmentation fault or some erroneous execution.
+  This way we can obtain more info from it.
+
+* Fix the if failed definition

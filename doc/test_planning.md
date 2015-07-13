@@ -223,6 +223,7 @@
     + if: taking the true branch and taking the false branch.
 * While
     + while: cycle that executes a definite amout of times, cycle that is not executed at all.
+* Return
     + returnv: even if a void function has no return then it will return when reaching end of control.
       Return from a void function.
 * Callfunl
