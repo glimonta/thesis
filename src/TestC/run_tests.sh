@@ -29,3 +29,4 @@
 ./while_test
 ./returnv_test
 ./linked_list_test
+./cyclic_linked_list_test
