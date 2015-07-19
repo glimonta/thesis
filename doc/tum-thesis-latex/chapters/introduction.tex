@@ -1,14 +1,248 @@
 \chapter{Introduction}\label{chapter:introduction}
 
 \section{Motivation}
+
 \section{Theoretical Background}
 
 \subsection{Semantics of a programming language}
+
+In this section we'll give a short introduction to the concepts regarding semantics we want the reader to be familiar with beforehand.
+
 \subsubsection{Definition}
+
+\begin{comment}
+Maybe wanna rewrite this definition or find a source that backs it up?
+\end{comment}
+Semantics is the mathematical rigorous study of the meaning or behaviour of programs from a programming language.
+The rigorous nature of this study is due to the fact that it can reveal ambiguities or underlying complexities in documents defined used natural language, and also that this mathematical rigour is necessary for correctness proofs.
+Many big programming languages, e.g.\ the C language, have their reference document, where the semantics of the language is explained, written in natural language.
+
+\begin{comment}
+This part I took as an idea from reading the second part of Concrete Semantics
+\end{comment}
+Sadly natural language leads to subtle ambiguities that further make it harder to reason about programs in this language.
+The lack of a rigorous mathematically defined semantics also makes it harder for developers of tools for that programing language, i.e.\ compilers, to write accurate tools for it since, due to the ambiguities, some part of the language is subject to the interpretation of the reader.
+This doesn't happen with formally defined terms, by using these we lose the possibility of ambiguity and can ensure that the meaning of a construct in the language always has the same meaning as defined in its semantics.
+
+
+In order to further clarify the definition and the different types of semantics there exists we are going to use an example we considered relevant from Nielson and Nielson~\parencite{nielson}:
+
+If we take the following construct
+\begin{equation*}
+z:=x; x:=y; y:=z
+\end{equation*}
+where `$:=$' is assignment to a variable and `$;$' is the instruction sequentiation.
+Syntactically this is three statements separated by `$;$', where each statement is confomed by a variable, the symbol `$:=$' and a second variable.
+
+The \textit{semantics} of this construct is the meaning of this program.
+Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a temporary variable).
+
 \subsubsection{Types of semantics}
+
+The last was a rough explanation of the semantics of that particular program.
+This semantical explanation can clearly be done in a more detailed way where we exaplain the meaning of the sequence of statements separated by `$;$' and the one of the individual assign statement.
+
+There are many differnt approaches on how to formalize the semantics of a programming language.
+Each one of them has a different idea behind it and have a different degree of usefulness depending on the purpose one has for the semantics.
+The most widely used approaches are:
+
+\begin{itemize}
+\item{Operational semantics:}
+The meaning is specified by the computation on a machine when executing the program.
+The interest lies on the ``\textit{how} the effect of a computation is produced.''~\parencite{nielson}
+\item{Denotational semantics:}
+The meaning of a construct are modelled mathematically by objects that represent the effect of executing the construct.
+Here the main interest lies in the effect and not how it was obtained.
+\item{Axiomatic semantics:}
+Here the main interest lies in expressing some properties of the construct in the form of assertions.
+\end{itemize}
+
+\subsubsection{Operational semantics}
+
+In the operational approach we focus on \textit{how} to execute a construct.
+Taking the previous example:
+
+\begin{itemize}
+\item{We execute each individual statement in left-to-right order in order to execute the complete sequence of statements separated by `$;$'}
+\item{In order to execute an assignment of a variable to another, we determine the value of the second variable and assign it to the first one.}
+\end{itemize}
+
+There's two different kinds of operational semantics, namely \textit{small-step semantics} (or structural operational semantics) and \textit{big-step semantics} (or natural semantics).
+
+\paragraph{Small-step semantics}
+
+Supposing we have a state where the variable $x$ has the value $5$, the variable $y$ has the value $7$ and the variable $z$ the value $0$ and the construct from our example we would obtain the following \enquote{derivation sequence}:
+
+\begin{equation*}
+\begin{split}
+& \phantom{\Rightarrow} \phantom{=} \langle z:=x; x:=y; y:=z, [x\mapsto5, y\mapsto7, z\mapsto0]\rangle\\
+& \Rightarrow \phantom{=} \phantom{z:=x} \langle x:=y; y:=z [x\mapsto5, y\mapsto7, z\mapsto5]\rangle\\
+& \Rightarrow \phantom{=} \phantom{z:=x; x:=y} \langle y:=z [x\mapsto7, y\mapsto7, z\mapsto5]\rangle\\
+& \Rightarrow \phantom{=} \phantom{z:=x; x:=y; y:=z} [x\mapsto7, y\mapsto5, z\mapsto5]
+\end{split}
+\end{equation*}
+
+What happened here is that in the first step the statement $z:=x$ is executed and the value of the variable $z$ changes to $5$, $x$ and $y$ remain unchanged.
+After executing the first statement the program we're left with is $x:=y; y:=z$.
+We execute the second statement $x:=y$ and the value of $x$ changes to $7$, $y$ and $z$ remain unchanged.
+We're left then with the program $y:=z$, after executing this final statement the value of $y$ changes to $5$, $x$ and $z$ remain unchanged.
+
+Then we have that the behaviour of this program was to change the values of $x$ and $y$ using $z$ as a temporary variable.
+
+
+This explanation of the meaning of a program gives an \textit{abstraction} on how the program is executed on a machine.
+It is independent from the architecture and implementation strategies of a particular machine, due to the fact that details like the use of registers or addresses for variables are not relevant.
+
+\paragraph{Big-step semantics}
+
+In this kind of semantics we hide more execution details.
+The \enquote{derivation sequence} for the previous construct in the big-step semantics would be:
+
+\begin{equation*}
+\cfrac{
+  \cfrac{\langle z:=x, s_{0}\rangle \rightarrow s_{1} \qquad \langle x:=y, s_{1} \rangle \rightarrow s_{2}}
+    {\langle z:=x; x:=y, s_{0} \rangle \rightarrow s_{2}}
+  \qquad
+  \langle y:=z, s_{2} \rangle \rightarrow s_{3}
+  }
+  {\langle z:=x; x:=y; y:=z, s_{0} \rangle \rightarrow s_{3}}
+\end{equation*}
+
+where the following abbreviations were used:
+\begin{align*}
+s_{0} &= [x\mapsto5, y\mapsto7, z\mapsto0]\\
+s_{1} &= [x\mapsto5, y\mapsto7, z\mapsto5]\\
+s_{2} &= [x\mapsto7, y\mapsto7, z\mapsto5]\\
+s_{3} &= [x\mapsto7, y\mapsto5, z\mapsto5]
+\end{align*}
+
+Executing $z:=x$ in the state $s_{0}$ will yield the state $s_{1}$ and executing $x:=y$ in the state $s_{1}$ will yield the state $s_{2}$.
+Therefore executing $z:=x; x:=y$ in state $s_{0}$ will yield the state $s_{2}$.
+Also, executing $y:=z$ in the state $s_{2}$ will yield the state $s_{3}$.
+Finally, executing the whole program $z:=x; x:=y; y:=z$ in state $s_{0}$ will yield the state $s_{3}$.
+This is expressed by:
+
+\begin{equation*}
+\langle z:=x; x:=y; y:=z, s_{0} \rangle \rightarrow s_{3}
+\end{equation*}
+
+
+\subsubsection{Denotational semantics}
+In the denotational semantics we stop focusing on \textit{how} a construct is executed and redirect our focus to the \textit{effect} of executing the construct.
+We model this approach by mathematical functions.
+
+\begin{itemize}
+\item{The effect of a sequence of statements separated by `$;$' is the functional composition of the effects of each individual statement.}
+\item{The effect of an assignment between two variables is the function that given a state will yield a new state.
+This new state is the same state as the previous one with the only difference that the value of the first variable updated with the value of the second variable.}
+\end{itemize}
+
+For the example construct we've been using so far we would obtain functions of the form $S [\![ z:=x ]\!]$, $S [\![ x:=y ]\!]$ and $S [\![ y:=z ]\!]$ for each individual statement.
+On the other hand for the complete compound statement that is the whole program we will get the following function:
+
+\begin{equation*}
+S [\![ z:=x; x:=y; y:=z ]\!] = S [\![ y:=z ]\!] \circ S [\![ x:=y ]\!] \circ S [\![ z:=x ]\!]
+\end{equation*}
+
+Since we use function composition where $(f \circ g) s$ means $f(g s)$, the order of the statements changes.
+Executing the complete program $z:=x; x:=y, y:=z$ on a particular step would have the effect of \textit{applying} the function to the state and \textit{calculating} the resulting state as follows:
+
+\begin{align*}
+S [\![ z:=x; & x:=y; y:=z ]\!]([x\mapsto5, y\mapsto7, z\mapsto0])\\
+&= (S [\![ y:=z ]\!] \circ S [\![ x:=y ]\!] \circ S [\![ z:=x ]\!])([x\mapsto5, y\mapsto7, z\mapsto0])\\
+&= S [\![ y:=z ]\!](S [\![ x:=y ]\!] (S [\![ z:=x ]\!]))([x\mapsto5, y\mapsto7, z\mapsto0])\\
+&= S [\![ x:=y ]\!] (S [\![ z:=x ]\!])([x\mapsto5, y\mapsto7, z\mapsto5])\\
+&= S [\![ z:=x ]\!]([x\mapsto7, y\mapsto7, z\mapsto5])\\
+&= [x\mapsto7, y\mapsto5, z\mapsto5]
+\end{align*}
+
+In this approach we are only manipulating mathematical objects, note that the focus is not on how the results were obtained, but rather on what the final state looks like after applying the functions corresponding to the program.
+Since it abstracts away from how a program is executed, it is significantly easier to reason about programs as one would do with mathematical objects.
+To do this a firm mathematical basis has to be established, which is not a trivial task.
+
+The denotational approach is useful since it can easily be adapted to represent some properties of programs.
+Examples of this are variable initialization, constant folding and reachability.
+
+This approach is used when the priority is to reason about a program and its properties.
+
+\begin{comment}
+what the program does oposed to how it does it. Modifying mathematical objects.
+\end{comment}
+
+\subsubsection{Axiomatic semantics}
+
+This final approach is used when one is interested in \textit{partial correctness properties} of programs.
+A program is said to be partially correct with respect to a precondition and a postcondition if whenever it fulfils the precondition and terminates, then it is guaranteed that the final state will fulfil the postcondition.
+
+For the example program we are working with we can define the following partial correctness property:
+
+\begin{equation*}
+\lbrace x=n \land y=m \rbrace z:=x; x:=y; y:=z \lbrace x=m \land y=n \rbrace
+\end{equation*}
+
+where $\lbrace x=n \land y=m \rbrace $ and $\lbrace x=m \land y=n \rbrace $ are the precondition and postcondition, respectively.
+$n$ and $m$ indicate the initial values of $x$ and $y$.
+The state $[x\mapsto5, y\mapsto7, z\mapsto0]$ fulfils the precondition if $n=5$ and $m=7$ are taken.
+After the partial correcteness property is \textit{proved} then it can be deduced that \textit{if} the program terminates \textit{then} it will do so in a state where $x$ is $7$ and $y$ is $5$.
+Even though it is clear on this example program that it terminates it is important to note that the partial correctness property doesn't ensure a program's termination.
+
+This approach provides a \textit{logical system} for proving partial correctness properties of programs.
+The following ``proof tree'' can express a proof above partial corretness property:
+
+\begin{equation*}
+\cfrac{
+  \cfrac{ \lbrace p_{0} \rbrace z:=x \lbrace p_{1} \rbrace \qquad \lbrace p_{1} \rbrace x:=y \lbrace p_{2} \rbrace }
+    { \lbrace p_{0} \rbrace z:=x; x:=y \lbrace p_{2} \rbrace }
+  \qquad
+ \lbrace p_{2} \rbrace y:=z \lbrace p_{3} \rbrace
+  }
+  { \lbrace p_{0} \rbrace z:=x; x:=y; y:=z \lbrace p_{3} \rbrace }
+\end{equation*}
+
+where the following abbreviations were used:
+\begin{align*}
+p_{0} &= x=n \land y=m\\
+p_{1} &= y=m \land z=n\\
+p_{2} &= x=m \land z=n\\
+p_{3} &= x=m \land y=n
+\end{align*}
+
+The logical system can be viewed as the specification of only certain aspects of the semantics.
+All the aspects of the semantics are usually not captured because, for instance, all the following partial correctness properties:
+
+\begin{align*}
+\lbrace x=n \land y=m \rbrace & z:=x; x:=y; y:=z                                                \lbrace x=m \land y=n\rbrace\\
+\lbrace x=n \land y=m \rbrace & \mathtt{if }\ x = y\ \mathtt{ then}\ \mathtt{ skip }\ \mathtt{ else }\ (z:=x; x:=y; y:=z) \lbrace x=m \land y=n\rbrace\\
+\lbrace x=n \land y=m \rbrace & \mathtt{while }\ \mathtt{ true }\ \mathtt{ do }\ \mathtt{ skip }                                    \lbrace x=m \land y=n\rbrace
+\end{align*}
+
+can be proved using the logical system even though we do not regard these programs as having the same behaviour.
+
+
+The benefit of using this approach is that we are provided with an easy way to prove program properties by the logical system.
+It is important to note that this is only worthwhile when the axiomatic semantics conforms to some operational or denotational semantics that is more general.
+
+
 
 \subsection{HOL}
 
 \subsection{Language used in this work}
+
+In this work we formalize the semantics for a small programming language called Chloe (TODO).
+It is a subset of asd,mflakjsdfthe C programming language.
+The syntax and semantics of this programming language are largely discussed later in chapter 3.
+
+This language has the following features: variables, arrays, pointer arithmetic, while loop construct, if-then-else conditional construct and dynamic memory.
+Sadly, the scope of this project was limited to the features mentioned previously and there are several features that are currently not supported by the language.
+These features are a sound and correct type system, concurrency, I/O operations, goto, labels, break and continue.
+
+While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe (TODO) is enough to show some relevant program examples.
+
+\begin{comment}
 The language should probably have a name.
 I have to give one to it.
+Here I write what kind of features my language has.
+Variables, loops, functions, pointers, etc.
+And the features I do not support.
+Concurrency, types, etc.
+\end{comment}
