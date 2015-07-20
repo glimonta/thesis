@@ -243,8 +243,8 @@
 * Quicksort
 * Selectionsort
 * StrLength
+* Lists
 
 * Binary trees (array)
-* Lists
 * Ordered list
 * Binary search trees

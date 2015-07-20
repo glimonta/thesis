@@ -4,6 +4,7 @@ imports
   AndTest
   BubblesortTest
   CountTest
+  Cyclic_Linked_List_Test
   DerefTest
   DivTest
   EqTest

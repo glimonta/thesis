@@ -135,7 +135,7 @@ section \<open>Test Harness\<close>
     "failed_check_shows program_name ind \<equiv> indent ind (
       shows ''if (failed > 0)'' o shows_nl o
         (indent_basic (ind + 1) (
-          shows \<open>printf(\"Failed %d test(s) in file (passed %d) \<close> o shows program_name o shows \<open>.c\\n\", failed, passed)\<close>
+          shows \<open>printf(\"Failed %d test(s) in file \<close> o shows program_name o shows \<open>.c (passed %d)\\n\", failed, passed)\<close>
         )) o shows_nl o
       shows ''else'' o shows_nl o  
       (indent_basic (ind + 1) (
@@ -202,46 +202,5 @@ ML \<open>
     | expect_failed_test NONE = ()
 
 \<close>
-
-(*
-ML \<open>
-  fun generate_c_test_code code vars_tests failed_check rel_path name thy =
-    let 
-      val code = code |> String.implode
-      val vars = vars_tests |> the |> fst |> String.implode;
-      val tests_code = vars_tests |> the |> snd |> String.implode;
-      val failed_check = failed_check |> String.implode;
-      val nl = "\n";
-      val init_hash = @{code init_disc} |> String.implode;
-      val str = nl ^ vars ^ nl ^ init_hash ^ nl ^ tests_code ^ nl ^ failed_check ^ nl ^ "}";
- 
-    in
-      if rel_path="" orelse name="" then
-        (writeln str; thy)
-      else let  
-        val base_path = Resources.master_directory thy
-        val rel_path = Path.explode rel_path
-        val name_path = Path.basic name |> Path.ext "c"
-      
-        val abs_path = Path.appends [base_path, rel_path, name_path]
-        val abs_path = Path.implode abs_path
-     
-        val _ = writeln ("Writing to file " ^ abs_path)
-
-        val os = TextIO.openOut abs_path;
-        val _ = TextIO.output (os, code);
-        val _ = TextIO.flushOut os;
-        val _ = TextIO.closeOut os;
-
-        val _ = Isabelle_System.bash ("sed -i '$d ' " ^ abs_path);
-      
-        val os = TextIO.openAppend abs_path;
-        val _ = TextIO.output (os, str);
-        val _ = TextIO.flushOut os;
-        val _ = TextIO.closeOut os;
-      in thy end  
-    end  
-\<close>
-*)
 
 end
