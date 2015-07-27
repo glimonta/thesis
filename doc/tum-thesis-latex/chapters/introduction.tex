@@ -145,23 +145,24 @@ Then we have that the behaviour of this program was to change the values of $x$ 
 
 \subsubsection{Denotational semantics}
 In the denotational semantics we stop focusing on \textit{how} a construct is executed and redirect our focus to the \textit{effect} of executing the construct.
-We model this approach by mathematical functions.
+This approach assists us by giving a \textit{meaning} to the constructs in a language.~\parencite{nipkow}
+We model this approach by mathematical functions, we will have a function for each construct that defines the meaning of it and these functions operate over states, taking the initial state and yielding the state resulting from applying the effect of the construct.
+
+Taking the previous example we can define the effects of the different constructs we have: sequencing and assignment statements.
 
 \begin{itemize}
-\item{The effect of a sequence of statements separated by `$;$' is the functional composition of the effects of each individual statement.}
-\item{The effect of an assignment between two variables is the function that given a state will yield a new state.
-This new state is the same state as the previous one with the only difference that the value of the first variable updated with the value of the second variable.}
+\item{The effect of functional composition of each individual statement will define the effect of a sequence of statements.}
+\item{The effect of assignment between two variables is defined by a function that takes a state and yields the same state where the current value of the right-hand-side variable is updated with the new value of the left-hand-side variable.}
 \end{itemize}
 
-For the example construct we've been using so far we would obtain functions of the form $S [\![ z:=x ]\!]$, $S [\![ x:=y ]\!]$ and $S [\![ y:=z ]\!]$ for each individual statement.
+For this particular example construct we would obtain functions of the form $S [\![ z:=x ]\!]$, $S [\![ x:=y ]\!]$ and $S [\![ y:=z ]\!]$ for each individual statement.
 On the other hand for the complete compound statement that is the whole program we will get the following function:
 
 \begin{equation*}
 S [\![ z:=x; x:=y; y:=z ]\!] = S [\![ y:=z ]\!] \circ S [\![ x:=y ]\!] \circ S [\![ z:=x ]\!]
 \end{equation*}
 
-Since we use function composition where $(f \circ g) s$ means $f(g s)$, the order of the statements changes.
-Executing the complete program $z:=x; x:=y, y:=z$ on a particular step would have the effect of \textit{applying} the function to the state and \textit{calculating} the resulting state as follows:
+Executing the complete program $z:=x; x:=y, y:=z$ on a particular step would have the effect of \textit{applying} the function $S [\![ z:=x; x:=y; y:=z ]\!]$ to the initial state $[x\mapsto5, y\mapsto7, z\mapsto0]$:
 
 \begin{align*}
 S [\![ z:=x; & x:=y; y:=z ]\!]([x\mapsto5, y\mapsto7, z\mapsto0])\\
@@ -172,14 +173,12 @@ S [\![ z:=x; & x:=y; y:=z ]\!]([x\mapsto5, y\mapsto7, z\mapsto0])\\
 &= [x\mapsto7, y\mapsto5, z\mapsto5]
 \end{align*}
 
-In this approach we are only manipulating mathematical objects, note that the focus is not on how the results were obtained, but rather on what the final state looks like after applying the functions corresponding to the program.
-Since it abstracts away from how a program is executed, it is significantly easier to reason about programs as one would do with mathematical objects.
-To do this a firm mathematical basis has to be established, which is not a trivial task.
-
+We focus on the resulting state that represents the effect the program had in the initial state.
+It is easier to reason about programs using this approach since it is similar to reasoning about mathematical objects.
+Although it is important to note that establishing a firm mathematical basis to do so is not a trivial task.
 The denotational approach is useful since it can easily be adapted to represent some properties of programs.
 Examples of this are variable initialization, constant folding and reachability.
-
-This approach is used when the priority is to reason about a program and its properties.
+This approach is used when the priority is to reason about a program and its properties.~\parencite{nielson}
 
 \begin{comment}
 what the program does oposed to how it does it. Modifying mathematical objects.
@@ -188,9 +187,16 @@ what the program does oposed to how it does it. Modifying mathematical objects.
 \subsubsection{Axiomatic semantics}
 
 This final approach is used when one is interested in \textit{partial correctness properties} of programs.
-A program is said to be partially correct with respect to a precondition and a postcondition if whenever it fulfils the precondition and terminates, then it is guaranteed that the final state will fulfil the postcondition.
+Partial correctness with respect to a construct, a precondition and a postcondition whenever the following implication holds:
 
-For the example program we are working with we can define the following partial correctness property:
+\begin{displayquote}
+If the precondition holds before the construct is executed and the execution of the construct terminates then the postcondition holds for the final state.
+\end{displayquote}
+
+It is partial correctness because it depends on the termination of the contruct's execution.~\parencite{nipkow}
+
+
+The following partial corretness property is defined for the construct of our example:
 
 \begin{equation*}
 \lbrace x=n \land y=m \rbrace z:=x; x:=y; y:=z \lbrace x=m \land y=n \rbrace
@@ -200,10 +206,10 @@ where $\lbrace x=n \land y=m \rbrace $ and $\lbrace x=m \land y=n \rbrace $ are 
 $n$ and $m$ indicate the initial values of $x$ and $y$.
 The state $[x\mapsto5, y\mapsto7, z\mapsto0]$ fulfils the precondition if $n=5$ and $m=7$ are taken.
 After the partial correcteness property is \textit{proved} then it can be deduced that \textit{if} the program terminates \textit{then} it will do so in a state where $x$ is $7$ and $y$ is $5$.
-Even though it is clear on this example program that it terminates it is important to note that the partial correctness property doesn't ensure a program's termination.
+Even though it is clear on this example program that it terminates it is important to note that, as was stated previously, the partial correctness property doesn't ensure a program's termination and is dependent on it.
 
-This approach provides a \textit{logical system} for proving partial correctness properties of programs.
-The following ``proof tree'' can express a proof above partial corretness property:
+This approach relies on a \textit{proof system} or inference rules for deriving and proving partial correctness properties.~\parencite{nipkow}
+The following ``proof tree'' can express a proof for the above partial corretness property:
 
 \begin{equation*}
 \cfrac{
@@ -223,24 +229,12 @@ p_{2} &= x=m \land z=n\\
 p_{3} &= x=m \land y=n
 \end{align*}
 
-The logical system can be viewed as the specification of only certain aspects of the semantics.
-All the aspects of the semantics are usually not captured because, for instance, all the following partial correctness properties:
-
-\begin{align*}
-\lbrace x=n \land y=m \rbrace & z:=x; x:=y; y:=z                                                \lbrace x=m \land y=n\rbrace\\
-\lbrace x=n \land y=m \rbrace & \mathtt{if }\ x = y\ \mathtt{ then}\ \mathtt{ skip }\ \mathtt{ else }\ (z:=x; x:=y; y:=z) \lbrace x=m \land y=n\rbrace\\
-\lbrace x=n \land y=m \rbrace & \mathtt{while }\ \mathtt{ true }\ \mathtt{ do }\ \mathtt{ skip }                                    \lbrace x=m \land y=n\rbrace
-\end{align*}
-
-can be proved using the logical system even though we do not regard these programs as having the same behaviour.
+The benefit of using this approach is that we are provided with an easy way to prove program properties by the proof system.
 
 
-The benefit of using this approach is that we are provided with an easy way to prove program properties by the logical system.
-It is important to note that this is only worthwhile when the axiomatic semantics conforms to some operational or denotational semantics that is more general.
+\subsection{Isabelle/HOL}
 
-
-
-\subsection{HOL}
+We will shortly talk about what Isabelle/HOL is and then refer the reader to the book by Nipkow and Klein.~\parencite{nipkow}
 
 \subsection{Language used in this work}
 
