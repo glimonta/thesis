@@ -1,15 +1,65 @@
 \chapter{Previous and Related Work}\label{chapter:previous}
 
+There's a wide variety of work related to formalizing C semantics.
+We limit this section to the ones that are more directly relevant to our work.
+
+In this chapter we will proceed to introduce the previous and related work to the present one.
+
+Firstly we will talk about Michael Norrish's formalization of C in HOL.~\parencite{norrish}
+This work is closely related to ours because it formalizes the semantics of a bigger subset of C than the one we formalize, and it does so using HOL as well as our work.
+
+Then we will discuss the CompCert Project.~\parencite{compcert}
+In our work we adopt the memory model used for the verified C compiler in the CompCert Project.
+
+Finally (if there's time to write it), we will write about the Autocorres and other VCGs that abstracts low-level C semantics into higher level representations.
+It translates C code into the logic of a theorem prover in order to prove properties about the C source code.
+
+\section{C formalized in HOL}
+
+An important previous work to take into account when talking about C semantics is the work by Michael Norrish in 1998~\parencite{norrish}, where he formalizes the semantics for a big subset of the C programming language.
+
+The following is a list of differences between Norrish's work and ours, this is to be refined later
+\begin{itemize}
+\item{Both our works use the underlying Higher Order Logic, in Norrish's work he uses the HOL theorem prover whereas we use Isabelle/HOL for our theorem proving but essentially both are machine checked proofs}
+\item{Norrish's work formalizes the C semantics as a structural operational semantics with ``a description of an abstract machine that interprets the syntax of the language''.
+``The abstract machine's behaviour is then held to correspond to the behaviour one would expect from exeuting the program on an actual computer''.
+We also use a structural operational semantics and we write an interpreter for executing the language constructs inside Isabelle's environment.}
+\item{Norrish has as a goal the verification of C code, we want to generate verified C code.}
+\item{Norrish's formalization includes a typesystem whereas ours doesn't.
+Norrish's typesystem omits the enumeration types, the type qualifiers \textit{const} and \textit{volatile}, bit-fields and union types.
+Functions can't take variable number of arguments.
+The typedef construct is ignored.
+He treats the functions and array types as function parameters differently.}
+\item{Norrish's definition in 1998 was the one that covered most of the C semantics up to that date.}
+\item{Norrish derives axiomatic style rules for a C programming logic, we don't do that.}
+\item{Norrish's sematnics is a big step semantics.}
+\item{In norrish's semantics the evaluation order for side effects doesn't matter, it contemplates every possible evaluation order for expressions before some sequence point is encountered.
+The side effects are not applied immediately upon their creation but can be kept pending, nor must they be applied in order.
+They keep a set of pending side effects which is emptied in a non-deterministic order and at non-deterministic times.}
+\item{omits switch and goto statements.}
+\item{Expression evaluation uses a small step semantics.}
+\item{Statement evaluation uses a big step semantics.}
+\item{Instead of generating C code Norrish focus on creating a programming logic for C that allows the user to reason about programs at the level of statements.
+He uses Hoare logic (axiomatic semantics) and generates provably correct postconditions from analysing loop bodies even in presence of break continue and return.}
+\item{}
+\item{}
+\item{}
+\end{itemize}
+
+
+Norrish has a formalized C semantics in HOL, our semantics is also formalized in HOL.
+
+Works that have as a goal to formalize some part of the semantics of the C programming language are covered by Norrish's thesis in his related work section.
+
+Also work formalizing the semantics of Java-like languages or subsets of Java are abundant.
+Even though it is also formalizing semantic definitions we find it not directly relatable to our work.
+
 \section{CompCert Project}
 
 \subsection{Program Logics Andrew W. Appel}
 
 Relevant to this part is the Program Logics for Certified Compilers book from Andrew W. Appel.
 This project uses the same memory model used in this work and that's why it's relevant.
-
-\section{C formalized in HOL, Michael Norrish}
-
-Norrish has a formalized C semantics in HOL, our semantics is also formalized in HOL.
 
 \section{Different approach (From C code to semantics)}
 

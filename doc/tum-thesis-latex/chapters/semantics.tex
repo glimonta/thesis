@@ -8,15 +8,118 @@ Maybe this should be moved to the theoretical background.
 
 \section{Expressions}
 
+Our imperative language is called Chloe and it represents a subset of the C language.
+
 \subsection{Syntax}
 
-\subsubsection{Memory}
+Here we proceed to describe the \textbf{abstract syntax} for the expressions of the Chloe language.
+
+\begin{lstlisting}[caption=Chloe expressions, frame=single]
+type_synonym vname = string
+
+datatype exp = Const int
+             | Null
+             | V      vname
+             | Plus  exp exp
+             | Subst exp exp
+             | Minus exp
+             | Div   exp exp
+             | Mod   exp exp
+             | Mult  exp exp
+             | Less  exp exp
+             | Not   exp
+             | And   exp exp
+             | Or    exp exp
+             | Eq    exp exp
+             | New   exp
+             | Deref exp
+             | Ref   lexp
+             | Index exp exp
+and
+datatype lexp = Deref exp
+              | Indexl exp exp
+\end{lstlisting}
+
+Where \verb|int| is the predefined type for integers and \verb|vname| stands for variable name.
+
+We define two new datatypes in Isabelle, one for expressions and one for left-hand-side expressions.
+It is important to differentiate between these two in the case where we are dealing with pointer expressions.
+For instance, let's take the following C expressions:
+
+\begin{lstlisting}[language=C, frame=single]
+foo = *bar;
+*baz = 1;
+\end{lstlisting}
+
+In the first expression \verb|*bar| is on the right-hand-side, in this case we want \verb|*bar| to yield a value we can then assign to \verb|foo|.
+On the other hand, in the second expression \verb|*baz| is on the left-hand-side, in this case we want \verb|*baz| to yield an address to which we can assign the value \verb|1|.
+
+This also occurs with array indexing.
+In order to correctly model the semantics for the Chloe expressions it is necessary to have this distinction between left-hand-side expressions and right-hand-side expressions.
+
+Chloe supports constant expressions, null expressions, variables as well as the following operation over expressions: addition, substraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
+We also have a \verb|New| expression which is the equivalent of a \verb|malloc| call in C.
+We have dereferencing, referencing and array subscripting, these are in C the \verb|*|, \verb|&| and \verb|[]| operators, respectively.
+Finally as left-hand-side expressions we have dereferencing and array subscripting.
+
 \subsubsection{Types}
 
-\begin{itemize}
-\item Addresses
-\item Integers
-\end{itemize}
+In the Chloe language we have two types, namely integers and addresses.
+We differentiate between values of type integer and addresses in order to correctly define our semantics.
+Next, we will proceed to present the details of the two types in the Chloe language.
+
+\paragraph{Integers}
+
+We define the following type synonyms in Isabelle:
+
+\begin{lstlisting}[frame=single]
+type_synonym int_width = 64
+type_synonym int_val = ``int_width word''
+\end{lstlisting}
+
+
+The term \verb|int_width| refers to the width of the integer value.
+In this case we assume a value of 64 since we are working with a 64 bit architecture.
+This parameter indicates the semantics to assume we are working with a 64 bit architecture where the max and min values for an integer are defined as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+abbreviation INT_MIN :: int where $"$INT_MIN $\equiv$ - (2^(int_width - 1))$"$
+abbreviation INT_MAX :: int where $"$INT_MAX $\equiv$  ((2^(int_width - 1)) - 1)$"$
+\end{lstlisting}
+
+When working with a different architecture this parameter can be changed in order to comply with the architechture's requierements.
+
+Also our integers are defined as words of length \verb|int_width| (in this case \verb|64|).
+Since we are not using the Isabelle's predefined \verb|int| type, in order to work with words and to support code generation for them we use the Native Word entry in the Archive of Formal Proofs.~\parencite{Native_Word-AFP}.
+
+
+\paragraph{Addresses}
+
+We define the following \verb|datatype| in Isabelle to represent addresses:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+datatype addr = $"$nat $\times$ int $"$
+\end{lstlisting}
+
+An address will then be a pair conformed by a natural number and an integer, these represent a \verb|(block_id, offset)| pair.
+In the following section we will proceed to explain the layout of the memory.
+
+\subsubsection{Memory}
+
+We model dynamic memory in the following way:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+type_synonym mem = $"$val option list option list$"$
+\end{lstlisting}
+
+The memory is represented by a list of blocks and each of these blocks contain a list of cells with the data in memory.
+
+We index the memory with an address value.
+An address value, as described before, is a pair of \verb|(base, offset)| where base identifies the block.
+If the block is not allocated, when indexing the list in the base position, there will be a \verb|None| value, if the block is allocated then there's a \verb|Some <list>| that denotes the content of the block, which is a list of cells.
+We use the offset to index inside the block.
+If the cell in the block we try to index is uninitialized there will be a \verb|None| value, otherwise there will be a \verb|Some None| indicating an uninitialized value, and a \verb|Some <value>| for an initialized cell with content \verb|<value>|.
+
 
 \subsection{Semantics}
 

@@ -1,6 +1,19 @@
 \chapter{Introduction}\label{chapter:introduction}
 
+In this chapter we wil firstly discuss the motivation behind this work.
+Followed by theoretical background on concepts relating to semantics and Isabelle/HOL.
+
+Then we will describe the features of the language used in this work.
+
+Finally we will proceed to outline the contents of the rest of this work.
+
 \section{Motivation}
+
+Produce reliable software.
+
+C standard allows for ambigueties, formal semantics as an alternative to this.
+
+
 
 \section{Theoretical Background}
 
@@ -234,19 +247,31 @@ The benefit of using this approach is that we are provided with an easy way to p
 
 \subsection{Isabelle/HOL}
 
+\begin{comment}
 We will shortly talk about what Isabelle/HOL is and then refer the reader to the book by Nipkow and Klein.~\parencite{nipkow}
+\end{comment}
+
+Reasoning about a formal semantics using just pen and paper can very quickly become an error-prone and complicated process.
+This is why we rely on a theorem prover, namely Isabelle, where we can write definitions and then prove theorems in a sound manner.
+
+The semantics for the language used in this work is formalized with the assistance of Isabelle/HOL.
+Isabelle/HOL is the specialization of Isabelle for HOL (Higher Order Logic). ~\parencite{nipkow}
+
+The definitions for the formal semantics and proofs that accompany it are written in this Isabelle/HOL.
+We won't specify the details from Isabelle/HOL in this section but rather refer the reader to \textit{Concrete Semantics with Isabelle/HOL}~\parencite{nipkow} which shows an introduction to Isabelle/HOL and theorem proving.
 
 \subsection{Language used in this work}
 
 In this work we formalize the semantics for a small programming language called Chloe (TODO).
-It is a subset of asd,mflakjsdfthe C programming language.
-The syntax and semantics of this programming language are largely discussed later in chapter 3.
+It is a subset of the C programming language.
+The syntax and semantics of this programming language are discussed in further detail later in chapter 3.
 
 This language has the following features: variables, arrays, pointer arithmetic, while loop construct, if-then-else conditional construct and dynamic memory.
 Sadly, the scope of this project was limited to the features mentioned previously and there are several features that are currently not supported by the language.
 These features are a sound and correct type system, concurrency, I/O operations, goto, labels, break and continue.
 
-While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe (TODO) is enough to show some relevant program examples.
+While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe (TODO) is enough to show some relevant program examples and it has enough expressive power to be Turing-complete.
+
 
 \begin{comment}
 The language should probably have a name.
@@ -256,3 +281,17 @@ Variables, loops, functions, pointers, etc.
 And the features I do not support.
 Concurrency, types, etc.
 \end{comment}
+
+\section{Thesis Structure}
+
+Chapter 2: Related work.
+
+Chapter 3: Syntax and semantics.
+
+Chapter 4: Pretty printing.
+
+Chapter 5: Testing.
+
+Chapter 6: Results.
+
+Chapter 7: Conclusion and future work.

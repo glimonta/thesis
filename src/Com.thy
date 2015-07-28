@@ -40,7 +40,7 @@ datatype
       | Returnv                ("RETURNV") (* Return for functions that return void *)
       | Callfunl lexp fname "exp list" ("_ ::== _ '(_')" [1000, 61] 61)
       | Callfun vname fname "exp list" ("_ ::= _ '(_')" [1000, 61] 61)
-      | Callfunv fname "exp list" ("_ '{_'}" [1000, 61] 61) (* Call for functions that return void *)
+      | Callfunv fname "exp list" ("CALL _ '(_')" [1000, 61] 61) (* Call for functions that return void *)
 
 term "''x'' ::= ''fun'' ([])"
 term "(Derefl (V ''x'')) ::== ''fun'' ([])"
