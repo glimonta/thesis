@@ -31,8 +31,8 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         foo ::= Const 21;;
-        Callfunv ''plus_foo'' [(Const 20)];;
-        Callfunv ''plus_one_foo'' [];;
+        CALL ''plus_foo'' ([(Const 20)]);;
+        CALL ''plus_one_foo'' ([]);;
         IF (Eq (V foo) (Const 42)) THEN
           bar ::= Const 1 (* If it's correct then we set bar to true *)
         ELSE

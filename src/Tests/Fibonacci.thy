@@ -22,7 +22,7 @@ definition fib_decl :: fun_decl
               rr ::= (V tt);;
               nn ::= (Plus (V nn) (Const (- 1))))
             );;
-            Return (V rr)))))
+            RETURN (V rr)))))
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -32,7 +32,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         nn ::= Const 14;;
-        Callfun rr ''fib'' [V nn]
+        rr ::= ''fib'' ([V nn])
     \<rparr>"
 
 definition p :: program

@@ -15,7 +15,7 @@ definition main_test_decl :: fun_decl
     \<lparr> fun_decl.name = ''main'',
       fun_decl.params = [],
       fun_decl.locals = [],
-      fun_decl.body = Callfunv ''fact_main'' []
+      fun_decl.body = CALL ''fact_main'' ([])
     \<rparr>"
 
 definition p' :: program

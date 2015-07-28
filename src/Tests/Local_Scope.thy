@@ -10,7 +10,7 @@ definition mult_decl :: fun_decl
       fun_decl.body = 
         (* The foo accessed here is the local one, not the global one *)
         foo ::= V ii;;
-        Return (Mult (V foo) (V jj))
+        RETURN (Mult (V foo) (V jj))
     \<rparr>"                                
 
 definition main_decl :: fun_decl
@@ -21,7 +21,7 @@ definition main_decl :: fun_decl
       fun_decl.body = 
         (* The mult function access a variable that's not in it's local scope *)
         foo ::= Const 21;;
-        Callfun bar ''mult'' [(Const 2), (Const 4)];;
+        bar ::= ''mult'' ([(Const 2), (Const 4)]);;
         IF (Eq (V foo) (Const 21)) THEN
         (* If the value of global foo wasn't modified then we assign true to baz *)
           baz ::= Const 1

@@ -39,7 +39,7 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfunv ''selection'' [(V aa), (V nn)]
+        CALL ''selection'' ([(V aa), (V nn)])
     \<rparr>"
 
 definition p :: program

@@ -33,22 +33,22 @@ definition quicksort_decl :: fun_decl
               (IF (Less (V pp) (Index (V aa) (V rr))) THEN
                 rr ::= (Plus (V rr) (Const (- 1)))
               ELSE 
-                Callfunv ''swap'' [(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V rr)))]
+                CALL ''swap'' ([(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V rr)))])
               )
             )
           ));;
           (IF (Less (Index (V aa) (V ll)) (V pp)) THEN
-            (Callfunv ''swap'' [(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V ss)))];;
+            (CALL ''swap'' ([(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V ss)))]);;
             ll ::= (Plus (V ll) (Const (- 1))))
           ELSE
             (ll ::= (Plus (V ll) (Const (- 1)));;
-            (Callfunv ''swap'' [(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V ss)))]))
+            (CALL ''swap'' ([(Ref (Indexl (V aa) (V ll))), (Ref (Indexl (V aa) (V ss)))])))
           );;
-          Callfunv ''quicksort'' [V aa, V ss, V ll];;
-          Callfunv ''quicksort'' [V aa, V rr, V ee]
+          CALL ''quicksort'' ([V aa, V ss, V ll]);;
+          CALL ''quicksort'' ([V aa, V rr, V ee])
           )
         ELSE
-          Returnv
+          RETURNV
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -69,7 +69,7 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const (782));;
         (Indexl (V aa) (Const ( 9))) ::== (Const (  1));;
         nn ::= (Const ( 10));;
-        Callfunv ''quicksort'' [(V aa), (Const 0), Plus (V nn) (Const (- 1))]
+        CALL ''quicksort'' ([(V aa), (Const 0), Plus (V nn) (Const (- 1))])
     \<rparr>"
 
 definition p :: program

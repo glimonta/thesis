@@ -20,7 +20,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         foo ::= Const 21;;
-        Callfun bar ''mult'' [(Const 2), (Const 4)];;
+        bar ::= ''mult'' ([(Const 2), (Const 4)]);;
         foo ::= (Subst (V bar) (V foo));;
         IF (Eq (V foo) (Const (- 13))) THEN
         (* We should be using the global variable in the global context *)

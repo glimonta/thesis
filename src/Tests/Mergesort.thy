@@ -52,9 +52,9 @@ definition mergesort_decl :: fun_decl
           Returnv
         ELSE
           (mm ::= (Div (V nn) (Const 2));;
-          Callfunv ''mergesort'' [V aa, V mm];;
-          Callfunv ''mergesort'' [(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]);;
-          Callfunv ''merge'' [V aa, V nn, V mm]
+          CALL ''mergesort'' ([V aa, V mm]);;
+          CALL ''mergesort'' ([(Ref (Indexl (V aa) (V mm))), (Plus (V nn) (Minus (V mm)))]));;
+          CALL ''merge'' ([V aa, V nn, V mm])
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -75,7 +75,7 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfunv ''mergesort'' [(V aa), (V nn)]
+        CALL ''mergesort'' ([(V aa), (V nn)])
     \<rparr>"
 
 definition p :: program

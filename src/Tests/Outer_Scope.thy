@@ -19,7 +19,7 @@ definition main_decl :: fun_decl
       fun_decl.body = 
         (* The mult function access a variable that's not in it's local scope *)
         foo ::= Const 21;;
-        Callfunv ''mult_foo'' [(Const 2)];;
+        CALL ''mult_foo'' ([(Const 2)]);;
         IF (Not (Eq (V foo) (Const 0))) THEN
           bar ::= Const 1 (* If it's correct then we set bar to true *)
         ELSE

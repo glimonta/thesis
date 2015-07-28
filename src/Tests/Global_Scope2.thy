@@ -10,7 +10,7 @@ definition mult_decl :: fun_decl
       fun_decl.body = 
         (* The foo accessed here is the global one, not the one in double *)
         foo ::= Const 42;;
-        Return (Mult (V ii) (V jj))
+        RETURN (Mult (V ii) (V jj))
     \<rparr>"
 
 definition doub_decl :: fun_decl
@@ -20,8 +20,8 @@ definition doub_decl :: fun_decl
       fun_decl.locals = [foo],
       fun_decl.body = 
         (* The foo accessed here is the local one, not the global one *)  
-        Callfun foo ''mult'' [(V ii), (V ii)];;
-        Return (V foo)
+        foo ::= ''mult'' ([(V ii), (V ii)]);;
+        RETURN (V foo)
     \<rparr>"
 
 
@@ -32,7 +32,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         foo ::= Const 21;;
-        Callfun bar ''doub'' [(Const 4)];;
+        bar ::= ''doub'' ([(Const 4)]);;
         IF (Eq (V foo) (Const (42))) THEN
         (* We should be using the global variable in the global context *)
           baz ::= Const 1

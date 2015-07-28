@@ -15,7 +15,7 @@ definition factorial_decl :: fun_decl
           (rr ::= (Mult (V rr) (V ii));;
           ii ::= (Plus (V ii) (Const 1)))
         );;
-        Return (V rr)
+        RETURN (V rr)
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -25,7 +25,7 @@ definition main_decl :: fun_decl
       fun_decl.locals = [],
       fun_decl.body = 
         nn ::= Const 5;;
-        Callfun rr ''fact'' [V nn]
+        rr ::= ''fact'' ([V nn])
     \<rparr>"
 
 definition p :: program

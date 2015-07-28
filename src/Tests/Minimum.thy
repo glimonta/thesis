@@ -14,7 +14,7 @@ definition min_decl :: fun_decl
           (IF (Less (Index (V aa) (V ii)) (V mm))
             THEN mm ::= (Index (V aa) (V ii))
           ELSE SKIP);;
-          Return (V mm)
+          RETURN (V mm)
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -35,7 +35,7 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 8))) ::== (Const ( 38));;
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 80));;
         nn ::= (Const ( 10));;
-        Callfun mm ''min'' [(V aa), (V nn)]
+        mm ::= ''min'' ([(V aa), (V nn)])
     \<rparr>"
 
 definition p :: program

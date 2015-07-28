@@ -15,7 +15,7 @@ definition occurs_decl :: fun_decl
           (IF (Eq (Index (V aa) (V ii)) (V xx))
             THEN cc ::= (Plus (V cc) (Const ( 1)))
           ELSE SKIP);;
-        Return (V cc)
+        RETURN (V cc)
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -40,8 +40,8 @@ definition main_decl :: fun_decl
         xx ::= Const 5;;
         yy ::= Const 84;;
 
-        Callfun foo ''occurs'' [(V aa), (V nn), V xx];;
-        Callfun bar ''occurs'' [(V aa), (V nn), V yy]
+        foo ::= ''occurs'' ([(V aa), (V nn), V xx]);;
+        bar ::= ''occurs'' ([(V aa), (V nn), V yy])
     \<rparr>"
 
 definition p :: program

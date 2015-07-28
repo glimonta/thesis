@@ -10,7 +10,7 @@ definition cyclic_linked_list_create_decl :: fun_decl
       fun_decl.body = 
         nn ::= New (Const 1);;
         (Indexl (V nn) (Const 0)) ::== Null;; (* Pointer to first element of list *)
-        Return (V nn)
+        RETURN (V nn)
     \<rparr>"
 
 definition get_first_decl :: fun_decl
@@ -19,7 +19,7 @@ definition get_first_decl :: fun_decl
       fun_decl.params = [hh],
       fun_decl.locals = [],
       fun_decl.body = 
-        Return (Deref (V hh))
+        RETURN (Deref (V hh))
     \<rparr>"
 
 definition set_first_decl :: fun_decl
@@ -40,7 +40,7 @@ definition create_elem_decl :: fun_decl
         ee ::= New (Const 2);;
         (Indexl (V ee) (Const 0)) ::== V dd;; (* Data *)
         (Indexl (V ee) (Const 1)) ::== V nn;; (* Next *)
-        Return (V ee)
+        RETURN (V ee)
     \<rparr>"
 
 definition get_data_decl :: fun_decl
@@ -49,7 +49,7 @@ definition get_data_decl :: fun_decl
       fun_decl.params = [ee],
       fun_decl.locals = [],
       fun_decl.body = 
-        Return (Index (V ee) (Const 0))
+        RETURN (Index (V ee) (Const 0))
     \<rparr>"
 
 definition get_next_decl :: fun_decl
@@ -58,7 +58,7 @@ definition get_next_decl :: fun_decl
       fun_decl.params = [ee],
       fun_decl.locals = [],
       fun_decl.body = 
-        Return (Index (V ee) (Const 1))
+        RETURN (Index (V ee) (Const 1))
     \<rparr>"
 
 definition set_data_decl :: fun_decl
@@ -85,12 +85,12 @@ definition get_last_decl :: fun_decl
       fun_decl.params = [hh],
       fun_decl.locals = [ff, nn],
       fun_decl.body = 
-        Callfun ff ''get_first'' [V hh];;
+        ff ::= ''get_first'' ([V hh]);;
         nn ::= V ff;;
         WHILE (Not (Eq (Index (V nn) (Const 1)) (V ff))) DO (
-          Callfun nn ''get_next'' [V nn]
+          nn ::= ''get_next'' ([V nn])
         );;
-        Return (V nn)
+        RETURN (V nn)
     \<rparr>"
 
 definition cyclic_linked_list_add_decl :: fun_decl
@@ -99,16 +99,16 @@ definition cyclic_linked_list_add_decl :: fun_decl
       fun_decl.params = [hh, dd],
       fun_decl.locals = [nn, ee, ss, ll],
       fun_decl.body = 
-        Callfun nn ''get_first'' [V hh];;
+        nn ::= ''get_first'' ([V hh]);;
         IF (V nn) THEN (
-          Callfun ee ''create_elem'' [V dd, V nn];;
-          Callfun ll ''get_last'' [V hh];;
-          Callfunv ''set_next'' [V ll, V ee];;
-          Callfunv ''set_first'' [V hh, V ee]
+          ee ::= ''create_elem'' ([V dd, V nn]);;
+          ll ::= ''get_last'' ([V hh]);;
+          CALL ''set_next'' ([V ll, V ee]);;
+          CALL ''set_first'' ([V hh, V ee])
         ) ELSE (
-          Callfun ee ''create_elem'' [V dd, V nn];;
-          Callfunv ''set_next'' [V ee, V ee];;
-          Callfunv ''set_first'' [V hh, V ee]
+          ee ::= ''create_elem'' ([V dd, V nn]);;
+          CALL ''set_next'' ([V ee, V ee]);;
+          CALL ''set_first'' ([V hh, V ee])
         )
     \<rparr>"
 
@@ -120,12 +120,12 @@ definition cyclic_linked_list_delete_decl :: fun_decl
       fun_decl.params = [hh, dd],
       fun_decl.locals = [nn, cc, ss, aa, pp],
       fun_decl.body = 
-        Callfun nn ''get_first'' [V hh];;
-        Callfun cc ''get_data'' [V nn];;
+        nn ::= ''get_first'' ([V hh]);;
+        cc ::= ''get_data'' ([V nn]);;
         (* Check if it's the first one *)
         IF (Eq (V dd) (V cc)) THEN (
-          Callfun aa ''get_next'' [V nn];;
-          Callfunv ''set_first'' [V hh, V aa];;
+          aa ::= ''get_next'' ([V nn]);;
+          CALL ''set_first'' ([V hh, V aa]);;
           FREE (Derefl (V nn));;
           nn ::= V aa
         ) ELSE (
@@ -133,11 +133,11 @@ definition cyclic_linked_list_delete_decl :: fun_decl
         );;
         pp ::= V nn;;
         WHILE (Index (V nn) (Const 1)) DO (
-          Callfun nn ''get_next'' [V nn];;
-          Callfun cc ''get_data'' [V nn];;
+          nn ::= ''get_next'' ([V nn]);;
+          cc ::= ''get_data'' ([V nn]);;
           IF (Eq (V dd) (V cc)) THEN (
-            Callfun aa ''get_next'' [V nn];;
-            Callfunv ''set_next'' [V pp, V aa];;
+            aa ::= ''get_next'' ([V nn]);;
+            CALL ''set_next'' ([V pp, V aa]);;
             FREE (Derefl (V nn));;
             nn ::= V aa
           ) ELSE (
@@ -153,15 +153,15 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body = 
-        Callfun aa ''cyclic_linked_list_create'' [];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 6];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 5];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 4];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 3];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 2];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 1];;
-        Callfunv ''cyclic_linked_list_add'' [V aa, Const 4](*;;
-        Callfunv ''cyclic_linked_list_delete'' [V aa, Const 4]*)
+        aa ::= ''cyclic_linked_list_create'' ([]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 6]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 5]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 4]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 3]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 2]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 1]);;
+        CALL ''cyclic_linked_list_add'' ([V aa, Const 4])(*;;
+        CALL ''cyclic_linked_list_delete'' ([V aa, Const 4])*)
     \<rparr>"
 
 definition p :: program

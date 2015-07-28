@@ -17,7 +17,7 @@ definition create_array_decl :: fun_decl
           ii ::= Plus (V ii) (Const (1))
           );;
         (Indexl (V pp) (V ii)) ::== (Const ( 0)) ;;
-        Return (V pp)
+        RETURN (V pp)
     \<rparr>"
 
 (* Strlength: Takes an array (ending in 0) and returns the length of the array *)
@@ -33,7 +33,7 @@ definition str_len_decl :: fun_decl
           ll ::= Plus (V ll) (Const ( 1));;
           pp ::= (Ref (Indexl (V pp) (Const (1)))) (* Size of signed long *)
           );;
-        Return (V ll)
+        RETURN (V ll)
     \<rparr>"
 
 value "plus_val (A (0,0)) (I 8)"
@@ -44,8 +44,8 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body = 
-        Callfun aa ''create_array'' [(Const 5)];;
-        Callfun ll ''str_len'' [V aa]
+        aa ::= ''create_array'' ([(Const 5)]);;
+        ll ::= ''str_len'' ([V aa])
     \<rparr>"
 
 definition p :: program
