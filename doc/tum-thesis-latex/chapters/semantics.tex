@@ -1,48 +1,53 @@
 \chapter{Syntax and Semantics}\label{chapter:semantics}
 
-\section{Isabelle}
+\section{Isabelle}\label{section:isabelle}
 
 Why is Isabelle chosen to use in this work instead of some other tool.
 IsabelleHOL, Isabelle's code generation.
 Maybe this should be moved to the theoretical background.
 
-\section{Expressions}
+\section{Expressions}\label{section:expressions}
 
 Our imperative language is called Chloe and it represents a subset of the C language.
 
-\subsection{Syntax}
+\subsection{Syntax}\label{subsection:syntax_expressions}
 
 Here we proceed to describe the \textbf{abstract syntax} for the expressions of the Chloe language.
 
-\begin{lstlisting}[caption=Chloe expressions, frame=single]
-type_synonym vname = string
+\begin{figure}
+  \caption{Chloe expressions}
+  \label{fig:chloe_expressions}
 
-datatype exp = Const int
-             | Null
-             | V      vname
-             | Plus  exp exp
-             | Subst exp exp
-             | Minus exp
-             | Div   exp exp
-             | Mod   exp exp
-             | Mult  exp exp
-             | Less  exp exp
-             | Not   exp
-             | And   exp exp
-             | Or    exp exp
-             | Eq    exp exp
-             | New   exp
-             | Deref exp
-             | Ref   lexp
-             | Index exp exp
-and
-datatype lexp = Deref exp
-              | Indexl exp exp
-\end{lstlisting}
+  \begin{lstlisting}[frame=single]
+  type_synonym vname = string
 
-Where \verb|int| is the predefined type for integers and \verb|vname| stands for variable name.
+  datatype exp = Const int
+               | Null
+               | V      vname
+               | Plus  exp exp
+               | Subst exp exp
+               | Minus exp
+               | Div   exp exp
+               | Mod   exp exp
+               | Mult  exp exp
+               | Less  exp exp
+               | Not   exp
+               | And   exp exp
+               | Or    exp exp
+               | Eq    exp exp
+               | New   exp
+               | Deref exp
+               | Ref   lexp
+               | Index exp exp
+  and
+  datatype lexp = Deref exp
+                | Indexl exp exp
+  \end{lstlisting}
+\end{figure}
 
-We define two new datatypes in Isabelle, one for expressions and one for left-hand-side expressions.
+In figure~\ref{fig:chloe_expressions} we can find the datatype created in Isabelle for the expressions, where \verb|int| is the predefined type for integers and \verb|vname| stands for variable name.
+
+We define two new datatypes, one for expressions and one for left-hand-side expressions.
 It is important to differentiate between these two in the case where we are dealing with pointer expressions.
 For instance, let's take the following C expressions:
 
@@ -56,11 +61,12 @@ On the other hand, in the second expression \verb|*baz| is on the left-hand-side
 
 This also occurs with array indexing.
 In order to correctly model the semantics for the Chloe expressions it is necessary to have this distinction between left-hand-side expressions and right-hand-side expressions.
+In future sections we will proceed to refer to right-hand side expressions as simply expressions and we will use LHS instead of left-hand-side when referring to left-hand-side expressions.
 
-Chloe supports constant expressions, null expressions, variables as well as the following operation over expressions: addition, substraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
+Chloe supports constant expressions, null pointer expression, variables as well as the following operation over expressions: addition, substraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
 We also have a \verb|New| expression which is the equivalent of a \verb|malloc| call in C.
 We have dereferencing, referencing and array subscripting, these are in C the \verb|*|, \verb|&| and \verb|[]| operators, respectively.
-Finally as left-hand-side expressions we have dereferencing and array subscripting.
+Finally as LHS expressions we have dereferencing and array subscripting.
 
 \subsubsection{Types}
 
@@ -74,84 +80,256 @@ We define the following type synonyms in Isabelle:
 
 \begin{lstlisting}[frame=single]
 type_synonym int_width = 64
-type_synonym int_val = ``int_width word''
+type_synonym int_val = int_width word
 \end{lstlisting}
 
 
 The term \verb|int_width| refers to the width of the integer value.
 In this case we assume a value of 64 since we are working with a 64 bit architecture.
-This parameter indicates the semantics to assume we are working with a 64 bit architecture where the max and min values for an integer are defined as follows:
+This parameter indicates the semantics to assume we are working with a 64 bit architecture where the upper and lower bounds for an integer are defined in figure~\ref{fig:int_bounds}.
 
-\begin{lstlisting}[frame=single, mathescape=true]
-abbreviation INT_MIN :: int where $"$INT_MIN $\equiv$ - (2^(int_width - 1))$"$
-abbreviation INT_MAX :: int where $"$INT_MAX $\equiv$  ((2^(int_width - 1)) - 1)$"$
-\end{lstlisting}
+\begin{figure}
+  \caption{Integer lower and upper bounds}
+  \label{fig:int_bounds}
+
+  \begin{lstlisting}[frame=single, mathescape=true]
+  abbreviation INT_MIN :: int where INT_MIN $\equiv$ - (2^(int_width - 1))
+  abbreviation INT_MAX :: int where INT_MAX $\equiv$  ((2^(int_width - 1)) - 1)
+  \end{lstlisting}
+\end{figure}
 
 When working with a different architecture this parameter can be changed in order to comply with the architechture's requierements.
 
 Also our integers are defined as words of length \verb|int_width| (in this case \verb|64|).
 Since we are not using the Isabelle's predefined \verb|int| type, in order to work with words and to support code generation for them we use the Native Word entry in the Archive of Formal Proofs.~\parencite{Native_Word-AFP}.
 
+From now on we will mostly refer to the 64 length words we use to represent integers in our language just as integers.
+Note that, unless explicitly stated so in the text, for simplicity we will use the word `integer' to refer to a 64 length word instead of Isabelle's predefined \verb|int| type.
 
 \paragraph{Addresses}
 
 We define the following \verb|datatype| in Isabelle to represent addresses:
 
 \begin{lstlisting}[frame=single, mathescape=true]
-datatype addr = $"$nat $\times$ int $"$
+datatype addr = nat $\times$ int
 \end{lstlisting}
 
-An address will then be a pair conformed by a natural number and an integer, these represent a \verb|(block_id, offset)| pair.
+An address will then be a pair conformed by a natural number and an integer (which is an Isabelle predefined \verb|int|), these represent a \verb|(block_id, offset)| pair.
 In the following section we will proceed to explain the layout of the memory.
+
+\subsubsection{Values} The values for any expression are defined as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+datatype val = NullVal | I i$int_val$ | A $addr$
+\end{lstlisting}
+
+where \verb|NullVal| corresponds to the null pointer expression, \verb|I| $int_val$ corresponds to an integer value, and \verb|A| $addr$ corresponds to an address value.
+When evaluating an expression we can obtain any of these three values.
 
 \subsubsection{Memory}
 
 We model dynamic memory in the following way:
 
 \begin{lstlisting}[frame=single, mathescape=true]
-type_synonym mem = $"$val option list option list$"$
+type_synonym mem = val option list option list
 \end{lstlisting}
 
-The memory is represented by a list of blocks and each of these blocks contain a list of cells with the data in memory.
+The memory is represented by a list of allocated blocks, and each of these blocks is conformed by a list of cells with the values in memory.
+For every block there's two possibilities: an allocated block or an unallocated block, this is modeled by the use of the \verb|option| type, where \verb|Some| $l$ (where $l$ is of type \verb|val option list|) denotes an allocated block and \verb|None| an unallocated one.
+Every block is conformed by a list of cells that contain the values in memory.
+Each cell can have different values depending on whether it is uninitialized or it holds a value.
+An uninitialized cell in memory is represented by the value \verb|None|.
+Whereas a cell holding a value is represented by the value \verb|Some| $v$, where $v$ is of type \verb|val|.
 
-We index the memory with an address value.
-An address value, as described before, is a pair of \verb|(base, offset)| where base identifies the block.
-If the block is not allocated, when indexing the list in the base position, there will be a \verb|None| value, if the block is allocated then there's a \verb|Some <list>| that denotes the content of the block, which is a list of cells.
-We use the offset to index inside the block.
-If the cell in the block we try to index is uninitialized there will be a \verb|None| value, otherwise there will be a \verb|Some None| indicating an uninitialized value, and a \verb|Some <value>| for an initialized cell with content \verb|<value>|.
+There are four main operations that can manage the memory, these are \verb|new_block|, \verb|free|, \verb|load| and \verb|store| and these are specified in figure ~\ref{fig:mem_operations}.
+Each of these operations can fail, therefore their return type is $\tau\ \verb|option|$.
+The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
+
+The functionalities of the memory management operations are the following:
+
+\begin{itemize}
+  \item{\verb|new_block| is the function that allocates a new block of dynamic memory of a given size.
+  This function will fail in the case a size less or equal than zero is given, it can also fail if a value of a different type than an integer is given.
+  Upon successful execution the function will yield the beginning address of the new block along with the modified memory.}
+  \item{\verb|free| is the function that deallocates a block from the dynamic memory.
+  This function will fail in the case where the given address is not a valid one in memory.
+  Upon successful execution the function will yield a new state that includes the updated memory.}
+  \item{\verb|load| is the function that given an address retrieves a value stored in the memory cell denoted by the given address.
+  This function will fail in the case where the given address is not a valid one in memory.
+  Upon successful execution the function will yield the value stored in memory.}
+  \item{\verb|store| is the function that given an address stores a value in the memory cell denoted by the given address.
+  This function will fail in the case where the given address is not a valid one in memory.
+  Upon successful execution the function will yield a new state that includes the updated memory.}
+\end{itemize}
+
+\begin{figure}
+  \caption{Memory Management operations}
+  \label{fig:mem_operations}
+
+  \begin{lstlisting}[mathescape=true, frame=single]
+  new_block :: val $\Rightarrow$ mem $\Rightarrow$ (val $\times$ mem) option
+  free      :: addr $\Rightarrow$ val  $\Rightarrow$ visible_state $\Rightarrow$ visible_state option
+  load      :: addr $\Rightarrow$ mem $\Rightarrow$ val option
+  store     :: addr $\Rightarrow$ val  $\Rightarrow$ visible_state $\Rightarrow$ visible_state option
+  \end{lstlisting}
+\end{figure}
+
+It is important to note that the only reasons why the memory allocation can fail are the ones described above.
+Since we assume the memory to be unlimited, there will not be a case where a \verb|new| call fails due to a lack of memory.
 
 
-\subsection{Semantics}
+Also one of the types used in figure ~\ref{fig:mem_operations}, namely \verb|visible_state|, we have not yet talked about, it will be discussed in further detail in section~\ref{paragraph:visible_state}.
+
+This memory model is inspired in the work of Blazy and Leroy~\parencite{compcert}, it is a simpler model ajusted to satisfy our needs.
+
+
+\subsection{Semantics}\label{subsection:semantics_expressions}
+
+The semantics of an expression is its value.
+For expressions such as $2 + 2$ is trivial to know the value is $4$.
+On the other hand when we have expressions with variables, such as $foo + 42$, then we depend on the value of the variable.
+Therefore we need to know the values of a variable, these values are stored in the program state.
+
+The program state is a bit more complicated than what we are about to present.
+Section~\ref{section:states} is dedicated exclusively to discuss states but we will proceed to clarify in this section the part of the state needed for the expressions' semantics.
+
+\paragraph{Valuations}\label{paragraph:valuation}
+
+We define the type for a valuation as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+type_synonym valuation = vname $\Rightarrow$ val option option
+\end{lstlisting}
+
+A valuation is a function that maps a variable name to a value.
+The return type is \verb|val option option| to model the following states of a variable's value: undefined, uninitialized and holding a value.
+Therefore, given a variable name, this function can yield one of the following three results:
+
+\begin{itemize}
+  \item{\verb|None|, which represents a variable that is undefined.}
+  \item{\verb|Some None|, which represents a variable that is defined but uninitialized.}
+  \item{\verb|Some| $v$, which represents a defined initialized variable that holds the value $v$.}
+\end{itemize}
+
+\paragraph{Visible States}\label{paragraph:visible_state}
+
+A visible state is the state that is visible at any point of a program that is not a function call or a function return.
+The defined type for it is as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+type_synonym visible_state = valuation $\times$ valuation $\times$ mem
+\end{lstlisting}
+
+A visible state is a tuple conformed by a valuation function for the local variables, a valuation function for the global variables and the dynamic memory of the program.
+
+
+Now we can proceed to introduce the semantics for the expressions in Chloe.
+As we said before the semantics of an expression is its value, therefore we have defined two evaluation functions, one that computes the value of an expression and one that computes the value of a LHS expression.
+These functions defined as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+eval   :: exp $\Rightarrow$ visible_state $\Rightarrow$ (val $\times$ visible_state) option
+eval_l :: lexp $\Rightarrow$ visible_state $\Rightarrow$ (addr $\times$ visible_state) option
+\end{lstlisting}
+
+Where \verb|eval|, given an expression and a visible state, will yield the value of that expression and the visible state resulting after evaluation of that expression.
+\verb|eval_l|, given a LHS expression and a visible state, will yield the value of that expression (which must be an address) and the state resulting after the evaluation of the LHS expression.
+Notice that the resulting type for these evaluation functions are an \verb|option| type.
+This is because these functions can fail, a failure can happen anywhere in the evaluation of the expression and if a failure is found then it will propagate until the whole expression evaluation returns a \verb|None| value indicating an error in evaluation.
+Expression evaluation might fail for several reasons which include, but are not limited to, variable undefinedness, an operation failing because it has some illegal operand, trying to access an invalid part of the memory, overflow, among others.
+Therefore if there's an error early in the expression evaluation semantics, it will be detected and propagated as a \verb|None| value which indicates an error state.
+
+
+The \verb|eval| and \verb|eval_l| functions depend on several other defined functions in order to properly compute the values of expressions.
+A definition of all the auxiliary functions for \verb|eval| and \verb|eval_l| is given in figure~\ref{fig:aux_fun_eval)}.
+Each of these operations can fail, therefore their return type is $\tau\ \verb|option|$.
+The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
+
+\begin{figure}
+  \caption{Auxiliary functions for eval and eval_l}
+  \label{fig:aux_fun_eval}
+
+  \begin{lstlisting}[mathescape=true, frame=single]
+  detect_overflow  :: int $\Rightarrow$ val option
+  read_var         :: vname $\Rightarrow$ visible_state $\Rightarrow$ val option
+  plus_val         :: val $\Rightarrow$ val $\Rightarrow$ val option
+  subst_val        :: val $\Rightarrow$ val $\Rightarrow$ val option
+  minus_val        :: val $\Rightarrow$ val option
+  div_towards_zero :: int $\Rightarrow$ int $\Rightarrow$ int
+  div_val          :: val $\Rightarrow$ val $\Rightarrow$ val option
+  mod_towards_zero :: int $\Rightarrow$ int $\Rightarrow$ int
+  mod_val          :: val $\Rightarrow$ val $\Rightarrow$ val option
+  mult_val         :: val $\Rightarrow$ val $\Rightarrow$ val option
+  less_val         :: val $\Rightarrow$ val $\Rightarrow$ val option
+  not_val          :: val $\Rightarrow$ val option
+  to_bool          :: val $\Rightarrow$ bool option
+  eq_val           :: val $\Rightarrow$ val $\Rightarrow$ val option
+  new_block        :: val $\Rightarrow$ mem $\Rightarrow$ (val $\times$ mem) option
+  load             :: addr $\Rightarrow$ mem $\Rightarrow$ val option
+  \end{lstlisting}
+\end{figure}
+
+The functionalities of the auxiliary functions are the following:
+
+\begin{itemize}
+  \item{\verb|detect_overflow| is the function that detects integer overflow.
+  It takes an Isabelle predefined integer value as a parameter and checks for overflow with the bounds described in figure~\ref{fig:int_bounds}.
+  This function will fail whenever overflow is detected.
+  Upon sucessful execution the function will yield the value correspoding to the given integer parameter.}
+  \item{\verb|read_var| is the function that computes the value of a variable.
+  This function will fail whenever the variable name given as a parameter corresponds to an undefined variable.
+  Upon successful execution the function will yield the value of the variable.
+  In order to compute the value of said variable this function checks the local valuation in the visible state and proceeds to return the value of the variable if it is defined there.
+  In the case where the variable is not defined in the local scope, the function will proceed to check the global scope and return the value of the variable.}
+  \item{\verb|plus_val| is the function that computes the value of an addition between two values.
+  This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
+  Upon successful execution with two integer values the function will yield an integer value corresponding to the addition of those operands.
+  Upon successful execution with an address and an integer the function will yield an address value corresponding to adding the integer offset to the original address value.}
+  \item{\verb|subst_val| is the function that computes the value of a substraction between two values.
+  This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
+  Upon successful execution with two integer values the function will yield an integer value corresponding to the substraction of those operands.
+  Upon successful execution with an address and an integer the function will yield an address value corresponding to substracting the integer offset to the original address value.}
+\end{itemize}
+
+
+
+
+
+
+
+
 
 Here is where the semantics for the evaluation of expressions belongs.
 
-\section{Commands}
+\section{Commands}\label{section:commands}
 
-\subsection{Syntax}
+\subsection{Syntax}\label{subsection:syntax_commands}
 
-\subsection{Semantics}
+\subsection{Semantics}\label{subsection:semantics_commands}
 
-\subsection{Functions}
-\subsection{Programs}
+\subsection{Functions}\label{subsection:functions_commands}
+\subsection{Programs}\label{subsection:programs_commands}
 
-\section{Restrictions}
+\section{Restrictions}\label{subsection:restrictions_commands}
 
 Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
 Not sure if int width should be explained here or before in the integer types.
 
-\section{States}
+\section{States}\label{section:states}
 
-\subsection{Valuation}
-\subsection{Stack}
-\subsection{Procedure Table}
+Don't forget to mention visible states again.
 
-\section{Small Step Semantics}
+\subsection{Valuation}\label{subsection:valuation}
+\subsection{Stack}\label{subsection:stack}
+\subsection{Procedure Table}\label{subsection:procedure_table}
 
-\subsection{CFG}
-\subsection{Small Step semantics rules}
+\section{Small Step Semantics}\label{section:small_step}
 
-\section{Interpreter}
+\subsection{CFG}\label{subsection:cfg}
+\subsection{Small Step semantics rules}\label{subsection:rules_small_step}
 
-\subsection{Single step}
-\subsection{Execution and Interpretation}
-\subsection{Correctness}
+\section{Interpreter}\label{section:interpreter}
+
+\subsection{Single step}\label{subsection:single_step}
+\subsection{Execution and Interpretation}\label{subsection:exec_interp}
+\subsection{Correctness}\label{subsection:correctness}
