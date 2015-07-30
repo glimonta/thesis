@@ -26,4 +26,6 @@ definition p :: program
 definition "subst_export \<equiv> prepare_export p"
 setup \<open>export_c_code @{code subst_export}"../TestC" "subst"\<close>
 
+value "execute_show (program.globals p) p"
+
 end

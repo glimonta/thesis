@@ -39,8 +39,8 @@ If we take the following construct
 \begin{equation*}
 z:=x; x:=y; y:=z
 \end{equation*}
-where `$:=$' is assignment to a variable and `$;$' is the instruction sequentiation.
-Syntactically this is three statements separated by `$;$', where each statement is confomed by a variable, the symbol `$:=$' and a second variable.
+where ``$:=$'' is assignment to a variable and ``$;$'' is the instruction sequentiation.
+Syntactically this is three statements separated by ``$;$'', where each statement is confomed by a variable, the symbol ``$:=$'' and a second variable.
 
 The \textit{semantics} of this construct is the meaning of this program.
 Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a temporary variable).
@@ -48,7 +48,7 @@ Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a 
 \subsubsection{Types of semantics}
 
 The previous was a rough explanation of the semantics of that particular program.
-This semantical explanation can clearly be done in a more detailed way where we exaplain the meaning of the sequence of statements separated by `$;$' and the one of the individual assign statement.
+This semantical explanation can clearly be done in a more detailed way where we exaplain the meaning of the sequence of statements separated by ``$;$'' and the one of the individual assign statement.
 
 There are many differnt approaches on how to formalize the semantics of a programming language.
 Each one of them has a different idea behind it and have a different degree of usefulness depending on the purpose one has for the semantics.
@@ -75,7 +75,7 @@ There's two different kinds of operational semantics, namely \textit{small-step 
 
 The operational explanation of the meaning of this program indicates how it is executed.
 
-Our example consists of a series of three statements separated by `$;$' and each of this statements is an assignment.
+Our example consists of a series of three statements separated by ``$;$'' and each of this statements is an assignment.
 The operational semantics will define how are sequence of statements and assignment statement executed.
 
 For this particular construct the semantics will be as follows:
@@ -135,7 +135,7 @@ Sometimes we want to have a bit more of information regarding intermediate state
 
 This kind of semantics represents small, atomic execution steps in a program and allows for reasoning about how far a program has been executed and to explicitly inspect partial executions.~\parencite{nipkow}
 
-In this example we will go from the complete construct and take small-steps (denoted by `$\Rightarrow$') that yields the remaining of the construct after executing a step and the state resulting from it, until the whole construct is executed.
+In this example we will go from the complete construct and take small-steps (denoted by ``$\Rightarrow$'') that yields the remaining of the construct after executing a step and the state resulting from it, until the whole construct is executed.
 
 Supposing we have a state where the variable $x$ has the value $5$, the variable $y$ has the value $7$ and the variable $z$ the value $0$ and the construct from our example we would obtain the following \enquote{derivation sequence}:
 

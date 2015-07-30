@@ -9,6 +9,7 @@ Maybe this should be moved to the theoretical background.
 \section{Expressions}\label{section:expressions}
 
 Our imperative language is called Chloe and it represents a subset of the C language.
+We will now proceed to discuss more in detail the syntax and semantics of the expressions in Chloe.
 
 \subsection{Syntax}\label{subsection:syntax_expressions}
 
@@ -120,10 +121,10 @@ In the following section we will proceed to explain the layout of the memory.
 \subsubsection{Values} The values for any expression are defined as follows:
 
 \begin{lstlisting}[frame=single, mathescape=true]
-datatype val = NullVal | I i$int_val$ | A $addr$
+datatype val = NullVal | I $int\_val$ | A $addr$
 \end{lstlisting}
 
-where \verb|NullVal| corresponds to the null pointer expression, \verb|I| $int_val$ corresponds to an integer value, and \verb|A| $addr$ corresponds to an address value.
+where \verb|NullVal| corresponds to the null pointer expression, \verb|I| $int\_val$ corresponds to an integer value, and \verb|A| $addr$ corresponds to an address value.
 When evaluating an expression we can obtain any of these three values.
 
 \subsubsection{Memory}
@@ -241,12 +242,12 @@ Therefore if there's an error early in the expression evaluation semantics, it w
 
 
 The \verb|eval| and \verb|eval_l| functions depend on several other defined functions in order to properly compute the values of expressions.
-A definition of all the auxiliary functions for \verb|eval| and \verb|eval_l| is given in figure~\ref{fig:aux_fun_eval)}.
-Each of these operations can fail, therefore their return type is $\tau\ \verb|option|$.
+A definition of all the auxiliary functions for \verb|eval| and \verb|eval_l| is given in figure~\ref{fig:aux_fun_eval}.
+Except for \verb|div_towards_zero| and \verb|mod_towards_zero|, each of these operations can fail, therefore their return type is $\tau$ \verb|option|.
 The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
 
 \begin{figure}
-  \caption{Auxiliary functions for eval and eval_l}
+  \caption{Auxiliary functions for eval and eval\_l}
   \label{fig:aux_fun_eval}
 
   \begin{lstlisting}[mathescape=true, frame=single]
@@ -271,49 +272,157 @@ The values of that type are either \verb|None| when the operation fails or $\ver
 
 The functionalities of the auxiliary functions are the following:
 
-\begin{itemize}
-  \item{\verb|detect_overflow| is the function that detects integer overflow.
-  It takes an Isabelle predefined integer value as a parameter and checks for overflow with the bounds described in figure~\ref{fig:int_bounds}.
-  This function will fail whenever overflow is detected.
-  Upon sucessful execution the function will yield the value correspoding to the given integer parameter.}
-  \item{\verb|read_var| is the function that computes the value of a variable.
-  This function will fail whenever the variable name given as a parameter corresponds to an undefined variable.
-  Upon successful execution the function will yield the value of the variable.
-  In order to compute the value of said variable this function checks the local valuation in the visible state and proceeds to return the value of the variable if it is defined there.
-  In the case where the variable is not defined in the local scope, the function will proceed to check the global scope and return the value of the variable.}
-  \item{\verb|plus_val| is the function that computes the value of an addition between two values.
-  This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
-  Upon successful execution with two integer values the function will yield an integer value corresponding to the addition of those operands.
-  Upon successful execution with an address and an integer the function will yield an address value corresponding to adding the integer offset to the original address value.}
-  \item{\verb|subst_val| is the function that computes the value of a substraction between two values.
-  This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
-  Upon successful execution with two integer values the function will yield an integer value corresponding to the substraction of those operands.
-  Upon successful execution with an address and an integer the function will yield an address value corresponding to substracting the integer offset to the original address value.}
-\end{itemize}
+\verb|detect_overflow| is the function that detects integer overflow.
+It takes an Isabelle predefined integer value as a parameter and checks for overflow with the bounds described in figure~\ref{fig:int_bounds}.
+This function will fail whenever overflow is detected.
+Upon sucessful execution the function will yield the value correspoding to the given integer parameter.
 
+\verb|read_var| is the function that computes the value of a variable.
+This function will fail whenever the variable name given as a parameter corresponds to an undefined variable.
+Upon successful execution the function will yield the value of the variable.
+In order to compute the value of said variable this function checks the local valuation in the visible state and proceeds to yield the value of the variable if it is defined there.
+In the case where the variable is not defined in the local scope, the function will proceed to check the global scope and yield the value of the variable.
 
+\verb|plus_val| is the function that computes the value of an addition between two values.
+This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
+Upon successful execution with two integer values the function will yield an integer value corresponding to the addition of those operands.
+Upon successful execution with an address and an integer the function will yield an address value corresponding to adding the integer offset to the original address value.
 
+\verb|subst_val| is the function that computes the value of a substraction between two values.
+This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
+Upon successful execution with two integer values the function will yield an integer value corresponding to the substraction of those operands.
+Upon successful execution with an address and an integer the function will yield an address value corresponding to substracting the integer offset to the original address value.
 
+\verb|minus_val| is the function that computes the value of the unary minus operation over a value.
+This function will fail whenever overflow is detected or a value different from an integer is given as a parameter.
+Upon successful execution the function will yield an integer value corresponding to the result of negating the value given as a parameter.
 
+\verb|div_towards_zero| is the function that performs integer division with truncation towards zero.
 
+\verb|div_val| is the function that computes the value of division between two values.
+This function will fail whenever either overflow or division by zero are detected or when the parameters given to the function are different from integers.
+Upon successful execution the function will yield an integer value corresponding to the result of performing integer division on the function operands.
 
+\verb|mod_towards_zero| is the function that performs the modulo operation with truncation towards zero.
 
+\verb|mod_val| is the function that computes the value of performing the modulo operation between two values.
+This function will fail whenever either overflow or modulo by zero are detected or when the parameters given to the function are different from integers.
+Upon successful execution the function will yield an integer value corresponding to the result of performing integer modulo on the function operands.
 
-Here is where the semantics for the evaluation of expressions belongs.
+\verb|mult_val| is the function that computes the value of a multiplication between two values.
+This function will fail whenever overflow is detected or when anything different from integers are given as parameters to the function.
+Upon successful execution the function will yield an integer value corresponding to the multiplication of the function operands.
+
+\verb|less_val| is the function that computes the value of performing the less than operation between two values.
+This function will fail whenever anything different from integers are given as parameters to the function.
+Upon successful execution the function will yield an integer value of \verb|I| $1$ when the first operand is smaller than the second one, and an integer value of \verb|I| $0$ otherwise.
+
+\verb|not_val| is the function that computes the value of performing logical negation over a value.
+This function will fail whenever a parameter different from an integer is given.
+Upon successful execution the function will yield an integer value of \verb|I| $1$ when the operand is an integer of value \verb|I| $0$, and an integer value of \verb|I| $0$ when the given operand is any integer value different from \verb|I| $0$.
+
+\verb|to_bool| is a function that yields an Isabelle predefined boolean given a value.
+This function is used to compute short-circuit evaluation on the \verb|And| and \verb|Or| operations.
+This function will fail whenever the parameter is anything different from an integer.
+Upon successful execution the function will yield \verb|False| when the given parameter has a value equal to \verb|I| $0$, it will yield \verb|True| otherwise.
+
+\verb|eq_val| is the function that computes the value of equality comparison between to values.
+This function will fail whenever anything different than two integers or two addresses are given as parameters to the function.
+Upon successful execution with two integer values the function will yield an integer value of \verb|I| $1$ if both operands were equal and an integer value of \verb|I| $0$ otherwise.
+Upon successful execution with two address values the function will yield an integer value of \verb|I| $1$ if both addresses were equal and an integer value of \verb|I| $0$ otherwise.
+Two addresses are regarded to as equal whenever both components of the address tuple are equal.
+
+\verb|new_block| and \verb|load| are the functions explained earlier in section~\ref{subsection:syntax_expressions} that allocate a new block of memory and load a value of memory, respectively.
+
 
 \section{Commands}\label{section:commands}
 
+In this next section we will discuss in detail the syntax and semantics of Chloe's commands as well as functions and programs written in the language and we will discuss some restrictions.
+
 \subsection{Syntax}\label{subsection:syntax_commands}
+
+Chloe contains the following constructs: assignments, sequential composition, conditionals, while loops, SKIP which is equivalent to a noop because it does nothing (we use it to be able to express other syntactic constructs such as a contitional without an \verb|ELSE| branch), deallocation of memory, return statements and functions.
+The expressions are the ones described in the previous section (~\ref{section:expressions}).
+
+Here we proceed to describe the \textit{abstract syntax} for the commands of the Chloe language.
+
+\begin{figure}
+  \caption{Chloe commands}
+  \label{fig:chloe_commands}
+
+  \begin{lstlisting}[frame=single, mathescape=true]
+  type_synonym fname = string
+
+  datatype
+    com = SKIP
+        | Assignl lexp exp
+        | Assign  vname exp
+        | Seq     com  com
+        | If      exp com com
+        | While   exp com
+        | Free    lexp
+        | Return exp
+        | Returnv
+        | Callfunl lexp fname "exp list"
+        | Callfun vname fname "exp list"
+        | Callfunv fname "exp list"
+  \end{lstlisting}
+\end{figure}
+
+In figure~\ref{fig:chloe_commands} we can find the definition of the datatype created in Isabelle for the commands, where \verb|lexp| and \verb|exp| stand for expressions described in the previous sections (~\ref{section:expressions}), \verb|vname| stands for variable names and \verb|fname| stands for the function names.
+
+For assignment commands we define two different commands, one of them allows assignment to a variable, whereas the other one allows assignment to an address location in memory.
+We need these two commands since our domain for addresses and integer values is disjoint, therefore an address cannot represent an integer value and viceversa.
+
+We also have two return commands, one of them is for returning from functions with a return value, whereas the other one is for returning from a procedure which has a void return value.
+
+Finally we have three different statements for function calling.
+One of them (\verb|Callfunv|) is for functions without a return value.
+The other two depend on the return location of the function, if the return location is a variable we use the \verb|Callfun| command and if the return location is a cell in memory we use the \verb|Callfunl| command.
+
+In Isabelle we have defined a concrete infix syntax as well, which facilitates writing and reading commands in Chloe.
+We will proceed to introduce that concrete syntax and continue to use it throughout the rest of this work to make it more readable.
+
+Suppose we have \verb|x| that ranges over variable names, \verb|a| that ranges over expressions, \verb|y| that ranges over the LHS expressions and \verb|f| that ranges over function names.
+The term \verb|Assignl y a| can be rewritten as \verb|y ::== a|.
+
+\subsection{Functions}\label{subsection:functions_commands}
+
+In Chloe we have both functions that return values and procedures which dont have a return value.
+For functions that do return a value we needed to figure out what to do with it.
+We decided that the return value of every function should be assigned to a dummy variable or to a destination in a memory cell whenever a function was returning from a call.
+We won't go into details explaining this design decision now but rather delay it until section~\ref{section:states} where we will be able to explain the reasoning behind this in a better way.
+
+\begin{figure}
+  \caption{Function definitions}
+  \label{fig:fun_def}
+
+  \begin{lstlisting}[frame=single]
+  record fun_decl =
+    name :: fname
+    params :: vname list
+    locals :: vname list
+    body :: com
+
+  valid_fun_decl :: fun_decl $\Rightarrow$ bool
+  \end{lstlisting}
+\end{figure}
+
+As we see in the definition in figure~\ref{fig:fun_def}, a function consists of a name, the formal parameters, the local variables and the body of the function, which is a, potentially big, command in the Chloe language.
+We also define a predicate which checks whether a function declaration is valid or not.
+A function declaration is considered valid if and only if the function parameters and the local variables have different names.
+
+
+
+
+\subsection{Programs}\label{subsection:programs_commands}
+\section{Restrictions}\label{subsection:restrictions_commands}
+Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
+Not sure if int width should be explained here or before in the integer types.
+
 
 \subsection{Semantics}\label{subsection:semantics_commands}
 
-\subsection{Functions}\label{subsection:functions_commands}
-\subsection{Programs}\label{subsection:programs_commands}
-
-\section{Restrictions}\label{subsection:restrictions_commands}
-
-Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
-Not sure if int width should be explained here or before in the integer types.
 
 \section{States}\label{section:states}
 
