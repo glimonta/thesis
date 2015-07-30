@@ -202,9 +202,6 @@ text \<open>We define the logical OR operator, conforming to the C99 Standard Se
   It guarantees left-to-right short-circuit evaluation; if the first operand compares
   equal to @{term "I 1"} then the second operand is not evaluated and @{term "I 1"} is
   yielded. OR operator can only operate between two integers.\<close>
-fun or_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "or_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 \<noteq> 0 then Some (I 1) else (if i\<^sub>2 \<noteq> 0 then Some (I 1) else Some (I 0)))"
-| "or_val a\<^sub>1 a\<^sub>2 = None"
 
 text \<open>We define the logical AND operator, conforming to the C99 Standard Sec. 6.5.13.3/4.
   if both operands compare unequal to @{term "I 0"} (both operands are True) then it yields @{term "I 1"}
@@ -212,9 +209,6 @@ text \<open>We define the logical AND operator, conforming to the C99 Standard S
   short-circuit evaluation; if the first operand compares equal to @{term "I 0"} then the
   second operand is not evaluated and @{term "I 0"} is yielded. AND operator can only operate
   between two integers.\<close>
-fun and_val :: "val \<Rightarrow> val \<Rightarrow> val option" where
-  "and_val (I i\<^sub>1) (I i\<^sub>2) = (if i\<^sub>1 = 0 then Some (I 0) else (if i\<^sub>2 = 0 then Some (I 0) else Some (I 1)))"
-| "and_val a\<^sub>1 a\<^sub>2 = None"
 
 text \<open>We define the equal operator for values conforming to the C99 standard Sec. 6.5.9.3,
   if both values are equal it yields @{term "I 1"} for True, otherwise it yields

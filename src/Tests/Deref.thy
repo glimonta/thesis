@@ -24,7 +24,7 @@ definition main_decl :: fun_decl
         nn ::= Const 10;;
         aa ::= New (V nn);;
 
-        Callfunv ''init'' [V aa, V nn];;
+        CALL ''init'' ([V aa, V nn]);;
 
         (* j contains the number of matches with the content in memory *)
         ii ::= Const 0;;

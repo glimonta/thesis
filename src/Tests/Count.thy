@@ -15,7 +15,7 @@ definition count_decl :: fun_decl
           (IF (Eq (Index (V aa) (V ii)) (V xx))
             THEN cc ::= (Plus (V cc) (Const ( 1)))
           ELSE SKIP);;
-        Return (V cc)
+        RETURN (V cc)
     \<rparr>"
 
 definition main_decl :: fun_decl
@@ -37,9 +37,9 @@ definition main_decl :: fun_decl
         (Indexl (V aa) (Const ( 9))) ::== (Const ( 44));;
         nn ::= (Const ( 10));;
     
-        Callfun foo ''count'' [(V aa), (V nn), Const 5];;
-        Callfun bar ''count'' [(V aa), (V nn), Const 84];;
-        Callfun baz ''count'' [(V aa), (V nn), Const 44]
+        foo ::= ''count'' ([(V aa), (V nn), Const 5]);;
+        bar ::= ''count'' ([(V aa), (V nn), Const 84]);;
+        baz ::= ''count'' ([(V aa), (V nn), Const 44])
     \<rparr>"
 
 definition p :: program
