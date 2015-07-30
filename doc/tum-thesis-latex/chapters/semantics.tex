@@ -16,9 +16,6 @@ We will now proceed to discuss more in detail the syntax and semantics of the ex
 Here we proceed to describe the \textbf{abstract syntax} for the expressions of the Chloe language.
 
 \begin{figure}
-  \caption{Chloe expressions}
-  \label{fig:chloe_expressions}
-
   \begin{lstlisting}[frame=single]
   type_synonym vname = string
 
@@ -44,6 +41,9 @@ Here we proceed to describe the \textbf{abstract syntax} for the expressions of 
   datatype lexp = Deref exp
                 | Indexl exp exp
   \end{lstlisting}
+
+  \caption{Chloe expressions}
+  \label{fig:chloe_expressions}
 \end{figure}
 
 In figure~\ref{fig:chloe_expressions} we can find the datatype created in Isabelle for the expressions, where \verb|int| is the predefined type for integers and \verb|vname| stands for variable name.
@@ -90,13 +90,13 @@ In this case we assume a value of 64 since we are working with a 64 bit architec
 This parameter indicates the semantics to assume we are working with a 64 bit architecture where the upper and lower bounds for an integer are defined in figure~\ref{fig:int_bounds}.
 
 \begin{figure}
-  \caption{Integer lower and upper bounds}
-  \label{fig:int_bounds}
-
   \begin{lstlisting}[frame=single, mathescape=true]
   abbreviation INT_MIN :: int where INT_MIN $\equiv$ - (2^(int_width - 1))
   abbreviation INT_MAX :: int where INT_MAX $\equiv$  ((2^(int_width - 1)) - 1)
   \end{lstlisting}
+
+  \caption{Integer lower and upper bounds}
+  \label{fig:int_bounds}
 \end{figure}
 
 When working with a different architecture this parameter can be changed in order to comply with the architechture's requierements.
@@ -164,15 +164,15 @@ The functionalities of the memory management operations are the following:
 \end{itemize}
 
 \begin{figure}
-  \caption{Memory Management operations}
-  \label{fig:mem_operations}
-
   \begin{lstlisting}[mathescape=true, frame=single]
   new_block :: val $\Rightarrow$ mem $\Rightarrow$ (val $\times$ mem) option
   free      :: addr $\Rightarrow$ val  $\Rightarrow$ visible_state $\Rightarrow$ visible_state option
   load      :: addr $\Rightarrow$ mem $\Rightarrow$ val option
   store     :: addr $\Rightarrow$ val  $\Rightarrow$ visible_state $\Rightarrow$ visible_state option
   \end{lstlisting}
+
+  \caption{Memory Management operations}
+  \label{fig:mem_operations}
 \end{figure}
 
 It is important to note that the only reasons why the memory allocation can fail are the ones described above.
@@ -247,9 +247,6 @@ Except for \verb|div_towards_zero| and \verb|mod_towards_zero|, each of these op
 The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
 
 \begin{figure}
-  \caption{Auxiliary functions for eval and eval\_l}
-  \label{fig:aux_fun_eval}
-
   \begin{lstlisting}[mathescape=true, frame=single]
   detect_overflow  :: int $\Rightarrow$ val option
   read_var         :: vname $\Rightarrow$ visible_state $\Rightarrow$ val option
@@ -268,6 +265,9 @@ The values of that type are either \verb|None| when the operation fails or $\ver
   new_block        :: val $\Rightarrow$ mem $\Rightarrow$ (val $\times$ mem) option
   load             :: addr $\Rightarrow$ mem $\Rightarrow$ val option
   \end{lstlisting}
+
+  \caption{Auxiliary functions for eval and eval\_l}
+  \label{fig:aux_fun_eval}
 \end{figure}
 
 The functionalities of the auxiliary functions are the following:
@@ -347,9 +347,6 @@ The expressions are the ones described in the previous section (~\ref{section:ex
 Here we proceed to describe the \textit{abstract syntax} for the commands of the Chloe language.
 
 \begin{figure}
-  \caption{Chloe commands}
-  \label{fig:chloe_commands}
-
   \begin{lstlisting}[frame=single, mathescape=true]
   type_synonym fname = string
 
@@ -367,6 +364,9 @@ Here we proceed to describe the \textit{abstract syntax} for the commands of the
         | Callfun vname fname "exp list"
         | Callfunv fname "exp list"
   \end{lstlisting}
+
+  \caption{Chloe commands}
+  \label{fig:chloe_commands}
 \end{figure}
 
 In figure~\ref{fig:chloe_commands} we can find the definition of the datatype created in Isabelle for the commands, where \verb|lexp| and \verb|exp| stand for expressions described in the previous sections (~\ref{section:expressions}), \verb|vname| stands for variable names and \verb|fname| stands for the function names.
@@ -381,23 +381,42 @@ One of them (\verb|Callfunv|) is for functions without a return value.
 The other two depend on the return location of the function, if the return location is a variable we use the \verb|Callfun| command and if the return location is a cell in memory we use the \verb|Callfunl| command.
 
 In Isabelle we have defined a concrete infix syntax as well, which facilitates writing and reading commands in Chloe.
-We will proceed to introduce that concrete syntax and continue to use it throughout the rest of this work to make it more readable.
+In table~\ref{tab:concrete_syntax} we introduce the concrete syntax supposing we have $x$ that ranges over variable names, $a$ that ranges over expressions, $c$, $c_{1}$ and $c_{2}$ that range over commands, $y$ that ranges over the LHS expressions and $f$ that ranges over function names.
+We will continue to use the concrete syntax throughout the rest of this work to make it more readable.
 
-Suppose we have \verb|x| that ranges over variable names, \verb|a| that ranges over expressions, \verb|y| that ranges over the LHS expressions and \verb|f| that ranges over function names.
-The term \verb|Assignl y a| can be rewritten as \verb|y ::== a|.
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{Concrete syntax} \\ [0.5ex]
+  \hline \hline
+  \verb|Assignl| $y$ $a$ & $y$ \verb|::==| $a$ \\
+  \verb|Assign| $x$ $a$ & $x$ \verb|::=| $a$ \\
+  \verb|If| $a\ c_{1}\ c_{2}$ & \verb|IF| $a$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ \\
+  \verb|While a| $c$ & \verb|WHILE| $a$ \verb|DO| $c$ \\
+  \verb|Free| $y$ & \verb|FREE| $y$ \\
+  \verb|Return| $a$ & \verb|RETURN| $a$ \\
+  \verb|Returnv| & \verb|RETURNV| \\
+  \verb|Calllfunl| $y\ f\ [a]$ & $y$ \verb|::==| $f$ \verb|(| $[a]$ \verb|)| \\
+  \verb|Calllfun| $x\ f\ [a]$ & $x$ \verb|::=| $f$ \verb|(| $[a]$ \verb|)| \\
+  \verb|Calllfunv| $f\ [a]$ & \verb|CALL| $f$ \verb|(| $[a]$ \verb|)| \\
+  \hline
+\end{tabular}
+
+\caption{Abstract and concrete syntax equivalence}
+\label{tab:concrete_syntax}
+\end{table}
+
 
 \subsection{Functions}\label{subsection:functions_commands}
 
-In Chloe we have both functions that return values and procedures which dont have a return value.
+In Chloe we have both functions that return values and those which dont have a return value.
 For functions that do return a value we needed to figure out what to do with it.
 We decided that the return value of every function should be assigned to a dummy variable or to a destination in a memory cell whenever a function was returning from a call.
 We won't go into details explaining this design decision now but rather delay it until section~\ref{section:states} where we will be able to explain the reasoning behind this in a better way.
 
 \begin{figure}
-  \caption{Function definitions}
-  \label{fig:fun_def}
-
-  \begin{lstlisting}[frame=single]
+  \begin{lstlisting}[frame=single, mathescape=true]
   record fun_decl =
     name :: fname
     params :: vname list
@@ -406,22 +425,87 @@ We won't go into details explaining this design decision now but rather delay it
 
   valid_fun_decl :: fun_decl $\Rightarrow$ bool
   \end{lstlisting}
+
+  \caption{Function definitions}
+  \label{fig:fun_def}
 \end{figure}
 
 As we see in the definition in figure~\ref{fig:fun_def}, a function consists of a name, the formal parameters, the local variables and the body of the function, which is a, potentially big, command in the Chloe language.
 We also define a predicate which checks whether a function declaration is valid or not.
 A function declaration is considered valid if and only if the function parameters and the local variables have different names.
 
-
-
-
 \subsection{Programs}\label{subsection:programs_commands}
-\section{Restrictions}\label{subsection:restrictions_commands}
-Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
-Not sure if int width should be explained here or before in the integer types.
+
+A program in Chloe is conformed by a name, a list of global variables and a list of procedures as showed in figure~\ref{fig:prog_def}.
+In that same figure we can see a definition that every valid program must comply with.
+
+A program is considered valid if it complies with all the following conditions:
+
+\begin{itemize}
+  \item{The names for the global variables are different from one another.}
+  \item{The names for the procedures in the program are different from one another.}
+  \item{Every function declaration for every function in the program must be valid.}
+  \item{The main procedure must be defined.}
+  \item{None of the variable names or procedure names in the program must be a reserved keyword from C or a reserved keyword for testing.\footnote{Since we want to generate C code from the Chloe semantics we must guarantee that neither variable nor procedure names are any of the reserved C keywords or any of the reserved keywords used for testing variables.}}
+  \item{The global variables and the procedure names in a program can't be the same.}
+\end{itemize}
+
+
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  record program =
+    name :: string
+    globals :: vname list
+    procs :: fun_decl list
+
+  reserved_keywords =
+    [''auto'', ''break'', ''case'', ''char'', ''const'', ''continue'',
+     ''default'', ''do'', ''double'', ''else'', ''enum'', ''extern'',
+     ''float'', ''for'', ''goto'', ''if'', ''inline'', ''int'', ''long'',
+     ''register'', ''restrict'', ''return'', ''short'', ''signed'',
+     ''sizeof'', ''static'', ''struct'', ''switch'', ''typedef'',
+     ''union'', ''unsigned'', ''void'', ''volatile'', ''while'',
+     ''_Bool'', ''_Complex'', ''_Imaginary'']
+
+  test_keywords =
+    [''num_tests'', ''passed'', ''failed'']
+
+  definition valid_program :: program $\Rightarrow$ bool where
+  valid_program p $\equiv$
+      distinct (program.globals p)
+    $\bigwedge$ distinct (map fun_decl.name (program.procs p))
+    $\bigwedge$ ($\forall$ fd $\in$ set (progarm.procs p). valid_fun_decl fd)
+    $\bigwedge$ ( let
+         pt = proc_table_of p
+       in
+         ''main'' $\in$ dom pt
+         $\bigwedge$ fun_decl.params (the (pt ''main'')) = [])
+   $\bigwedge$ ( let
+         prog_vars = set ((program.globals p) @
+           collect_locals (program.procs p));
+         proc_names = set (map (fun_decl.name) (program.procs p))
+       in
+         ($\forall$ name $\in$ prog_vars.
+           name $\notin$ set (reserved_keywords @ test_keywords)) $\bigwedge$
+         ($\forall$ name $\in$ proc_names.
+           name $\notin$ set (reserved_keywords @ test_keywords)) $\bigwedge$
+         ($\forall$ fname $\in$ proc_names.
+           ($\forall$ vname $\in$ set (program.globals p). fname $\neq$ vname)))
+  \end{lstlisting}
+
+  \caption{Program definitions}
+  \label{fig:prog_def}
+\end{figure}
+
+
 
 
 \subsection{Semantics}\label{subsection:semantics_commands}
+
+\section{Restrictions}\label{subsection:restrictions_commands}
+Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
+Not sure if int width should be explained here or before in the integer types.
 
 
 \section{States}\label{section:states}
