@@ -408,12 +408,16 @@ We will continue to use the concrete syntax throughout the rest of this work to 
 \end{table}
 
 
-\subsection{Functions}\label{subsection:functions_commands}
+\section{Functions}\label{section:functions_commands}
 
 In Chloe we have both functions that return values and those which dont have a return value.
 For functions that do return a value we needed to figure out what to do with it.
 We decided that the return value of every function should be assigned to a dummy variable or to a destination in a memory cell whenever a function was returning from a call.
-We won't go into details explaining this design decision now but rather delay it until section~\ref{section:states} where we will be able to explain the reasoning behind this in a better way.
+We won't go into details explaining this design decision now but rather delay it until section~\ref{subsection:cfg} where we will be able to explain the reasoning behind this in a better way.
+
+As we see in the definition in figure~\ref{fig:fun_def}, a function consists of a name, the formal parameters, the local variables and the body of the function, which is a, potentially big, command in the Chloe language.
+We also define a predicate which checks whether a function declaration is valid or not.
+A function declaration is considered valid if and only if the function parameters and the local variables have different names.
 
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
@@ -430,11 +434,7 @@ We won't go into details explaining this design decision now but rather delay it
   \label{fig:fun_def}
 \end{figure}
 
-As we see in the definition in figure~\ref{fig:fun_def}, a function consists of a name, the formal parameters, the local variables and the body of the function, which is a, potentially big, command in the Chloe language.
-We also define a predicate which checks whether a function declaration is valid or not.
-A function declaration is considered valid if and only if the function parameters and the local variables have different names.
-
-\subsection{Programs}\label{subsection:programs_commands}
+\section{Programs}\label{section:programs_commands}
 
 A program in Chloe is conformed by a name, a list of global variables and a list of procedures as showed in figure~\ref{fig:prog_def}.
 In that same figure we can see a definition that every valid program must comply with.
@@ -499,10 +499,6 @@ A program is considered valid if it complies with all the following conditions:
 \end{figure}
 
 
-
-
-\subsection{Semantics}\label{subsection:semantics_commands}
-
 \section{Restrictions}\label{subsection:restrictions_commands}
 Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
 Not sure if int width should be explained here or before in the integer types.
@@ -510,16 +506,428 @@ Not sure if int width should be explained here or before in the integer types.
 
 \section{States}\label{section:states}
 
-Don't forget to mention visible states again.
+In simpler languages, which only support a limited set of features such as assignment, sequential composition, conditionals, loops and integer values, the state representation consists of simply a function that maps variables to values.
+In Chloe that is not the case, by including constructs as functions, dynamic memory and pointers to our set of features, the state representation ceases to be a simple function that maps variable names to values.
+In this section we will detail the complete components of the representation of a state.
+Previously, in section~\ref{subsection:semantics_expressions} we began explaining a simplified ``visible state'', here we will clarify the difference between that visible state and a real state, as well as detailing the components of a state in a program.
 
 \subsection{Valuation}\label{subsection:valuation}
+
+As mentioned previously a valuation is simply a function that maps variable names to values.
+Its return is of type \verb|val option option| which models a variable having one of the following states: undefined, uninitialized or holding a value.
+
+
 \subsection{Stack}\label{subsection:stack}
+
+Chloe supports functions calls, in order to do so an execution stack must be mantained in the state.
+This execution stack (from now on we will refer to it as just the stack) is conformed by a list of stack frames.
+Each of these stack frames contain important information about the current function call.
+
+In figure~\ref{fig:stack_def} the type for a stack frame is a tuple containing a Chloe command, a valuation and a return location.
+The Chloe command corresponds to the body of the function to be executed.
+The valuation corresponds to the values of the variables that are local to the function that was called.
+Finally the return location can be one of the following three: an address, a variable or an invalid return location.
+Every function that returns a value has to return it to a dummy variable or to a cell in memory, those are what the variable and address return location indicate.
+Finally we have an invalid return location for the functions that don't return a value.
+
+The return location is set on the caller's stack frame, that is, when returning from a function the caller's stack frame is the one to be checked to know where to assign the return value or if a value is expected at all.
+To further clarify this we can take this example code from figure~\ref{fig:stack_example}, it is a simple program where a function that adds the value of its two parameters is defined and then called from the main function.
+Before the function call, the stack frame belonging to the main function has an $Invalid$ return location and after the function call, the return location changes to the variable $x$.
+Notice that the stack frame that changes it's return location is the one belonging to main, this is because the caller is the one saving the return location where it expects to store the value of a returning function.
+An $Invalid$ return value indicates the caller is not expecting to store any results, i.e.\ either the caller has not called any functions yet or the function it has called have no return value.
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  datatype return_loc = Ar addr | Vr vname | Invalid
+
+  type_synonym stack_frame = com $\times$ valuation $\times$ return_loc
+  \end{lstlisting}
+
+  \caption{Stack definitions}
+  \label{fig:stack_def}
+\end{figure}
+
+
+\begin{figure}
+  \begin{subfigure}{0.3\textwidth}
+  \begin{lstlisting}[language=c, mathescape=true]
+  int sum(int a; int b){
+    return a+b;
+  }
+
+  int main(){
+    int x = 0;
+    x = sum(2,2);
+  }
+  \end{lstlisting}
+  \caption{Example code in C}
+  \label{fig:stack_ex_c_code}
+  \end{subfigure}
+  \begin{subfigure}{0.3\textwidth}
+    \begin{tabular}{|c|}
+      \hline
+      \hline
+      $\vdots$ \\
+      \\
+      \hline
+      $(x = \mathtt{sum}(2,2),$ \\
+      $[x \mapsto 0],$ \\
+      $ Invalid )$ \\
+      \hline \hline
+    \end{tabular}
+  \caption{Stack before function call (Stack grows upwards)}
+  \label{fig:stack_bef_fun_call}
+  \end{subfigure}
+  \begin{subfigure}{0.3\textwidth}
+    \begin{tabular}{|c|}
+      \hline
+      \hline
+      $\vdots$ \\
+      \\
+      \hline
+      $(\mathtt{return}\ a+b,$ \\
+      $[a \mapsto 2, b \mapsto 2],$ \\
+      $ Invalid )$ \\
+      \hline
+      $(x = f(2,2),$ \\
+      $[x \mapsto 0],$ \\
+      $ x )$ \\
+      \hline \hline
+    \end{tabular}
+  \caption{Stack after function call (Stack grows upwards)}
+  \label{fig:stack_aft_fun_call}
+  \end{subfigure}
+
+  \caption{Calling convention code example}
+  \label{fig:stack_example}
+\end{figure}
+
+
 \subsection{Procedure Table}\label{subsection:procedure_table}
+
+Another extension we must add when dealing with functions is a procedure table.
+A procedure table is defined as follows:
+
+\begin{lstlisting}[mathescape=true, frame=single]
+type_synonym proc_table = fname $\rightharpoonup$ fun_decl
+\end{lstlisting}
+
+where ``$\rightharpoonup$ \verb|fun_decl|'' is equivalent to writing ``$\Rightarrow$ \verb|fun_decl option|''.
+This function maps function names to their declaration.
+
+This function is constructed by taking the program definition and pairing every function declaration from the list of functions to its name.
+Every program has its own procedure table.
+
+
+\subsection{State}\label{subsection:state}
+
+A state is defined as a tuple conformed by the stack, a valuation for the globals and the dynamic memory.
+
+\begin{lstlisting}[mathescape=true, frame=single]
+type_synonym state = stack_frame list $\times$ valuation $\times$ mem
+\end{lstlisting}
+
+\subsection{Initial State}\label{subsection:initial_state}
+
+In order to build an initial state we need to define some components.
+In figure~\ref{fig:prog_def} we find definitions for the initial configuration of the stack, the global variables and the memory.
+The initial configuration for the stack consists of the stack frame for the main function of the program.
+The initial configuration for the global valuation is a function where every possible variable name is mapped to the undefined variable value (\verb|None|).
+The initial configuration for the dynamic memory is the empty memory, since nothing has been allocated.
+
+Having defined all of these components the initial state configuration is given by the tuple consisting of the initial configuration for the stack, global variables and dynamic memory.
+
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  context fixes $program$ :: program begin
+
+    private definition proc_table $\equiv$ proc_table_of program
+
+    definition main_decl $\equiv$ the (proc_table ''main'')
+    definition main_local_names $\equiv$ fun_decl.locals main_decl
+    definition main_com $\equiv$ fun_decl.body main_decl
+
+    definition initial_stack :: stack_frame list where
+      initial_stack $\equiv$ [(main_com,
+        map_of (map ($\lambda$. (x,None)) main_local_names),Invalid)]
+    definition initial_glob :: valuation where
+      initial_glob $\equiv$ map_of (map ($\lambda$. (x,None)) (program.globals program))
+    definition initial_mem :: mem where initial_mem $\equiv$ []
+
+    definition initial_state :: state where
+      initial_state $\equiv$ (initial_stack, initial_glob, initial_mem)
+
+  end
+  \end{lstlisting}
+
+  \caption{Initial state building}
+  \label{fig:prog_def}
+\end{figure}
+
+
+
+\subsection{Visible State}\label{subsection:initial_state}
+We also define a visible state (as mentioned before in section~\ref{paragraph:visible_state}).
+Executing a transformer function\footnote{we will cover transformer functions further in section~\ref{section:small_step}} over a state, excepting the transformer functions for function calls or returns, will be able to modify any part of the stack other than the current frame's local variables valuation.
+This happens because we define the real transformations in the context of visible states and then lift the function to states.
+Therefore, a transformer function over states, other than the ones for function call or return, cannot temper with the stack.
+
+The stack frame on the top of the stack correspond to the current function that's being executed, and the command component of it is the Chloe command (or program) being executed.
+Whenever a command is executed or a step is taken in our small-step semantics this command is updated to contain the command that is to be executed next.
+In order to prove the small-step semantics is deterministic we must prove that whenever we have a non-empty execution stack the order in which we apply the evaluation transformer\footnote{This is the eval function lifted to work on states instead of visible states, we will discuss it in further detail in section~\ref{section:small_step}} and the function that updates the command is irrelevant to the resulting final state.
+This is why we introduce a separate definition for a visible state apart from the regular state, it basically the same state with some limited information.
 
 \section{Small Step Semantics}\label{section:small_step}
 
 \subsection{CFG}\label{subsection:cfg}
+
+\paragraph{Enabled functions}\label{paragraph:enabled}
+
+An enabled function is a partial function as follows:
+
+\begin{lstlisting}[mathescape=true, frame=single]
+type_synonym enabled = state $\rightharpoonup$ bool
+\end{lstlisting}
+
+it indicates whether a state is enabled to continue its execution.
+This is a partial function, therefore its execution might fail.
+The execution of an enabled function will fail whenever an error is encountered when evaluating the function and it yields a \verb|None| value indicating an erroneous state.
+
+This function is useful for the execution of conditional constructs in our language.
+
+Suppose we have the term ``\verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$'' depending on the result of the enabled function we will decide whether the term reduces to $c_{1}$ or $c_{2}$.
+The only cases where an execution wouldn't be enabled to continue is when a condition for an \verb|If| construct evaluates to \verb|True| and it would be attempting to take the \verb|False| branch or viceversa.
+This is the only interesting case given the set of commands Chloe supports, for every other command the enabled function will always yield true.
+In figure~\ref{fig:enabled_def} is the list of enabled functions we use.
+The function \verb|truth_value_of| maps a value to a real boolean type, namely \verb|True| or \verb|False|.
+We also find \verb|en_always| which always yields \verb|True|, the \verb|en_pos| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|True| and the \verb|en_neg| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|False|.
+These functions will be used later in the CFG definition.
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  fun truth_value_of :: val $\Rightarrow$ bool where
+    truth_value_of NullVal $\longleftrightarrow$ False
+  | truth_value_of (I $i$) $\longleftrightarrow$ $i$ $\neq$ $0$
+  | truth_value_of (A _) $\longleftrightarrow$ True
+
+  abbreviation en_always :: enabled where en_always $\equiv\ \lambda$_. Some True
+
+  definition en_pos :: exp $\Rightarrow$ enabled
+
+  definition en_neg :: exp $\Rightarrow$ enabled
+  \end{lstlisting}
+
+  \caption{Enabled functions}
+  \label{fig:enabled_def}
+\end{figure}
+
+
+\paragraph{Transformer functions}\label{paragraph:transformer}
+
+A transformer function is a partial function as follows:
+
+\begin{lstlisting}[mathescape=true, frame=single]
+type_synonym transformer = state $\rightharpoonup$ state
+\end{lstlisting}
+
+it is a partial function that tranforms a state into another.
+This is a partial function, therefore its execution might fail.
+The execution of a transformer function will fail whenever an error is encountered at some point of its execution and yield a \verb|None| value indicating an erroneous state.
+
+We define functions that will return a transformer function for each command in Chloe.
+These functions will be used later in the CFG definition and are defined in figure~\ref{fig:transformer_def}
+We define a transformer function \verb|tr_id| that will serve as the id function and just yields the same state it is given as a parameter.
+
+The definitions listed in figure~\ref{fig:transformer_def} yield a transformer function which we will use when executing a command.
+We proceed to roughly describe the effect the transformer functions yielded will have when applied to a state.
+
+First of all we have the transformer for an assignment yielded by \verb|tr_assign|, it will evaluate the expression we want to assign and then proceed to perform a \verb|write| operation to the state and it yields the state resulting from this evaluation and \verb|write| operation.
+
+The transformer for an assignment to a cell in the dynamic memory yielded by \verb|tr_assignl| will first evaluate the LHS expression to obtain the location in memory where the value will be updated, then it will evaluate the expression to obtain the new value and proceed to store the value in memory, it yields the state resulting from the evaluations and the \verb|store| operation.
+
+The transformer for an evaluation yielded by \verb|tr_eval| will evaluate the expression and yield the state resulting from the evaluation.
+
+The transformer for a free operation yielded by \verb|tr_free| will evaluate the LHS expression it receives as a parameter in order to obtain an address, and the block for this address will be deallocated, it yields the state resulting from the evaluation and deallocation of memory.
+
+When performing a function call one must check the that formal parameters and the actual parameters given to the function have the same type and that each formal parameter has a corresponding given parameter.
+Since we don't have a type system we will only check the second condition mentioned.
+Also, we fix the evaluation order for the parameters given to a function as left to right order.
+The parameters will always be evaluated following a left to right order.
+Finally when calling a function we must also map the formal parameters to the values of the given parameters and regard these as local variables in the scope of our function.
+
+We have a \verb|call_function| which yields a transformer function for any function call, this transformer checks that the number of formal parameters and given parameters is the same, it evaluates the given parameters from left to right, it creates a new stack frame containing the body of the function, the local variables valuation (which includes the parameters mapped to their given values and the local variables mapped to an uninitialized value) and the return location \verb|Invalid|, it yields the state resulting from performing these operations over the state.
+
+When calling a function the caller has to change its stack frame in order to update the return location value in the current stack frame.
+We define different functions that perform that change depending on the type of function call and then proceed to yield a transformer by calling the \verb|call_function| function.
+
+\begin{comment}
+I should also explain here why function calls always return to a dummy variable, right?
+\end{comment}
+
+These functions are \verb|tr_callfunl|, \verb|tr_callfun| and \verb|tr_callfunv|.
+We use \verb|tr_callfunl| when the function's return location is a cell in memory.
+In this case the function first evaluates the LHS expression to obtain the return addresss and updates the return location of the stack frame with it before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this evaluation, the update of the stack frame and the operations done by \verb|call_function|.
+It is important here that the evaluation of the LHS expression that yields an address value must be the first one done, this is in order to avoid unwanted behaviour since the function could change the state.
+
+\begin{comment}
+You can do a better job at clarifying this!
+\end{comment}
+
+We use \verb|tr_callfun| when the function's return location is a variable.
+In this case the function updates the return location of the stack frame with the variable name before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this update of the stack frame and the operations done by \verb|call_function|.
+
+We use \verb|tr_callfunl| when the function is not expected to return a value.
+In this case the function updates the return location of the stack frame with \verb|Invalid| before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this update of the stack frame and the operations done by \verb|call_function|.
+
+We have a \verb|tr_return| which yields a transformer function for a return call returning an expression in a function, this transformer will pop the last stack frame in the stack belonging to the returning functin, evaluate the value corresponding to the expression returned by the function and if the stack is not empty then proceed to retrieve the return location and depending on if it is an address, a variable or an invalid location it will yield the state resulting from storing the value in memory, writing the value to a variable or yield the state as it is, respectively as well as popping the last stack frame of the stack.
+Note that if the function returns a value but its return location is expected to be invalid then the returned value is ignored instead of being considered an erroneous execution.
+
+Finally we have a \verb|tr_return_void| which yields a transformer function for a return call in a function, this transformer will pop the last stack frame belonging to the returning function and if the stack is not empty then proceed to get the return location and if it is anything different from an invalid return location proceed to return a \verb|None| value which represents an error.
+If, on the other hand, the return location is in fact an invalid one then it will yield the state resulting from the last frame of the stack being popped.
+
+\begin{comment}
+FIXME
+\end{comment}
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  abbreviation (input) tr_id :: transformer where tr_id $\equiv$ Some
+
+  tr_assign :: vname $\Rightarrow$ exp $\Rightarrow$ transformer
+  tr_assignl :: lexp $\Rightarrow$ exp $\Rightarrow$ transformer
+  tr_eval :: exp $\Rightarrow$ transformer
+  tr_free :: lexp $\Rightarrow$ transformer
+  call_function :: proc_table $\Rightarrow$ fname $\Rightarrow$ exp list $\Rightarrow$ transformer
+  tr_callfunl :: proc_table $\Rightarrow$ lexp $\Rightarrow$ fname $\Rightarrow$ exp list $\Rightarrow$ transformer
+  tr_callfun :: proc_table $\Rightarrow$ vname $\Rightarrow$ fname $\Rightarrow$ exp list $\Rightarrow$ transformer
+  tr_callfunv :: proc_table $\Rightarrow$ fname $\Rightarrow$ exp list $\Rightarrow$ transformer
+  tr_return :: exp $\Rightarrow$ transformer
+  tr_return_void :: transformer
+  \end{lstlisting}
+
+  \caption{Transformer functions}
+  \label{fig:transformer_def}
+\end{figure}
+
+
+\paragraph{CFG}
+A Control Flow Graph is a graph representation that covers the different paths a program can take during its execution.
+In our CFG the nodes represent commands and the edges are labeled with a tuple containing an enabled function and a transformer function.
+The meaning is that execution moves a command from node to node upon successful application of the enabled and transformer functions on the edge label over the state.
+
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  type_synonym cfg_label = enabled $\times$ transformer
+
+  inductive cfg :: com $\Rightarrow$ cfg_label $\Rightarrow$ com $\Rightarrow$ bool where
+
+    Assign: cfg ($x$ ::= $a$) (en_always,tr_assign $x$ $a$) SKIP
+  | Assignl: cfg ($x$ ::==  $a$) (en_always,tr_assignl $x$ $a$) SKIP
+  | Seq1: cfg (SKIP;; $c_{2}$) (en_always, tr_id) $c_{2}$
+  | Seq2: $[\![$cfg $c_{1}$ $a$ $c_{1}'$ $]\!]$ $\Longrightarrow$ cfg ($c_{1}$;; $c_{2}$) $a$ ($c_{1}'$;; $c_{2}$)
+  | IfTrue: cfg (IF $b$ THEN $c_{1}$ ELSE $c_{2}$) (en_pos $b$, tr_eval $b$) $c_{1}$
+  | IfFalse: cfg (IF $b$ THEN $c_{1}$ ELSE $c_{2}$) (en_neg $b$, tr_eval $b$) $c_{2}$
+  | While: cfg (WHILE $b$ DO $c$) (en_always, tr_id)
+      (IF $b$ THEN $c$;; WHILE $b$ DO $c$ ELSE SKIP)
+  | Free: cfg (FREE $x$) (en_always, tr_free $x$) SKIP
+
+  | Return: cfg (Return $a$) (en_always, tr_return $a$) SKIP
+  | Returnv: cfg Returnv (en_always, tr_return_void) SKIP
+
+  | Callfunl: cfg (Callfunl $e$ $f$ params)
+      (en_always, tr_callfunl proc_table $e$ $f$ params) SKIP
+  | Callfun: cfg (Callfun $x$ $f$ params)
+      (en_always, tr_callfun proc_table $x$ $f$ params) SKIP
+  | Callfunv: cfg (Callfunv $f$ params)
+      (en_always, tr_callfunv proc_table $f$ params) SKIP
+  \end{lstlisting}
+
+  \caption{CFG rules}
+  \label{fig:cfg_rules}
+\end{figure}
+
+We can see an inductive definition in figure~\ref{fig:cfg_rules} for CFG, where we can see the rules to form edges between commands.
+An assignment to a variable can be reduced to the \verb|SKIP| command by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assign| called with the parameters specific for the command.
+
+An assignment to a cell in memory can also be reduced to \verb|SKIP| by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assignl| called with the parameter specific for the command.
+
+The sequential composition has two different ways in which it can be reduced.
+When the first command in the sequential composition is a \verb|SKIP| command we can reduce the whole command to just the second command by an edge that is always enabled and that the transformer over the state is the \verb|tr_id|.
+For the second case of sequential composition \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| where $c_{1}$ is not \verb|SKIP|, if we have a reduction from $c_{1}$ to some other command $c_{1}'$ with some edge label $a$ containing an enabled and a transformer function, then we can reduce from \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| to \verb|(| $c_{1}'$ \verb|;;| $c_{2}$ \verb|)| with the same $a$ edge label.
+
+We also have two cases when it comes to the case of the conditional.
+We will have a reduction for taking true branch and another one for taking the false branch.
+In the case where we take the true branch we can reduce \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{1}$, by an edge with an enabled function given by \verb|en_pos| which will be enabled only when the condition $b$ evaluates to \verb|True| and with a transformer function given by \verb|tr_eval|.
+In the case where we take the false branch we can reduce \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{2}$, by an edge with an enabled function given by \verb|en_neg| which will be enabled only when the condition $b$ evaluates to \verb|False| and with a transformer function given by \verb|tr_eval|.
+
+In the case of a loop it can be always reduced from \verb|WHILE| $b$ \verb|DO| $c$ to \verb|IF| $b$ \verb|THEN| $c$ \verb|;; WHILE| $b$ \verb|DO| $c$ \verb|ELSE SKIP| by unrolling the loop once, the edge will have an enabled function that's always enabled and the transformer over the state is the \verb|tr_id|.
+
+The \verb|FREE| $x$ command can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_free| called with $x$.
+
+Both return commands can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_return| or \verb|tr_return_void| depending on which return command it is.
+
+Finally all function calls can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of either \verb|tr_callfunl|, \verb|tr_callfun| or \verb|tr_callfunv| depending on whether it is a function call that returns to a memory cell, a variable or returns no value.
+
 \subsection{Small Step semantics rules}\label{subsection:rules_small_step}
+
+Finally, we introduce the rules for the small-step semantics for Chloe.
+A small-step semantics is chosen over a big-step definition for the semantics due to the fact that we want a finer grained semantics.
+The big-step semantics has a major drawback, which is that it cannot differentiate between a non-terminating execution and getting stuck in an erroneous configuration.
+This is why we prefer a more detailed semantics that allows us to differentiate between nontermination and getting stuck because it allows us to talk about intermediate states during evaluation.
+
+Usually a configuration in a small step semantics is a pair conformed by a command and a state.
+Since we are working with procedures and we have the command that is being executed in the stack frame our small-step definition is defined over states.
+A small, atomic step can be taken from one state to another.
+
+The small-step rules for the semantics are detailed in figure~\ref{fig:small_step_rules}.
+A step can be taken if the following conditions are met:
+
+\begin{itemize}
+  \item{The stack is not empty.}
+  \item{There is a CFG edge between $c_{1}$ and $c_{2}$.}
+  \item{The command at the topmost stack frame in the initial state is $c_{1}$.}
+  \item{Applying the enabled function over the state yields \verb|True|.}
+  \item{Applying the transformer function to the state with the command at the topmost stack frame updated from $c_{1}$ to $c_{2}$ yields a new state $s_{2}$.}
+\end{itemize}
+
+Given that all the previous conditions are fulfilled then a small step can go from state $s$ to $s_{2}$.
+
+A small step can also be taken upon return from a function which returns no value.
+If the command at the top of the stack is \verb|SKIP|, the stack is not empty and applying the transformer function on the initial state $s$ yields a new state $s_{2}$, then we can take a small step from $s$ to $s_{2}$
+
+The type for \verb|small_step| is from \verb|state| to \verb|state option|, the second configuration is enclosed in an option type because taking a small step can result in an erroneous state in which we will get stuck.
+
+A small step can fail to be taken in any of the following cases:
+
+\begin{itemize}
+  \item{Either the enabled function or the transformer function yield \verb|None| when evaluated over the initial state.
+  This indicates an erroneous state was reached when evaluating one of those functions.
+  We propagate the erroneous state by taking a small step from state $s$ to \verb|None| and then the execution will get stuck there.}
+  \item{If applying the transformer function \verb|tr_return_void| over the state yields a \verb|None| value, the command at the top of the stack in the initial state is \verb|SKIP| and the stack is not empty, then we also propagate this erroneous \verb|None| state by taking a small step from $s$ to None.
+  This indicates there was an error returning from a function without a return value.}
+\end{itemize}
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  inductive
+    small_step :: state $\Rightarrow$ state option $\Rightarrow$ bool (infix $\rightarrow$ 55)
+  where
+    Base: $[\![$ $\neg$ is_empty_stack $s$; $c_{1}$=com_of $s$; cfg $c_{1} (en, tr) $c_{2};
+      en $s$ = Some True; tr (upd_com $c_{2}$ $s$) = Some $s_{2}$ $]\!]$ $\Longrightarrow$ s $\rightarrow$ Some $s_{2}$
+  | None: $[\![$ $\neg$ is_empty_stack $s$; $c_{1}$=com_of $s$; cfg $c_{1} (en, tr) $c_{2};
+      en $s$ = None $\vee$ tr (upd_com $c_{2}$ $s$) = None$]\!]$ $\Longrightarrow$ s $\rightarrow$ None
+  | Return_void: $[\![$ $\neg$ is_empty_stack $s$; com_of $s$ = SKIP;
+      tr_return_void $s$ = Some $s'$ $]\!]$ $\Longrightarrow$ $s$ $\rightarrow$ Some $s'$
+  | Return_void_None: $[\![$ $\neg$ is_empty_stack $s$; com_of $s$ = SKIP;
+      tr_return_void $s$ = None $]\!]$ $\Longrightarrow$ $s$ $\rightarrow$ None
+  \end{lstlisting}
+
+  \caption{Small-step rules}
+  \label{fig:small_step_rules}
+\end{figure}
+
 
 \section{Interpreter}\label{section:interpreter}
 
