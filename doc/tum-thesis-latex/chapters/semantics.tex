@@ -1150,7 +1150,8 @@ We create a new datatype for representing them.
 
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
-  datatype cfg_edge = Base $transformer$ $com$ | Cond $enabled$ $transformer$ $com$ $com$
+  datatype cfg_edge = Base $transformer$ $com$
+                    | Cond $enabled$ $transformer$ $com$ $com$
 
   context fixes proc_table :: proc_table begin
 
@@ -1159,18 +1160,22 @@ We create a new datatype for representing them.
     | "cfg_step ($x$ ::= $a$) = Base (tr_assign $x$ $a$) SKIP"
     | "cfg_step ($x$ ::== $a$) = Base (tr_assignl $x$ $a$) SKIP"
     | "cfg_step (SKIP;; $c_{2}$) = Base tr_id $c_{2}$"
-    | "cfg_step ($c_{1}$;;$c_{2}$$) = (case cfg_step $c_{1}$$ of
+    | "cfg_step ($c_{1}$;;$c_{2}$) = (case cfg_step $c_{1}$ of
         Base $tr$ $c$ $\Rightarrow$ Base tr (c;;c2)
       | Cond $en\ tr\ ca\ cb$ $\Rightarrow$ Cond $en\ tr\ \mathtt{(}ca\mathtt{;;}c2\mathtt{)}\ \mathtt{(}cb\mathtt{;;}c2\mathtt{)}$
        )"
-    | "cfg_step (IF $b$ THEN $c_{1}$ ELSE $c_{2}) = Cond (en_pos $b$) (tr_eval $b$) $c_{1}$ $c_{2}$"
-    | "cfg_step (WHILE $b$ DO $c$) = Base tr_id (IF $b$ THEN $c$;; WHILE $b$ DO $c$ ELSE SKIP)"
+    | "cfg_step (IF $b$ THEN $c_{1}$ ELSE $c_{2}$) = Cond (en_pos $b$) (tr_eval $b$) $c_{1}$ $c_{2}$"
+    | "cfg_step (WHILE $b$ DO $c$) =
+        Base tr_id (IF $b$ THEN $c$;; WHILE $b$ DO $c$ ELSE SKIP)"
     | "cfg_step (FREE $x$) = Base (tr_free $x$) SKIP"
     | "cfg_step (Return $a$) = Base (tr_return $a$) SKIP"
     | "cfg_step Returnv = Base (tr_return_void) SKIP"
-    | "cfg_step (Callfunl $e$ $f$ params) = Base (tr_callfunl proc_table $e$ $f$ params) SKIP"
-    | "cfg_step (Callfun $x$ $f$ params) = Base (tr_callfun proc_table $x$ $f$ params) SKIP"
-    | "cfg_step (Callfunv $f$ params) = Base (tr_callfunv proc_table $f$ params) SKIP"
+    | "cfg_step (Callfunl $e$ $f$ params) =
+        Base (tr_callfunl proc_table $e$ $f$ params) SKIP"
+    | "cfg_step (Callfun $x$ $f$ params) =
+        Base (tr_callfun proc_table $x$ $f$ params) SKIP"
+    | "cfg_step (Callfunv $f$ params) =
+        Base (tr_callfunv proc_table $f$ params) SKIP"
 
   end
   \end{lstlisting}
@@ -1182,6 +1187,38 @@ We create a new datatype for representing them.
 
 A $Base$ edge that has a transformer function and is always enabled and takes us to a new command and a $Cond$ edge that apart from the transformer function also has an enabled function and two commands, the enabled function indicates whether we take a step to the first or the second command.
 Also we define a \verb|cfg_step| function that given the starting command returns which kind of edge follows in the CFG.
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  definition fstep :: proc_table $\Rightarrow$ state $\Rightarrow$ state option where
+    fstep proc_table $s$ $\equiv$
+      if com_of $s$ = SKIP then
+        tr_return_void $s$
+      else
+        case cfg_step proc_table (com_of $s$) of
+            Base $tr\ c'$ $\Rightarrow$ $tr$ (upd_com $c'\ s$)
+          | Cond $en\ tr\ c1\ c2$ $\Rightarrow$ do {
+              $b$ $\leftarrow$ en $s$;
+              if $b$ then
+                tr (upd_com $c1\ s$)
+              else  
+                tr (upd_com $c2\ s$)
+            }
+  \end{lstlisting}
+
+  \caption{Definition of fstep}
+  \label{fig:fstep_def}
+\end{figure}
+
+
+\begin{comment}
+text ‹This is how we take a single step in an execution.
+  If the command we need to execute is a SKIP we call the return void transformer.
+  Otherwise we will check which kind of step we should take from the @{term cfg_step} function
+  and based on that if it's a Base step we will call the transformer with the updated command
+  or if it's a Cond we will evaluate the condition and call the transformer with the correct
+  updated command.›
+\end{comment}
 
 
 
