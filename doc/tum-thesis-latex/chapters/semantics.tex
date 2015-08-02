@@ -1341,3 +1341,26 @@ In order to execute a program we assert that it is valid with the previously def
 
 
 \subsection{Correctness}\label{subsection:correctness}
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  definition "yields $\equiv$ $lambda\ cs\ cs'$. Some $cs$ $\rightarrow*$ $cs'$ ∧ is_term cs'"
+
+  definition "terminates $\equiv$ $lambda\ cs$. $\exists\ cs'$. yields $cs\ cs'$"
+  \end{lstlisting}
+
+  \caption{Definitions about program execution}
+  \label{fig:execution_definitions}
+\end{figure}
+
+\begin{lemma}
+$\newline$
+$\mathtt{None}\ \rightarrow*\ z\ \longleftrightarrow\ z\ =\ \mathtt{None}$
+\label{lemma:none_star_preserved}
+\end{lemma}
+
+\begin{theorem}
+$\newline$
+$\mathtt{terminates}\ cs\ \Longrightarrow\ (\mathtt{yields}\ cs\ cs')\ \longleftrightarrow\ (cs'\ =\ \mathtt{interp}\ \mathtt{proc\_table}\ cs)$
+\label{theorem:interp_correct}
+\end{theorem}
