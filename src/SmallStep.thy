@@ -542,27 +542,18 @@ lemma small_step_determ:
   apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
   apply simp
   apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
-  apply simp
-  apply simp
+  apply simp+
 
   apply (erule small_step.cases)
   apply simp
   apply (erule (1) cfg_determ, auto simp: en_neg_by_pos tr_eval_upd_com) []
-  apply simp
-  apply simp
-  apply simp
+  apply simp+
 
   apply (erule small_step.cases)
-  apply simp
-  apply simp
-  apply simp
-  apply simp
+  apply simp+
 
   apply (erule small_step.cases)
-  apply simp
-  apply simp
-  apply simp
-  apply simp
+  apply simp+
   done
 
 end
