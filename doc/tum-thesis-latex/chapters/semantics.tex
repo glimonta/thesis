@@ -667,7 +667,7 @@ Having defined all of these components the initial state configuration is given 
 
 
 
-\subsection{Visible State}\label{subsection:initial_state}
+\subsection{Visible State}\label{subsection:visible_state}
 We also define a visible state (as mentioned before in section~\ref{paragraph:visible_state}).
 Executing a transformer function\footnote{we will cover transformer functions further in section~\ref{section:small_step}} over a state, excepting the transformer functions for function calls or returns, will be able to modify any part of the stack other than the current frame's local variables valuation.
 This happens because we define the real transformations in the context of visible states and then lift the function to states.
@@ -991,11 +991,44 @@ $\neg$ \verb|is_empty_stack| $s$ $\Longrightarrow$ $\exists\ x.\ s\ \rightarrow\
 \label{lemma:can_take_step}
 \end{lemma}
 
+\begin{proof}
+From the assumptions we know that the stack is not empty, therefore we can rewrite the state as follows: $s = ((c, locals, rloc)\#\sigma,\gamma,\mu)$.
+We can then do a proof by cases.
+We have the case where $c\ =\ \mathtt{SKIP}$ and the case where $c\\neq\ \mathtt{SKIP}$.
+
+The case where $c\ =\ \mathtt{SKIP}$ is the case where we are returning from the execution of a function.
+We know that the stack is not empty, that $c\ =\ \mathtt{SKIP}$ and that $s = ((c, locals, rloc)\#\sigma,\gamma,\mu)$.
+This case corresponds to the \verb|Return_void| and \verb|Return_void_None| rules in the definition of \verb|small_step|.
+In both these cases the semantics can take a step, either to some new state $s'$ or to \verb|None|.
+This goal is solved automatically by Isabelle indicating the mentioned rules and assumptions.
+
+The second case is where $c\\neq\ \mathtt{SKIP}$.
+This is the case when we are executing any other command and not returning from a function.
+In this case we use the previous lemma~\ref{lemma:cfg_enabled_action} and from that we know that $\mathtt{cfg}\ c\ (en,tr)\ c'$ and either the enabled function fails ($\mathtt{en}\ s\ = \mathtt{None}$) or it is enabled ($\mathtt{en}|\ s\ = \mathtt{Some True}$).
+
+We proof this subgoal by splitting it into cases.
+In the first case we assume $\mathtt{cfg}\ c\ (en,tr)\ c'$ and $\mathtt{en}\ s\ = \mathtt{None}$.
+This is the case where the evaluation function fails, we know this case takes a step to None because of the \verb|None| case of the small step definition.
+Then we have proved that it exists a state so that $s\ \rightarrow\ \mathtt{None}$.
+
+In the next case we assume $\mathtt{cfg}\ c\ (en,tr)\ c'$ and $\mathtt{en}\ s\ = \mathtt{Some True}$.
+This is the case where we are enabled to take a step, we must still check two more cases.
+Applying the transformer function over the state updated with the command ($tr\ (upd\_com\ c'\ s)$) can either fail or not.
+In the case it fails (it returns \verb|None|) we can take a step to \verb|None| and we will have proved that there is a state to which $s$ can take a small step, namely \verb|None|.
+In the case it doesn't fail, it will return $\mathtt{Some}\ s_{2}$, in which case we can take a step to $\mathtt{Some}\ s_{2}$ and we will have proved that there is a state to which $s$ can take a small step, namely $\mathtt{Some}\ s_{2}$.
+\end{proof}
+
+We define several lemmas that will come in handy later on.
+
 \begin{lemma}[CFG gets stuck at SKIP]
 $\newline$
 $\neg$ \verb|cfg SKIP| $a\ c$
 \label{lemma:stuck_at_skip}
 \end{lemma}
+
+\begin{proof}
+The property is proved automatically.
+\end{proof}
 
 \begin{lemma}[Small step gets stuck on an empty stack]
 $\newline$
@@ -1003,17 +1036,36 @@ $\newline$
 \label{lemma:ss_empty_stack_stuck}
 \end{lemma}
 
+\begin{proof}
+The property is proved automatically.
+\end{proof}
+
 \begin{lemma}[Small step' gets stuck on an empty stack]
 $\newline$
 \verb|is_empty_stack| $s$ $\Longrightarrow$ $\neg$ $(Some s\ \rightarrow\ cs')$
 \label{lemma:ss'_empty_stack_stuck}
 \end{lemma}
 
+\begin{proof}
+The property is proved automatically.
+\end{proof}
+
+Lemmas~\ref{lemma:ss_empty_stack_stuck} and~\ref{lemma:ss'_empty_stack_stuck} define the final state in which the semantics will get stuck, the semantics will get stuck when there are no more stack frames in the stack.
+
 \begin{lemma}[en\_neg has the opposite result as en\_pos]
 $\newline$
 \verb|en_neg| $e\ s$ = \verb|map_option (HOL.Not) (en_pos| $e\ s$ \verb|)|
 \label{lemma:en_neg_by_pos}
 \end{lemma}
+
+\begin{proof}
+The property is proved automatically unfolding the definitions of \verb|en_neg| and \verb|en_pos|.
+\end{proof}
+
+Lemma~\ref{lemma:en_neg_by_pos} states that everytime the enabled function \verb|en_neg| has a value (different than None) over a state, \verb|en_pos| will have the same but opposite result.
+In the case where one of the functions fails the other one will too, and they will yield \verb|None|.
+If they don't fail their results will be opposite, that is, if one has \verb|Some True| as a result, the other one will have \verb|Some False| as a result.
+This lemma will come in handy when proving determinism.
 
 \begin{lemma}[CFG is deterministic]
 $\newline$
@@ -1029,6 +1081,16 @@ $\exists\ b.\ a1\ = (\mathtt{en\_neg}\ b,\ \mathtt{tr\_eval}\ b)\ \wedge\ a2\ = 
 \label{lemma:cfg_determ}
 \end{lemma}
 
+\begin{proof}
+The proof is by induction on the command, with the cases of the \verb|cfg| rules generated by Isabelle all cases are solved automatically.
+\end{proof}
+
+Lemma~\ref{lemma:cfg_determ} states that CFG is deterministic.
+The only case where it is not is in the coditional case, for which we add an extra alternative in the conclusion.
+It can happen that we have a CFG rule starting at an \verb|If| command that has an edge to a $c_{1}$ and also an edge to $c_{2}$.
+This is not really a problem since the enabled functions guarantee that whenever that happens only one of the branches can be taken.
+
+
 \begin{lemma}[Update command and transformer function independence]
 $\newline$
 $\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow$
@@ -1038,6 +1100,10 @@ $\newline$
 $\mathtt{map\_option}\ (\mathtt{upd\_com}\ c)\ (\mathtt{lift\_transformer\_nr}\ tr\ s)$
 \label{lemma:lift_upd_com}
 \end{lemma}
+
+\begin{proof}
+It is proved automatically by unfolding the definition of \verb|lift_transformer_nr|.
+\end{proof}
 
 \begin{lemma}[Update command and evaluation transformer function independence]
 $\newline$
@@ -1049,19 +1115,76 @@ $\mathtt{map\_option}\ (\mathtt{upd\_com}\ c)\ (\mathtt{tr\_eval}\ e\ s)$
 \label{lemma:tr_eval_upd_com}
 \end{lemma}
 
+\begin{proof}
+It is proved automatically by unfolding the definition of \verb|tr_eval|.
+\end{proof}
+
+The \verb|lift_transformer_nr| function lifts to states the definition of a transformer function that operates in the visible state level.
+Lemmas~\ref{lemma:lift_upd_com} states that it does not matter in which order a transformer function is applied over a state and the command in the top of the stack frame is updated, since it will always yield the same result.
+This is because the update command function only modifies the command at the top of the stack and the transformer function cannot access and modify that part of the stack since it only modifies the visible state.
+
+Lemma~\ref{lemma:tr_eval_upd_com} is a more specific version of the previous lemma that states the same fact specifically for the evaluation transformer function.
+
+
+All the previous lemmas and definitions have been building up to this next proof, the determinism of the small step semantics.
 \begin{lemma}[Small step is deterministic]
 $\newline$
 $s\ \rightarrow\ s'\ \wedge\ s\ \rightarrow\ s''\ \Longrightarrow\ s'\ =\ s''$
 \label{lemma:small_step_determ}
 \end{lemma}
 
-
-
-
+\begin{proof}
+The proof is by cases on the small step semantics.
+We obtain 4 cases, each corresponding to each rule in the small step semantics.
+The goals generated by the \verb|Return_void| and \verb|Return_void_None| rules are solved automatically.
+The goals generated by the \verb|Base| and the \verb|None| are solved automatically after adding lemmas~\ref{lemma:en_neg_by_pos} and~\ref{lemma:tr_eval_upd_com}.
+\end{proof}
 
 
 \section{Interpreter}\label{section:interpreter}
 
 \subsection{Single step}\label{subsection:single_step}
+
+There are two kinds of edges in the CFG.
+We create a new datatype for representing them.
+
+\begin{figure}
+  \begin{lstlisting}[frame=single, mathescape=true]
+  datatype cfg_edge = Base $transformer$ $com$ | Cond $enabled$ $transformer$ $com$ $com$
+
+  context fixes proc_table :: proc_table begin
+
+    fun cfg_step :: "com $\Rightarrow$ cfg_edge" where
+      "cfg_step SKIP = undefined"
+    | "cfg_step ($x$ ::= $a$) = Base (tr_assign $x$ $a$) SKIP"
+    | "cfg_step ($x$ ::== $a$) = Base (tr_assignl $x$ $a$) SKIP"
+    | "cfg_step (SKIP;; $c_{2}$) = Base tr_id $c_{2}$"
+    | "cfg_step ($c_{1}$;;$c_{2}$$) = (case cfg_step $c_{1}$$ of
+        Base $tr$ $c$ $\Rightarrow$ Base tr (c;;c2)
+      | Cond $en\ tr\ ca\ cb$ $\Rightarrow$ Cond $en\ tr\ \mathtt{(}ca\mathtt{;;}c2\mathtt{)}\ \mathtt{(}cb\mathtt{;;}c2\mathtt{)}$
+       )"
+    | "cfg_step (IF $b$ THEN $c_{1}$ ELSE $c_{2}) = Cond (en_pos $b$) (tr_eval $b$) $c_{1}$ $c_{2}$"
+    | "cfg_step (WHILE $b$ DO $c$) = Base tr_id (IF $b$ THEN $c$;; WHILE $b$ DO $c$ ELSE SKIP)"
+    | "cfg_step (FREE $x$) = Base (tr_free $x$) SKIP"
+    | "cfg_step (Return $a$) = Base (tr_return $a$) SKIP"
+    | "cfg_step Returnv = Base (tr_return_void) SKIP"
+    | "cfg_step (Callfunl $e$ $f$ params) = Base (tr_callfunl proc_table $e$ $f$ params) SKIP"
+    | "cfg_step (Callfun $x$ $f$ params) = Base (tr_callfun proc_table $x$ $f$ params) SKIP"
+    | "cfg_step (Callfunv $f$ params) = Base (tr_callfunv proc_table $f$ params) SKIP"
+
+  end
+  \end{lstlisting}
+
+  \caption{Single step edges}
+  \label{fig:single_step_edges}
+\end{figure}
+
+
+A $Base$ edge that has a transformer function and is always enabled and takes us to a new command and a $Cond$ edge that apart from the transformer function also has an enabled function and two commands, the enabled function indicates whether we take a step to the first or the second command.
+Also we define a \verb|cfg_step| function that given the starting command returns which kind of edge follows in the CFG.
+
+
+
+
 \subsection{Execution and Interpretation}\label{subsection:exec_interp}
 \subsection{Correctness}\label{subsection:correctness}
