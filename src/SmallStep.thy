@@ -696,7 +696,11 @@ lemma fstep2: "\<not>is_empty_stack s \<Longrightarrow> s \<rightarrow> (fstep p
   apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
   apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
   done  
-  
+
+lemma ss_fstep_equiv: "\<not>is_empty_stack s \<Longrightarrow> s \<rightarrow> s' \<longleftrightarrow> fstep proc_table s = s'"
+  using fstep1 fstep2
+  by blast
+
 end
 
 subsection \<open>Interpreter for the semantics\<close>
