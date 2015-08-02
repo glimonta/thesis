@@ -680,6 +680,10 @@ This is why we introduce a separate definition for a visible state apart from th
 
 \section{Small Step Semantics}\label{section:small_step}
 
+\begin{comment}
+add a little summary here.
+\end{comment}
+
 \subsection{CFG}\label{subsection:cfg}
 
 \paragraph{Enabled functions}\label{paragraph:enabled}
@@ -882,6 +886,7 @@ Since we are working with procedures and we have the command that is being execu
 A small, atomic step can be taken from one state to another.
 
 The small-step rules for the semantics are detailed in figure~\ref{fig:small_step_rules}.
+The infix syntax for the small step semantics is written as $s \rightarrow s_{2}$ which means we take a small step from $s$ to $s_{2}$.
 A step can be taken if the following conditions are met:
 
 \begin{itemize}
@@ -922,11 +927,137 @@ A small step can fail to be taken in any of the following cases:
       tr_return_void $s$ = Some $s'$ $]\!]$ $\Longrightarrow$ $s$ $\rightarrow$ Some $s'$
   | Return_void_None: $[\![$ $\neg$ is_empty_stack $s$; com_of $s$ = SKIP;
       tr_return_void $s$ = None $]\!]$ $\Longrightarrow$ $s$ $\rightarrow$ None
+
+  inductive
+    small_step' :: (state) option $\Rightarrow$ (state) option $\Rightarrow$ bool (infix $\rightarrow'$  55)
+  where
+    $s\ \rightarrow\ s'\ \Longrightarrow$ Some $s\ \rightarrow'\ s'$
+
+  abbreviation
+    small_steps :: (state) option $\Rightarrow$ (state) option $\Rightarrow$ bool (infix $\rightarrow*$ 55)
+  where $s_{0}$ $\rightarrow*$ $s_{f}$ ==  star small_step' $s_{0}$ $s_{f}$
   \end{lstlisting}
 
   \caption{Small-step rules}
   \label{fig:small_step_rules}
 \end{figure}
+
+We just defined how to take a single step in our semantics.
+In order to take more than one step and define the execution of a program in our semantics we must lift the definition of \verb|small_step| to \verb|state option| in both the initial and the final state.
+
+We also define (in figure~\ref{fig:small_step_rules}) a new \verb|small_step'| based on our previous definition of \verb|small_step|, this definition essentially says that if a small step can be taken from state $s$ to state $s'$ then a small step can be taken from \verb|Some| $s$ to $s'$.
+Note that $s'$ can either be a \verb|None| value or a \verb|Some| $s_{i}$.
+The infix syntax for this new \verb|small_step'| is written as \verb|Some| $s \rightarrow' s'$, which means we take a small step from \verb|Some| $s$ to $s'$.
+
+This way we have lifted our small step definition to the type \verb|state option| and we can define the execution of a program as the reflexive transitive closure of the newly defined \verb|small_step'|, using Isabelle's \verb|star| operator.
+The infix syntax for this is written as $s_{0} \rightarrow* s_{f}$, which means we can go from state $s_{0}$ to $s_{f}$ in zero or more small steps.
+
+
+\subsubsection{Determinism}
+
+We want to prove our semantics to be deterministic.
+In order to go through with that proof a set of lemmas must be first defined and proved.
+We will proceed to explain such defined lemmas for our semantics in this section.
+
+This first lemma indicates that whenever we have a command different from \verb|SKIP| there is either always an enabled action to take in the CFG or an error ocurrs when trying to evaluate the enabled function.
+
+\begin{lemma}[CFG has enabled action]
+$\newline$
+$c$ $\neq$ \verb|SKIP| $\Longrightarrow$ $\exists\ c'\ en\ tr$. \verb|cfg| $c\ (en,tr)\ c'\ \wedge\ (en\ s\ =$ \verb|None| $\vee\ en\ s\ =$ \verb|Some True|$)$
+\label{lemma:cfg_enabled_action}
+\end{lemma}
+
+\begin{proof}
+The proof is by induction on the command.
+Except for two cases the proof is solved automatically.
+Those interesing cases are the \verb|Seq| and the \verb|If| cases.
+In the \verb|Seq| case we need to make a further case distinction on the first command of the sequential composition in order to differentiate the cases where it is SKIP and when it is not.
+In both cases there is a CFG rule that ensures there is an enabled action and the case is solved automatically.
+
+In the \verb|If| case we need to make a case distinction over the value of $\mathtt{en\_pos}\ b\ s$.
+It can fail and return a None value, in which case the case is solved.
+If it doesn't fail then we must check the boolean value returned by the \verb|en_pos| function.
+In the case where it is \verb|True| then the case is solved.
+The tricky case comes when the evaluation of \verb|en_pos| is \verb|False|, semantically, this means the else branch should be taken instead.
+Therefore when $\mathtt{en\_pos}\ b\ s$ is \verb|False|, $\mathtt{en\_neg}\ b\ s$ will always evaluate to \verb|True|, this means that the command will have an enabled action, namely $\mathtt{en\_neg}\ b\ s$ and the proof of this case is complete.
+\end{proof}
+
+Next we want to prove that as long as the stack is not empty the small-step semantics can always take a step.
+We will make use of the previous lemma in the proof for this new lemma.
+
+\begin{lemma}[Semantics can take a step]
+$\newline$
+$\neg$ \verb|is_empty_stack| $s$ $\Longrightarrow$ $\exists\ x.\ s\ \rightarrow\ x$
+\label{lemma:can_take_step}
+\end{lemma}
+
+\begin{lemma}[CFG gets stuck at SKIP]
+$\newline$
+$\neg$ \verb|cfg SKIP| $a\ c$
+\label{lemma:stuck_at_skip}
+\end{lemma}
+
+\begin{lemma}[Small step gets stuck on an empty stack]
+$\newline$
+\verb|is_empty_stack| $s$ $\Longrightarrow$ $\neg$ $(s\ \rightarrow\ cs')$
+\label{lemma:ss_empty_stack_stuck}
+\end{lemma}
+
+\begin{lemma}[Small step' gets stuck on an empty stack]
+$\newline$
+\verb|is_empty_stack| $s$ $\Longrightarrow$ $\neg$ $(Some s\ \rightarrow\ cs')$
+\label{lemma:ss'_empty_stack_stuck}
+\end{lemma}
+
+\begin{lemma}[en\_neg has the opposite result as en\_pos]
+$\newline$
+\verb|en_neg| $e\ s$ = \verb|map_option (HOL.Not) (en_pos| $e\ s$ \verb|)|
+\label{lemma:en_neg_by_pos}
+\end{lemma}
+
+\begin{lemma}[CFG is deterministic]
+$\newline$
+$\mathtt{cfg}$ $c$ $a1$ $c'$ $\wedge$
+$\mathtt{cfg}$ $c$ $a2$ $c''$
+$\newline$
+$\Longrightarrow$
+$a1\ =\ a2$ $\wedge$ $c'\ =\ c''$ $\vee$
+$\newline$
+$\exists\ b.\ a1\ = (\mathtt{en\_pos}\ b,\ \mathtt{tr\_eval}\ b)\ \wedge\ a2\ = (\mathtt{en\_neg}\ b,\ \mathtt{tr\_eval}\ b)\ \vee$
+$\newline$
+$\exists\ b.\ a1\ = (\mathtt{en\_neg}\ b,\ \mathtt{tr\_eval}\ b)\ \wedge\ a2\ = (\mathtt{en\_pos}\ b,\ \mathtt{tr\_eval}\ b)$
+\label{lemma:cfg_determ}
+\end{lemma}
+
+\begin{lemma}[Update command and transformer function independence]
+$\newline$
+$\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow$
+$\newline$
+$\mathtt{lift\_transformer\_nr}\ tr\ (\mathtt{upd\_com}\ c\ s)\ =$
+$\newline$
+$\mathtt{map\_option}\ (\mathtt{upd\_com}\ c)\ (\mathtt{lift\_transformer\_nr}\ tr\ s)$
+\label{lemma:lift_upd_com}
+\end{lemma}
+
+\begin{lemma}[Update command and evaluation transformer function independence]
+$\newline$
+$\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow$
+$\newline$
+$\mathtt{tr\_eval}\ e\ (\mathtt{upd\_com}\ c\ s)\ =$
+$\newline$
+$\mathtt{map\_option}\ (\mathtt{upd\_com}\ c)\ (\mathtt{tr\_eval}\ e\ s)$
+\label{lemma:tr_eval_upd_com}
+\end{lemma}
+
+\begin{lemma}[Small step is deterministic]
+$\newline$
+$s\ \rightarrow\ s'\ \wedge\ s\ \rightarrow\ s''\ \Longrightarrow\ s'\ =\ s''$
+\label{lemma:small_step_determ}
+\end{lemma}
+
+
+
+
 
 
 \section{Interpreter}\label{section:interpreter}

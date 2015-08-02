@@ -428,7 +428,7 @@ lemma assert_simps[simp]:
 
 text \<open>The following lemma states that as long as the stack is not empty we can always take a
   small step.\<close>
-lemma aux:
+lemma can_take_step:
   assumes [simp, intro!]: "\<not>is_empty_stack s"
   shows "\<exists>x. s \<rightarrow> x"
   using assms
@@ -697,13 +697,13 @@ lemma fstep2: "\<not>is_empty_stack s \<Longrightarrow> s \<rightarrow> (fstep p
 
   apply (simp split: cfg_edge.splits, safe)
   apply (frule (1) step_to_cfg_base)
-  apply (metis (no_types, lifting) aux cfg_edge.simps(5) fstep1 fstep_def)
+  apply (metis (no_types, lifting) can_take_step cfg_edge.simps(5) fstep1 fstep_def)
   apply (frule (1) step_to_cfg_cond)
   apply (auto split: Option.bind_splits intro: small_step.intros)
-  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
-  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
-  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
-  apply (metis (mono_tags, lifting) aux bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
+  apply (metis (mono_tags, lifting) can_take_step bind_lunit cfg_edge.simps(6) fstep1 fstep_def)
   done  
   
 end
