@@ -1336,6 +1336,11 @@ In order to execute a program we assert that it is valid with the previously def
 
 \subsection{Correctness}\label{subsection:correctness}
 
+Finally we must show our interpreter to be correct.
+In figure~\ref{fig:execution_definitions} we have two definitions regarding execution.
+The first one states that an execution of a state $cs$ \verb|yields| $cs'$ if we can take small steps from $cs$ to $cs'$ and $cs'$ is a final state.
+Secondly, we define an execution of a state to terminate if there exists a state $cs'$ such that the execution of state $cs$ yields it.
+
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
   definition "yields $\equiv$ $lambda\ cs\ cs'$. Some $cs$ $\rightarrow*$ $cs'$ $/wedge$ is_term cs'"
@@ -1347,14 +1352,29 @@ In order to execute a program we assert that it is valid with the previously def
   \label{fig:execution_definitions}
 \end{figure}
 
+Before showing the correctness lemma for the correctness of the interpreter we must show that the small steps execution will preserve an erroneous \verb|None| state if it is reached by the path of steps taken.
+Upon erroneous execution we will get stuck in a \verb|None| state.
+
 \begin{lemma}
 $\newline$
 $\mathtt{None}\ \rightarrow*\ z\ \longleftrightarrow\ z\ =\ \mathtt{None}$
 \label{lemma:none_star_preserved}
 \end{lemma}
 
+\begin{proof}
+The proof is by induction on the reflexive transitive closure (star).
+The goals are solved automatically.
+\end{proof}
+
+
+Finally we show the correctness property for our interpreter.
+Theorem~\ref{theorem:interp_correct} states that if the execution of $cs$ terminates, then that execution yields $cs'$ if and only if $cs'$ is the result we get from executing the program in the intepreter.
 \begin{theorem}
 $\newline$
 $\mathtt{terminates}\ cs\ \Longrightarrow\ (\mathtt{yields}\ cs\ cs')\ \longleftrightarrow\ (cs'\ =\ \mathtt{interp}\ \mathtt{proc\_table}\ cs)$
 \label{theorem:interp_correct}
 \end{theorem}
+
+\begin{proof}
+The proof is done by assuming the premise and proving each direction of the equality separately.
+\end{proof}
