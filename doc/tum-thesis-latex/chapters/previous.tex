@@ -11,13 +11,14 @@ This work is closely related to ours because it formalizes the semantics of a bi
 Then we will discuss the CompCert Project.~\parencite{compcert}
 In our work we adopt the memory model used for the verified C compiler in the CompCert Project.
 
-Finally (if there's time to write it), we will write about the Autocorres and other VCGs that abstracts low-level C semantics into higher level representations.
+Finally, we will write about the Autocorres and other VCGs that abstracts low-level C semantics into higher level representations.
 It translates C code into the logic of a theorem prover in order to prove properties about the C source code.
 
 \section{C formalized in HOL}
 
 An important previous work to take into account when talking about C semantics is the work by Michael Norrish in 1998~\parencite{norrish}, where he formalizes the semantics for a big subset of the C programming language.
 
+\begin{comment}
 The following is a list of differences between Norrish's work and ours, this is to be refined later
 \begin{itemize}
 \item{Both our works use the underlying Higher Order Logic, in Norrish's work he uses the HOL theorem prover whereas we use Isabelle/HOL for our theorem proving but essentially both are machine checked proofs}
@@ -53,6 +54,7 @@ Works that have as a goal to formalize some part of the semantics of the C progr
 
 Also work formalizing the semantics of Java-like languages or subsets of Java are abundant.
 Even though it is also formalizing semantic definitions we find it not directly relatable to our work.
+\end{comment}
 
 \section{CompCert Project}
 
@@ -63,5 +65,5 @@ This project uses the same memory model used in this work and that's why it's re
 
 \section{Different approach (From C code to semantics)}
 
-Mildly interesting, the AutoCorres project parses C code and abstracts it as many other VCGs out there.
+The AutoCorres project parses C code and abstracts it as many other VCGs out there.
 We are \textbf{generating} C code, this is the opposite direction.
