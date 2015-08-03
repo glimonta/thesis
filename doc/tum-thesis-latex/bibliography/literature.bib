@@ -42,15 +42,44 @@
   year   = {1998}
 }
 
-@conference{compcert,
-  author    = {Sandrine Blazy and Xavier Leroy},
-  title     = {Formal verification of a memory model for C-like imperative languages},
-  booktitle = {International Conference on Formal Engineering Methods (ICFEM 2005)},
-  volume    = {3785},
-  series    = {Lecture Notes in Computer Science},
-  pages     = {280-299},
-  year      = {2005},
-  publisher = {Springer},
+@article{leroy-blazy-memory-model,
+  author = {Xavier Leroy and Sandrine Blazy},
+  title = {Formal verification of a {C}-like memory model
+                 and its uses for verifying program transformations},
+  journal = {Journal of Automated Reasoning},
+  volume = 41,
+  number = 1,
+  pages = {1--31},
+  url = {http://gallium.inria.fr/~xleroy/publi/memory-model-journal.pdf},
+  urlpublisher = {http://dx.doi.org/10.1007/s10817-008-9099-0},
+  hal = {http://hal.inria.fr/inria-00289542/},
+  year = 2008,
+  pubkind = {journal-int-multi}
+}
+
+@inproceedings{compcert-float-point,
+  title = {A Formally-Verified {C} Compiler Supporting Floating-Point Arithmetic},
+  author = {Boldo, Sylvie and Jourdan, Jacques-Henri and Leroy, Xavier and Melquiond, Guillaume},
+  booktitle = {ARITH, 21st IEEE International Symposium on Computer Arithmetic},
+  pages = {107-115},
+  publisher = {IEEE Computer Society Press},
+  url = {http://hal.inria.fr/hal-00743090},
+  year = 2013,
+  xtopic = {compcert}
+}
+
+@article{clight,
+  author = {Sandrine Blazy and Xavier Leroy},
+  title = {Mechanized semantics for the {Clight}
+                         subset of the {C} language},
+  year = 2009,
+  journal = {Journal of Automated Reasoning},
+  url = {http://gallium.inria.fr/~xleroy/publi/Clight.pdf},
+  hal = {http://hal.inria.fr/inria-00352524/},
+  urlpublisher = {http://dx.doi.org/10.1007/s10817-009-9148-3},
+  volume = 43,
+  number = 3,
+  pages = {263-288}
 }
 
 @article{Native_Word-AFP,
@@ -108,4 +137,28 @@
   year   = 2015,
   month  = may,
   note   = {\url{http://isabelle.in.tum.de/dist/Isabelle2015/doc/implementation.pdf}}
+}
+
+@manual{hol-doc,
+  title = {The HOL System Description},
+  author = {Michael Norrish and Konrad Slind},
+  year = 2014,
+  month = nov
+}
+
+@manual{coq-doc,
+  title = {The Coq proof assistant reference manual},
+  author = {The Coq development team},
+  year = 2015,
+  month = apr,
+  organization = {TypiCal Project}
+}
+
+@inproceedings{autocorres,
+  title = {Don't sweat the small stuff: Formal verification of C code without the pain},
+  author = {David Greenaway and Japheth Lim and June Andronick and Gerwin Klein},
+  booktitle = {ACM SIGPLAN Conference on Programming Language Design and Implementation},
+  pages = {429-439},
+  year = 2014,
+  month = jun
 }
