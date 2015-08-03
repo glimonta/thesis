@@ -8,3 +8,4 @@
 *.c
 src/TestC/*
 doc/tum-thesis-latex/build/main.pdf
+/doc/tum-thesis-latex/build/
