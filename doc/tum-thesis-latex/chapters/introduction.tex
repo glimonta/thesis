@@ -9,10 +9,20 @@ Finally we will proceed to outline the contents of the rest of this work.
 
 \section{Motivation}
 
-Produce reliable software.
+The goal of this work is to formalize the semantics of an imperative language (including pointers and arrays) that represents a subset of the C language and then generate executable C code from it.
 
-C standard allows for ambigueties, formal semantics as an alternative to this.
+C is a language that is very widely used.
+It is particulary popular in the implementation of operating systems and embedded system applications.
+Since C is closer to the machine as oposed to other higher level languages and has a low overhead, it allows for efficient implementation of algorithms and data structures.
+Due to its efficiency it is also often used in the development of compilers, libraries and interpreters for other programming languages.
 
+Sadly, some of the semantics for the C language described in the standard~\parencite{c99} are prone to ambiguities due to the use of the english language to describe program behaviour.
+The use of formal mathematical constructs would rip it away from these ambiguities, although formalizing the semantics for the complete C language is no easy task and it is indeed one that has been subject to much research in the semantics area.
+
+Even though the semantics defined by our work covers a limited subset of C, it is expressive enough to allow the implementation of algorithms such as sorting, depth-first search, etc.
+The goal of this work is to also generate executable C code from our semantics.
+This generated code would behave as expected since it is written in our formal semantics, and then we can compile and execute this code outside of the Isabelle/HOL environment.
+This allows for implementation of some verified algorithms using our semantics and then generate efficient C code from it that can be compiled and executed.
 
 
 \section{Theoretical Background}
@@ -245,53 +255,36 @@ p_{3} &= x=m \land y=n
 The benefit of using this approach is that we are provided with an easy way to prove program properties by the proof system.
 
 
-\subsection{Isabelle/HOL}
+\subsection{Isabelle/HOL}\label{section:isabelle/hol}
 
-\begin{comment}
-We will shortly talk about what Isabelle/HOL is and then refer the reader to the book by Nipkow and Klein.~\parencite{nipkow}
-\end{comment}
+Nowadays we have mechanized theorem provers that assist on the formalization and proving of different constructs.
+Pen and paper proofs are prone to errors and humans are easier to fool than a machine.
+Therefore we should take advantage of the resources of a machine to let it work for us.
+Reasoning about the semantics of Chloe without using mechanized tools becomes a great task and, as said before, prone to errors, not to mention that the certainty on the correctness of our proofs diminishes.
 
-Reasoning about a formal semantics using just pen and paper can very quickly become an error-prone and complicated process.
-This is why we rely on a theorem prover, namely Isabelle, where we can write definitions and then prove theorems in a sound manner.
-
-The semantics for the language used in this work is formalized with the assistance of Isabelle/HOL.
-Isabelle/HOL is the specialization of Isabelle for HOL (Higher Order Logic). ~\parencite{nipkow}
-
+By using a theorem prover, in our case Isabelle/HOL~\parencite{isabelle-tutorial}, one can be certain that the results proved are correct.
+In the environment of Isabelle/HOL we can make logical definitions and prove lemmas and theorems about those constructs in a sound way.
+The semantics for the language used in this work is formalized in Isabelle/HOL, as well as the proofs that accompany those definitions.
 The definitions for the formal semantics and proofs that accompany it are written in this Isabelle/HOL.
 We won't specify the details from Isabelle/HOL in this section but rather refer the reader to \textit{Concrete Semantics with Isabelle/HOL}~\parencite{nipkow} which shows an introduction to Isabelle/HOL and theorem proving.
 
-\subsection{Language used in this work}
+On the other hand, Isabelle/HOL has also code generation facilities~\parencite{isabelle-codegen} that allow us to generate executable SML code from the HOL specification of our semantics.
+This generated code will later on enable us to execute the semantics we define.
+Also Isabelle/HOL allows for Isabelle/ML code embedded in the theories~\parencite{isabelle-implementation} this facilitates the final translation to C process.
 
-In this work we formalize the semantics for a small programming language called Chloe (TODO).
+\subsection{Chloe}\label{subsection:chloe}
+
+In this work we formalize the semantics for a small programming language called Chloe.
 It is a subset of the C programming language.
-The syntax and semantics of this programming language are discussed in further detail later in chapter 3.
+The syntax and semantics of this programming language are discussed in further detail later in chapter~\ref{chapter:semantics}.
 
 This language has the following features: variables, arrays, pointer arithmetic, while loop construct, if-then-else conditional construct and dynamic memory.
 Sadly, the scope of this project was limited to the features mentioned previously and there are several features that are currently not supported by the language.
 These features are a sound and correct type system, concurrency, I/O operations, goto, labels, break and continue.
 
-While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe (TODO) is enough to show some relevant program examples and it has enough expressive power to be Turing-complete.
+While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe is enough to show some relevant program examples and it has enough expressive power to be Turing-complete.
 
 
-\begin{comment}
-The language should probably have a name.
-I have to give one to it.
-Here I write what kind of features my language has.
-Variables, loops, functions, pointers, etc.
-And the features I do not support.
-Concurrency, types, etc.
-\end{comment}
+\section{Document Structure}\label{section:document_structure}
 
-\section{Thesis Structure}
-
-Chapter 2: Related work.
-
-Chapter 3: Syntax and semantics.
-
-Chapter 4: Pretty printing.
-
-Chapter 5: Testing.
-
-Chapter 6: Results.
-
-Chapter 7: Conclusion and future work.
+The rest of this document is divided as follows: Chapter~\ref{chapter:previous} covers the previous and related work, chapter~\ref{chapter:semantics} covers the details for the syntax and the small-step semantics we define for Chloe, chapter~\ref{chapter:pretty} covers the translation process from a program in the semantics to a C program, this process is called /textit{pretty printing}, chapter~\ref{chapter:results} covers the results achieved by this work and finally, chapter~\ref{chapter:conclusion} encapsulates the result of the work and final conclusions from it, as well as detailing future work that can be done from ours.
