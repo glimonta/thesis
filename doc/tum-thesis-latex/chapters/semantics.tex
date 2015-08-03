@@ -1344,7 +1344,7 @@ In order to execute a program we assert that it is valid with the previously def
 
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
-  definition "yields $\equiv$ $lambda\ cs\ cs'$. Some $cs$ $\rightarrow*$ $cs'$ ∧ is_term cs'"
+  definition "yields $\equiv$ $lambda\ cs\ cs'$. Some $cs$ $\rightarrow*$ $cs'$ $/wedge$ is_term cs'"
 
   definition "terminates $\equiv$ $lambda\ cs$. $\exists\ cs'$. yields $cs\ cs'$"
   \end{lstlisting}
