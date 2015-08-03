@@ -7,4 +7,4 @@
 *.swo
 *.c
 src/TestC/*
-*.pdf
+doc/tum-thesis-latex/build/main.pdf
