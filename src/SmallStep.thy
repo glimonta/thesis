@@ -663,7 +663,7 @@ text \<open>@{term fstep1} shows the first direction of this equality. If we can
     assumes "s \<rightarrow> s'"  
     shows "fstep proc_table s = s'"
     using assms
-    apply cases
+    apply induction
     apply (auto simp: fstep_def)
 
     apply (erule cfg_to_stepE)
@@ -763,9 +763,9 @@ text \<open>The star operator preserves a None state. If we reach a None in our 
 
 text \<open>We prove that @{term small_step'} is deterministic.\<close>
   lemma small_step'_determ:
-    assumes "c \<rightarrow>' c1"
-    assumes "c \<rightarrow>' c2"
-    shows "c1=c2"
+    assumes "s \<rightarrow>' s'"
+    assumes "s \<rightarrow>' s''"
+    shows "s'=s''"
     using assms(1)
     apply cases
     using assms(2)
