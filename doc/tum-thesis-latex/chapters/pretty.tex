@@ -1,10 +1,246 @@
 \chapter{Pretty Printer}\label{chapter:pretty}
 
-\section{Values}
-\section{Memory}
+In this chapter we will detail the \textit{pretty printing} (translation) that happens in the semantics and allows us to export C code.
+To assist us in this translation process we used Sternagel and Thiemann's implementation of Haskell's Show class in Isabelle/HOL~\parencite{Show-AFP}.
+In that implementation they implement a type class for ``to-string'' functions as well as instantiations for Isabelle/HOL's standard types.
+Moreover they allow for deriving show functions for arbitrary user defined datatypes.
+We instantiate this class creating a ``show'' function for each of our defined datatypes incrementally until we can print a program.
+The following sections will explain in detail the concrete strings we get as a result of our translation.
+
+\section{Words}\label{section:pretty_words}
+The first instantiation of shows we must make is the one for words in order to be able to pretty print values of this type.
+For pretty printing a value of the type word we will simply cast that value to an Isabelle/HOL's predefined int type and use the \verb|show| function for it.
+As a result our words will be pretty printed as signed integers.
+
+\section{Values}\label{section:pretty_values}
+
+\subsection{Val type}\label{subsection:pretty_val_type}
+The type \verb|val| is the first user defined type we provide an instantiation for.
+In table~\ref{tab:pretty_val} we find the equivalence between the abstract syntax for the \verb|val| type and the string representation.
+Note that $w$, $base$ and $ofs$ range over words, nats and integers, therefore their show functions will be used to obtain their string representation e.g.\ the string representation for $\mathtt{I}\ 42$ would be $"42"$, the string representation for $\mathtt{A}\ (4,\ 2)$ would be $"4[2]"$.
+A list of values is showed by showing each value in a list notation, i.e.\ $[vname\ =\ value, \dots, vname_n\ =\ value_n]$.
+
+We will enclose parameters in between brackets ($"<\ >"$ ) to indicate that what's enclosed in them is a string representation which results from applying a shows function on the parameter and will continue to use this notation throughout the rest of the document.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|NullVal| & null \\
+  \verb|I| $w$ & $<w>$ \\
+  \verb|A| $(base,\ ofs)$ & <$base$>[<$ofs$>] \\
+  \hline
+\end{tabular}
+
+\caption{Translation of val type}
+\label{tab:pretty_val}
+\end{table}
+
+\subsection{Val option type}\label{subsection:pretty_val_option_type}
+
+Now that we know how to represent a \verb|val| type in the form of a string we must also know how to represent a \verb|val option|.
+A \verb|val option| holds the semantic meaning of an initialized and an uninitialized value.
+Table~\ref{tab:pretty_val_option} shows the equivalence between the abstract syntax and the string representation.
+Here an initialized value will just be the string resulting from showing that value, whereas an uninitialized value's string representation will be a $''?''$ to represent its value is not yet known.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Some| v & <$v$> \\
+  \verb|None| & ? \\
+  \hline
+\end{tabular}
+
+\caption{Translation of val option type}
+\label{tab:pretty_val_option}
+\end{table}
+
+
+\subsection{Valuations}\label{subsection:pretty_valuations}
+
+It must also be possible to have a string representation of a valuation.
+In order to represent a valuation we need an extra parameter, namely a list of variable names, this list will have the names of the variables for which we want to print their value in the valuation.
+The valuation will be printed in the following format:
+\begin{equation*}
+[<vname_0> = <value_0>, <vname_1> = <value_1>, \dots, <vname_n> = <value_n>]
+\end{equation*}
+
+For instance, if we take the valuation $[foo \mapsto \mathtt{Some}(\mathtt{I}\ 15), bar \mapsto None, baz \mapsto \mathtt{Some}(\mathtt{A}(1,9))]$ and the list of variables $[foo, bar, baz]$ then we would get the following as a string representation for the valuation:
+
+\begin{equation*}
+[foo\ =\ 15,\ bar\ =\ ?,\ baz\ =\ 1[9]]
+\end{equation*}
+
+
+\section{Memory}\label{section:pretty_memory}
+
+In order to show the memory we must first know how to show a string representation of the content of a block and a string representation of the whole block.
+
+When we access a block in the memory we can get either the content of the block or a \verb|None| value indicating a free block of memory.
+Table~\ref{tab:pretty_block_content} shows the string representations for this, notice that in the case of a \verb|None| value we print the \verb|free| string enclosed in brackets, being the brackets part of the string representation and posing an exception to the notation described previously.
+If the content of the block is a list of values then we show the list of values.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Some| content & <$content$> \\
+  \verb|None| & <free> \\
+  \hline
+\end{tabular}
+
+\caption{Translation of Block content}
+\label{tab:pretty_block_content}
+\end{table}
+
+A complete block will be printed as follows:
+\begin{equation*}
+<base>\ :\ <block_content> 
+\end{equation*}
+
+where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
+
+Finally, in order to show the whole memory, we only need to show each block existing in the memory.
+For instance, the string representation of memory state:
+\begin{equation*}
+[\mathtt{Some}\ [\mathtt{I}\ 13,\ \mathtt{None}],\ None,\ \mathtt{Some}\ [\mathtt{A}(2,3),\ None, \mathtt{I}\ 56]]
+\end{equation*}
+would be:
+\begin{align*}
+0\ &:\ [13,\ ?] \\
+1\ &:\ <free> \\
+2\ &:\ [2[3],\ ?,\ 56]
+\end{align*}
+
+
 \section{Expressions}
+In order to print expressions we must be able to print unary and binary operations.
+We must also be able to print casts from and to pointers.
+We use C's \verb|intptr_t| which is big enough to hold the value of an integer as well as the value of a pointer, we do so due to the fact that we only have integer values in our language and we separate address values from them in the semantics level.
+
+At the C level we must be able to tell the compiler when some value is meant to be an address and cast it as such.
+We allow this casting between addresses and integers during the translation process because we know for sure when a value should be interpreted as an address and when it should be interpreted as an integer, whereas C does not.
+
+\paragraph{Unary and binary operations}
+When pretty printing binary operations we will use parenthesis around every expression pretty printed, this will naturally generate more parenthesis than needed but we are willing to make this choice to ensure the evaluation order remains the same as intended and we do not get different evaluation orders because of operator precedence.
+
+A binary operator is pretty printed in an infix way:
+\begin{equation*}
+(<operand_1> <operator> <operand_2>)
+\end{equation*}
+
+Examples of this are shown in table~\ref{tab:pretty_bin_op}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Plus| (\verb|Const| $11$) (\verb|Const| $11$) & ($11\ +\ 11$) \\
+  \verb|Subst| (\verb|Const| $9$) (\verb|Const| $5$) & ($9\ -\ 5$) \\
+  \verb|Mult| (\verb|Const| $2$) (\verb|Const| $3$) & ($2\ *\ 3$) \\
+  \hline
+\end{tabular}
+
+\caption{Examples of binary operators' pretty printing}
+\label{tab:pretty_bin_op}
+\end{table}
+
+An unary operator is pretty printed in a prefix way:
+\begin{equation*}
+<operator> (<operand>)
+\end{equation*}
+
+Notice we enclose the operand in parenthesis in order to guarantee correct precedence in the operations.
+
+Examples of this are shown in table~\ref{tab:pretty_un_op}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Minus| (\verb|Const| $11$) & $-\ (11)$ \\
+  \verb|Not| (\verb|Const| $0$) & $!\ (0)$ \\
+  \hline
+\end{tabular}
+
+\caption{Examples of unary operators' pretty printing}
+\label{tab:pretty_un_op}
+\end{table}
+
+
+
+\begin{comment}
+subsection ‹Pretty printing of casts›
+
+text ‹In our semantics we didn't define any type information. Therefore every variable in the
+  generated C program will be of type @{term intptr_t}.
+
+  Since we're working with pointers and integer values, we must make the explicit cast between
+  these two types in our generated program.
+  When an address value is needed we add the cast:
+
+  (<type> *) <expression>
+
+  When we need an integer value we add the cast:
+
+  (<type>) <expression>
+›
+
+  definition shows_cast_to_pointer :: "shows ⇒ shows" where
+    "shows_cast_to_pointer s ≡ shows_paren ( shows dflt_type o shows ''*'') o s "
+
+  definition shows_cast_to_dflt_type :: "shows ⇒ shows" where
+    "shows_cast_to_dflt_type s ≡ shows_paren ( shows dflt_type ) o s "
+
+subsection ‹Pretty printing of expressions›
+
+text ‹From the previous definitions on pretty printing the definition of @{term shows_exp}
+  and @{term shows_lexp} should be straightforward.›
+  fun 
+      shows_exp :: "exp ⇒ shows" 
+  and shows_lexp :: "lexp ⇒ shows"
+    where
+    "shows_exp (Const int_val) = shows int_val"
+  | "shows_exp (Null) = shows_cast_to_pointer (shows ''0'')"
+  | "shows_exp (V x) = shows x"
+  | "shows_exp (Plus e1 e2) = shows_binop (shows_exp e1) ''+'' (shows_exp e2)"
+  | "shows_exp (Subst e1 e2) = shows_binop (shows_exp e1) ''-'' (shows_exp e2)"
+  | "shows_exp (Minus e) = shows_unop ''-'' (shows_exp e)"
+  | "shows_exp (Div e1 e2) = shows_binop (shows_exp e1) ''/'' (shows_exp e2)"
+  | "shows_exp (Mod e1 e2) = shows_binop (shows_exp e1) ''%'' (shows_exp e2)"
+  | "shows_exp (Mult e1 e2) = shows_binop (shows_exp e1) ''*'' (shows_exp e2)"
+  | "shows_exp (Less e1 e2) = shows_binop (shows_exp e1) ''<'' (shows_exp e2)"
+  | "shows_exp (Not e) = shows_unop ''!'' (shows_exp e)"
+  | "shows_exp (And e1 e2) = shows_binop (shows_exp e1) ''&&'' (shows_exp e2)"
+  | "shows_exp (Or e1 e2) = shows_binop (shows_exp e1) ''||'' (shows_exp e2)"
+  | "shows_exp (Eq e1 e2) = shows_binop (shows_exp e1) ''=='' (shows_exp e2)"
+  | "shows_exp (New e) = shows_cast_to_dflt_type ( shows ''malloc (sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')'')"
+  | "shows_exp (Deref e) = shows ''*'' o shows_paren (shows_cast_to_pointer (shows_exp e))"
+  | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
+  | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
+  | "shows_lexp (Derefl exp) = shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
+  | "shows_lexp (Indexl e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
+
+\end{comment}
+
+
+
+
 \section{Commands}
 \section{Declarations}
 \section{States}
+\subsection{Return locations}
 \section{Programs}
 \section{Exporting C code}
+\subsection{Architecture checks}
