@@ -253,7 +253,7 @@ We use simple expressions as operands such as variables or constant values for s
 
 \section{Commands}
 First of all we need a way of printing indented commands to facilitate the generated code.
-We define two auxiliary abbreviatons that will pretty print white spaces for intentation at the beginning of a construct.
+We define two auxiliary abbreviations that will pretty print white spaces for indentation at the beginning of a construct.
 The reason why two abbreviations are defined is because one of them will also pretty print a $";"$ terminator after the construct whereas the other will not.
 
 We also define a way of pretty printing function calls.
@@ -367,7 +367,269 @@ In this example we avoid the use of $''\ ''$ for string representations in Isabe
 
 
 \section{States}
-\subsection{Return locations}
+
+When executing a program inside the Isabelle/HOL environment we will often want to inspect the states.
+An easy way to inspect the states is to have a string representation for them.
+That is precisely what we define in this section.
+
+First we describe how a return location is pretty printed.
+We instatntiate the show class for the type \verb|return_loc|.
+In table~\ref{tab:pretty_rloc} we find the equivalence between the abstract syntax for the \verb|return_loc| type and the string representation.
+Where $<base>$ and $<ofs>$ are the result of applying the show function over $base$ and $ofs$ and $<invalid>$ is a literal string including the arrow heads.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Ar| $(base,\ ofs)$ & <$base$>[<$ofs$>] \\
+  \verb|Vr| $w$ & $w$ \\
+  \verb|Invalid| & <invalid> \\
+  \hline
+\end{tabular}
+
+\caption{Translation of return location type}
+\label{tab:pretty_rloc}
+\end{table}
+
+Now we describe how the stack is pretty printed.
+A single stack frame is pretty printed by pretty printing the command, pretty printing the list of local variables and pretty printing the return location expected with the following format: $rloc\ =\ <rloc>$ separated by a line break.
+In order to pretty print the whole stack, we will print each stack frame separated by ``\verb|---------------|''.
+
+
+In order to pretty print a state we must give the show function a list of variable names, which will be used to print the valuation for the globals and the locals in the stack frame.
+A state is pretty printed by pretty printing the stack, the values of the global variables and finally the memory, separated by ``\verb|=================|''
+
+An example of pretty printing for a simple state is shown in table~\ref{tab:pretty_simp_state}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|l|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  $(\ [\ (x\ ::=\ \mathtt{Const}\ 4;;\ y\ ::=\ \mathtt{Const}\ 25,$                                            & \verb|x = (4);| \\
+  $\ \ \ \ \ \ [z\ \mapsto\ \mathtt{Some}\ (\mathtt{I}\ 0)],\ \mathtt{Invalid}),$                              & \verb|y = (25);| \\
+  $\ \ [\ (x\ ::=\ \mathtt{Const}\ 3;;\ y\ ::=\ \mathtt{Const}\ 43,$                                           & \verb|---------------| \\
+  $\ \ \ \ \ \ [z\ \mapsto\ \mathtt{Some}\ (\mathtt{I}\ 6)],\ \mathtt{Vr} foo)],$                              & \verb|[z = 0]| \\
+  $\ \ [x\ \mapsto\ \mathtt{Some}\ (\mathtt{I}\ 3),\ y\ \mapsto\ \mathtt{Some}\ (\mathtt{I}\ 8),$              & \verb|---------------| \\
+  $\ \ foo\ \mapsto\ \mathtt{Some}\ (\mathtt{I}\ 0)],$                                                         & \verb|rloc = <invalid>| \\
+  $\ \ [\mathtt{None},\ \mathtt{Some}\ [\mathtt{Some}\ (\mathtt{I}\ 44), \mathtt{Some}\ (\mathtt{A}\ (2,0))],$ & \verb|x = (5);| \\
+  $\ \ \mathtt{Some}\ [\mathtt{Some}\ (\mathtt{I}\ 78)]$                                                       & \verb|y = (43);| \\
+                                                                                                               & \verb|---------------| \\
+                                                                                                               & \verb|[z = 6]| \\
+                                                                                                               & \verb|---------------| \\
+                                                                                                               & \verb|rloc = foo| \\
+                                                                                                               & \verb|=================| \\
+                                                                                                               & \verb|[x = 3, y = 8, foo = 0]| \\
+                                                                                                               & \verb|=================| \\
+                                                                                                               & \verb|1: <free>| \\
+                                                                                                               & \verb|2: [44, *2[0]]| \\
+                                                                                                               & \verb|3: [78]| \\
+  \hline
+\end{tabular}
+
+\caption{Pretty printing example of a state}
+\label{tab:pretty_simp_state}
+\end{table}
+
+
 \section{Programs}
+
+In this section we can now talk about translating a complete program.
+
+\paragraph{Header files and bound checks}
+In our real C code we export we will, more often than not, want to include the header files for the C standard libraries, these allow us to use malloc and free for instance, these are \verb|stdlib.h| and \verb|stdio.h|.
+Also we include two more header files that allow the use of \verb|intptr_t| type and a header where the macro definitions that specify limits of integer types are defined.
+These are \verb|limits.h| and \verb|stdint.h|, respectively.
+Finally we also want to include the header file that defines some macros used by our test harness for testing purposes, this will be addressed in more detail in chapter~\ref{chapter:testing}.
+Before pretty printing any part of our program we will want to pretty print the directive to include the header files mentioned before.
+
+
+Also, our translation process generates a program that will be compilable and executable.
+This is true for architectures that support at least the same range of integer types as our abstraction does.
+This means, any architecture where the program will be compiled and executed must comply with the restrictions for integer values that we assume.
+That is why we use C's preprocessor to our advantage and pretty print an integer bounds check that will assert that the macros with the lower and upper bound definition are in fact defined.
+In our case we must check that the macros \verb|INTPTR_MIN| and \verb|INTPTR_MAX| are both defined.
+Then we proceed to assert that the bounds defined in those macros are in fact the same as the bounds we assume (the bounds we assume are \verb|INT_MIN| and \verb|INT_MAX|, they are defined in figure~\ref{fig:int_bounds}).
+
+
+The type we use for our translation as well as the precision of the integers can be changed.
+We define values and proceed to use them in the semantics and the pretty printing process.
+The definitions for the type used for translation are as follows:
+
+\begin{lstlisting}[frame=single, mathescape=true]
+definition "dflt_type $\equiv$ ''intptr_t''"
+definition "dflt_type_bound_name $\equiv$ ''INTPTR''"
+
+definition "dflt_type_min_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MIN''"
+definition "dflt_type_max_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MAX''"
+\end{lstlisting}
+
+where $@$ stands for the append operation between strings.
+It is important to note that the precision of the type used as \verb|dflt_type| must match the precision of \verb|int_width|.
+
+\paragraph{Global variables}
+
+The only other thing we must know how to pretty print before defining the string representation of a program is a global variable definition.
+It is done the same way as the pretty printing of local variables, following this string format:
+
+\begin{equation*}
+\mathtt{intptr\_t}\ <variable\_name_0>;
+\dots
+\mathtt{intptr\_t}\ <variable\_name_n>;
+\end{equation*}
+
+\paragraph{Program}
+
+Finally the pretty printing of a program is done by pretty printing the header files' include directives, then the integer bound checks, the global variable declarations and finally we pretty print each function in the program separated by a line break character.
+In figures~\ref{fig:factorial_isabelle} we can find the Isabelle definition of a factorial program and in figure~\ref{fig:factorial_c} we find the generated C code for it.
+
+The integer bound check for the lower bound has an ugly hack because the absolute value of \verb|INTPTR_MIN| overflows the upper bound for integers of the preprocessor and causes a warning.\footnote{It interprets the negative number as $-(number)$ and yields a warning that it cannot represent the $number$.}
+To get rid of that warning we instead compare the \verb|INTPTR_MIN + 1| value to \verb|INT_MIN + 1|.
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+ definition factorial_decl :: fun_decl
+  where "factorial_decl $\equiv$
+    ( fun_decl.name = fact,
+      fun_decl.params = [n],
+      fun_decl.locals = [r, i],
+      fun_decl.body = 
+        r ::= (Const 1);;
+        i ::= (Const 1);;
+        (WHILE (Less (V i) (Plus (V n) (Const 1))) DO
+          (r ::= (Mult (V r) (V i));;
+          i ::= (Plus (V i) (Const 1)))
+        );;
+        RETURN (V r)
+    )"
+
+definition main_decl :: fun_decl
+  where "main_decl $\equiv$
+    ( fun_decl.name = main,
+      fun_decl.params = [],
+      fun_decl.locals = [],
+      fun_decl.body = 
+        n ::= Const 5;;
+        r ::= fact ([V n])
+    )"
+
+definition p :: program
+  where "p $\equiv$ 
+    ( program.name = fact,
+      program.globals = [n, r],
+      program.procs = [factorial_decl, main_decl]
+    )" 
+\end{lstlisting}
+\caption{Factorial definition in Isabelle}
+\label{fig:factorial_isabelle}
+\end{figure}
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+  #include <stdlib.h>
+  #include <stdio.h>
+  #include <limits.h>
+  #include <stdint.h>
+  #include "../test_harness.h"
+  #ifndef INTPTR_MIN
+    #error ("Macro INTPTR_MIN undefined")
+  #endif
+  #ifndef INTPTR_MAX
+    #error ("Macro INTPTR_MAX undefined")
+  #endif
+  #if ( INTPTR_MIN + 1 != -9223372036854775807 )
+    #error ("Assertion INTPTR_MIN + 1 == -9223372036854775807 failed")
+  #endif
+  #if ( INTPTR_MAX != 9223372036854775807 )
+    #error ("Assertion INTPTR_MAX == 9223372036854775807 failed")
+  #endif
+  
+  
+  intptr_t n;
+  intptr_t r;
+  
+  intptr_t fact(intptr_t n) {
+    intptr_t r;
+    intptr_t i;
+    r = (1);
+    i = (1);
+    while ((i) < ((n) + (1))) {
+      r = ((r) * (i));
+      i = ((i) + (1));
+    }
+    return(r);
+  }
+  
+  intptr_t main() {
+    n = (5);
+    (r) = (fact(n));
+  }
+\end{lstlisting}
+\caption{Translated C program}
+\label{fig:factorial_c}
+\end{figure}
+
 \section{Exporting C code}
-\subsection{Architecture checks}
+
+Now that we know how to translate a complete program from the semantics to C code we are really close to export our generated C code.
+
+We only export code for valid programs.
+To ensure this we define a function that prepares a program for exporting:
+
+\begin{lstlisting}[mathescape=true]
+  definition prepare_export :: "program $\Rightarrow$ string option" where
+    "prepare_export prog $\equiv$ do {
+      assert (valid_program prog);
+      Some (shows_prog prog '''')
+    }"
+\end{lstlisting}
+
+
+This function takes a program and asserts that it is valid, according to the definition of a valid program given in~\ref{section:programs_commands}, if it is not valid we return a \verb|None| value, if it is valid we proceed to generate the string containing the C program with the function \verb|shows_prog|\footnote{We don't define the code for the show functions in this document but rather explain how they work. For implementation details the Isabelle theories can be checked.}.
+
+We export C code to external files.
+The name of the files is given by the program name in its definitions.
+We define an ML function inside Isabelle that exports the C code of a program:
+
+
+\begin{lstlisting}
+  fun export_c_code (SOME code) rel_path name thy =
+    let 
+      val str = code |> String.implode;
+    in
+      if rel_path="" orelse name="" then
+        (writeln str; thy)
+      else let  
+        val base_path = Resources.master_directory thy
+        val rel_path = Path.explode rel_path
+        val name_path = Path.basic name |> Path.ext "c"
+      
+        val abs_path = Path.appends [base_path, rel_path, name_path]
+        val abs_path = Path.implode abs_path
+     
+        val _ = writeln ("Writing to file " ^ abs_path)
+ 
+        val os = TextIO.openOut abs_path;
+        val _ = TextIO.output (os, str);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+        in thy end  
+      end
+  | export_c_code NONE _ _ thy = 
+      (error "Invalid program, no code is generated."; thy)
+\end{lstlisting}
+
+The first parameter of the function \verb|export_c_code| is a \verb|string option| this corresponds to the string representation of the program in C code.
+If it receives a \verb|None| value this means the \verb|prepare_export| function fail and we don't want to generate a C program for it.
+The second parameter is the path to the directory where we want the program to be exported, this parameter is a relative path to the directory where the theory containing the pretty printing directives is.
+The third parameter is the name of the program.
+Finally, the last parameter is the theory context we are in.
+
+If the path given is an empty string the generated C code will be pretty printed to Isabelle's output view.
+This function will create a new file with the name indicated in the parameters with an extra "\verb|.c|" (i.e.\ $<name>\mathtt{.c}$) added in the directory indicated by the path parameter.
+The user will then be able to find the generated code in the directory indicated.
