@@ -178,67 +178,194 @@ Examples of this are shown in table~\ref{tab:pretty_un_op}.
 \label{tab:pretty_un_op}
 \end{table}
 
+\paragraph{Casts}
+Since the values we are working with must be interpreted in C sometimes as integers and sometimes as pointers we must be able to pretty print an explicit cast between those two types in our generated program.
+We include casts to pointers when dealing with referencing, dereferencing and indexing.
+We will want to cast to integers in the case of a memory allocation.
+A memory allocation returns a pointer but in order to assign that to a variable we must cast it to an integer, due to the fact that all our variables are declared with the \verb|intptr_t| type and not \verb|intptr_t *|, we can do this and we know that when working with addresses these will be interpreted the right way since we will add a cast back to pointer.
 
 
-\begin{comment}
-subsection ‹Pretty printing of casts›
+A cast to an address value will be pretty printed in the following way:
+\begin{equation*}
+(\mathtt{intptr\_t}\ *) <expression>
+\end{equation*}
 
-text ‹In our semantics we didn't define any type information. Therefore every variable in the
-  generated C program will be of type @{term intptr_t}.
+A cast to an integer value will be pretty printed in the following way:
+\begin{equation*}
+(\mathtt{intptr\_t}) <expression>
+\end{equation*}
 
-  Since we're working with pointers and integer values, we must make the explicit cast between
-  these two types in our generated program.
-  When an address value is needed we add the cast:
+In table~\ref{tab:pretty_casts} we can find examples of the pretty printing of casts.
 
-  (<type> *) <expression>
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|New| (\verb|Const| $9$) & $(\mathtt{intptr\_t})\ \mathtt{malloc}\ (\mathtt{sizeof}(\mathtt{intptr\_t}) * ($9$))$ \\
+  \verb|Deref| (\verb|V| $foo$) & $*((\mathtt{intptr\_t}\ *)\ $x$)$ \\
+  \hline
+\end{tabular}
 
-  When we need an integer value we add the cast:
-
-  (<type>) <expression>
-›
-
-  definition shows_cast_to_pointer :: "shows ⇒ shows" where
-    "shows_cast_to_pointer s ≡ shows_paren ( shows dflt_type o shows ''*'') o s "
-
-  definition shows_cast_to_dflt_type :: "shows ⇒ shows" where
-    "shows_cast_to_dflt_type s ≡ shows_paren ( shows dflt_type ) o s "
-
-subsection ‹Pretty printing of expressions›
-
-text ‹From the previous definitions on pretty printing the definition of @{term shows_exp}
-  and @{term shows_lexp} should be straightforward.›
-  fun 
-      shows_exp :: "exp ⇒ shows" 
-  and shows_lexp :: "lexp ⇒ shows"
-    where
-    "shows_exp (Const int_val) = shows int_val"
-  | "shows_exp (Null) = shows_cast_to_pointer (shows ''0'')"
-  | "shows_exp (V x) = shows x"
-  | "shows_exp (Plus e1 e2) = shows_binop (shows_exp e1) ''+'' (shows_exp e2)"
-  | "shows_exp (Subst e1 e2) = shows_binop (shows_exp e1) ''-'' (shows_exp e2)"
-  | "shows_exp (Minus e) = shows_unop ''-'' (shows_exp e)"
-  | "shows_exp (Div e1 e2) = shows_binop (shows_exp e1) ''/'' (shows_exp e2)"
-  | "shows_exp (Mod e1 e2) = shows_binop (shows_exp e1) ''%'' (shows_exp e2)"
-  | "shows_exp (Mult e1 e2) = shows_binop (shows_exp e1) ''*'' (shows_exp e2)"
-  | "shows_exp (Less e1 e2) = shows_binop (shows_exp e1) ''<'' (shows_exp e2)"
-  | "shows_exp (Not e) = shows_unop ''!'' (shows_exp e)"
-  | "shows_exp (And e1 e2) = shows_binop (shows_exp e1) ''&&'' (shows_exp e2)"
-  | "shows_exp (Or e1 e2) = shows_binop (shows_exp e1) ''||'' (shows_exp e2)"
-  | "shows_exp (Eq e1 e2) = shows_binop (shows_exp e1) ''=='' (shows_exp e2)"
-  | "shows_exp (New e) = shows_cast_to_dflt_type ( shows ''malloc (sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')'')"
-  | "shows_exp (Deref e) = shows ''*'' o shows_paren (shows_cast_to_pointer (shows_exp e))"
-  | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
-  | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
-  | "shows_lexp (Derefl exp) = shows_paren (shows ''*'' o  shows_paren (shows_cast_to_pointer (shows_exp exp)))"
-  | "shows_lexp (Indexl e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
-
-\end{comment}
+\caption{Examples of casts' pretty printing}
+\label{tab:pretty_casts}
+\end{table}
 
 
+\paragraph{Expressions}
+Finally we present in table~\ref{tab:pretty_expressions} the string representation for each of the expressions.
+We use simple expressions as operands such as variables or constant values for simplicity, but the expressions can be conformed by more complicated expressions.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|c|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|Const| $42$ & $42$ \\
+  \verb|Null| & (\verb|intptr_t| *) $0$ \\
+  \verb|V| $x$ & $x$ \\
+  \verb|Plus| $(\mathtt{Const}\ 2)\ (\mathtt{Const}5)$ & $(2\ +\ 5)$ \\
+  \verb|Subst| $(\mathtt{Const}\ 9\ (\mathtt{Const}5)$ & $(9\ -\ 5)$ \\
+  \verb|Minus| $(\mathtt{Const}\ 9)$ & ($-9$) \\
+  \verb|Div| $(\mathtt{Const}\ 8)\ (\mathtt{Const}\ 4)$ & $(8\ /\ 4)$ \\
+  \verb|Mod| $(\mathtt{Const}\ 8)\ (\mathtt{Const}\ 4)$ & $(8\ \%\ 4)$ \\
+  \verb|Mult| $(\mathtt{Const}\ 9)\ (\mathtt{Const}\ 3)$ & $(9\ *\ 3)$ \\
+  \verb|Less| $(\mathtt{Const}\ 7)\ (\mathtt{Const}\ 9)$ & $(7\ <\ 9)$ \\
+  \verb|Not| $(\mathtt{Const}\ 0)$ & $!\ (0)$ \\
+  \verb|And| $(\mathtt{Const}\ 1)\ (\mathtt{Const}\ 1)$ & $(1\ \&\&\ 1)$ \\
+  \verb|Or| $(\mathtt{Const}\ 1)\ (\mathtt{Const}\ 0)$ & $(1\ || 0)$ \\
+  \verb|Eq| $(\mathtt{Const}\ 6)\ (\mathtt{Const}\ 4)$ & $(6\ == 4)$ \\
+  \verb|New| $(\mathtt{Const}\ 9)$ & $(\mathtt{intptr\_t})\ \mathtt{malloc}\ (\mathtt{sizeof}(\mathtt{intptr\_t}) * ($9$))$ \\
+  \verb|Deref| $(\mathtt{V}\ foo)$ & $*((\mathtt{intptr\_t}\ *)\ foo)$ \\
+  \verb|Ref| $(\mathtt{V}\ foo)$ & $((\mathtt{intptr\_t}\ *)\ \&(foo))$ \\
+  \verb|Index| $(\mathtt{V}\ bar)\ (\mathtt{Const}\ 3)$ & $((\mathtt{intptr\_t}\ *)\ bar[3])$ \\
+  \verb|Derefl| $(\mathtt{V}\ foo)$ & $(*((\mathtt{intptr\_t}\ *)\ foo))$ \\
+  \verb|Indexl| $(\mathtt{V}\ bar)\ (\mathtt{Const}\ 3)$ & $((\mathtt{intptr\_t}\ *)\ bar[3])$ \\
+  \hline
+\end{tabular}
+
+\caption{Examples of Expressions' pretty printing}
+\label{tab:pretty_expressions}
+\end{table}
 
 
 \section{Commands}
-\section{Declarations}
+First of all we need a way of printing indented commands to facilitate the generated code.
+We define two auxiliary abbreviatons that will pretty print white spaces for intentation at the beginning of a construct.
+The reason why two abbreviations are defined is because one of them will also pretty print a $";"$ terminator after the construct whereas the other will not.
+
+We also define a way of pretty printing function calls.
+Function calls will be pretty printed according to the following format:
+\begin{equation*}
+<function\_name>\ ([<argument_0, argument_1, \dots, <argument_n>])
+\end{equation*}
+
+where the brackets ($[]$) indicate that the arguments are optional.
+
+Finally the commands in Chloe are pretty printed as the examples in table~\ref{tab:pretty_commands} shows.
+We use $''$ to indicate an empty string.
+The correct level of indentation is indicated in the function parameters that are responsible for the pretty printing, we will omit those here and instead list where the indentation will increase.
+Indentation will increase inside a block, i.e.\ the branches of a conditional, the body of a loop.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|c|l|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|SKIP| & $''$ \\
+  \hline
+  \verb|Assignl| $(\mathtt{Derefl}\ foo)\ (\mathtt{Const}\ 4)$ & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ 4;$ \\
+  \hline
+  \verb|Assign| $(\mathtt{V}\ foo)\ (\mathtt{Const}\ 4)$ & $foo\ =\ 4;$ \\
+  \hline
+  \verb|Seq| $c_1\ c_2$ & $<c_1> <c_2>$ \\
+  \hline
+  $\mathtt{If}\ (\mathtt{V}\ b)$                              & $\mathtt{if}\ (b)\ \{$\\
+  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
+  $\mathtt{SKIP}$                                             & $\}$ \\
+  \hline
+  $\mathtt{If}\ (\mathtt{V}\ b)$                              & $\mathtt{if}\ (b)\ \{$\\
+  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
+  $(\mathtt{Assign}\ (\mathtt{V}\ bar) (\mathtt{Const}\ 3))$  & $\}\ else\ \{$ \\
+                                                              & $\ \ bar\ =\ 3;$ \\
+                                                              & $\}$ \\
+  \hline
+  $\mathtt{While}\ (\mathtt{V}\ b)$                           & $\mathtt{while}\ (b)\ \{$\\
+  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
+                                                              & $\}$ \\
+  \hline
+  \verb|Free| $(\mathtt{Derefl}\ foo)$ & $\mathtt{free}\ (\&\ (*((\mathtt{intptr\_t}\ *)\ foo));$ \\
+  \hline
+  \verb|Return| $(\mathtt{V}\ foo)$ & $\mathtt{return}\ (foo));$ \\
+  \hline
+  \verb|Returnv| & $\mathtt{return};$ \\
+  \hline
+  \verb|Callfunl| $(\mathtt{Derefl}\ foo)\ bar\ [\mathtt{V}\ baz,\mathtt{Const}\ 4]$ & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ bar(baz,\ 4);$ \\
+  \hline
+  \verb|Callfunl| $(\mathtt{V}\ foo)\ bar\ [\mathtt{Const}\ 65]$ & $foo =\ bar(65);$ \\
+  \hline
+  \verb|Callfunl| $bar\ []$ & $bar();$ \\
+  \hline
+\end{tabular}
+
+\caption{Examples of Comands' pretty printing}
+\label{tab:pretty_commands}
+\end{table}
+
+
+\section{Function declarations}
+
+Now we must define how declarations are pretty printed.
+In order to do so, we will pretty print a function definition according to the following string format:
+\begin{equation*}
+\begin{split}
+&\mathtt{intptr\_t} \ <function\_name>(\mathtt{intptr\_t}\ <arg\_name_0>,\ \dots,\ \mathtt{intptr\_t}\ <arg\_name_n)\ \{ \\
+&\ \ \mathtt{intptr\_t}\ <local\_var_0> \\
+&\vdots \\
+&\ \ \mathtt{intptr\_t}\ <local\_var_n> \\
+&<body> \\
+&\} \\
+\end{split}
+\end{equation*}
+
+The return, argument and local variable's type is \verb|intptr_t| since, as mentioned previously, we only have one type in our translation process and we cast to and from pointers when necessary.
+
+An example of a function declaration translation for a factorial function is available in table~\ref{tab:pretty_function_fact}.
+In this example we avoid the use of $''\ ''$ for string representations in Isabelle and just write the string without the quotation marks.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{|l|l|}
+  \hline
+  \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
+  \hline \hline
+  \verb|definition factorial_decl| $::$ \verb|fun_decl|  & \verb|intptr_t fact(intptr_t n) {| \\
+  \verb|where "factorial_decl| $\equiv$                  & \verb|  intptr_t r;| \\
+  \verb|  ( fun_decl.name = fact,|                       & \verb|  intptr_t i;| \\
+  \verb|    fun_decl.params = [n],|                      & \verb|  r = (1);| \\
+  \verb|    fun_decl.locals = [r, i],|                   & \verb|  i = (1);| \\
+  \verb|    fun_decl.body =|                             & \verb|  while ((i) < ((n) + (1))) {| \\
+  \verb|      r ::= (Const 1);;|                         & \verb|    r = ((r) * (i));| \\
+  \verb|      i ::= (Const 1);;|                         & \verb|    i = ((i) + (1));| \\
+  \verb|      (WHILE|                                    & \verb|  }| \\
+  \verb|         (Less (V i) (Plus (V n) (Const 1)))|    & \verb|  return(r);| \\
+  \verb|      DO|                                        & \verb|}| \\
+  \verb|        (r ::= (Mult (V r) (V i));;|             & \\
+  \verb|        i ::= (Plus (V i) (Const 1)))|           & \\
+  \verb|      );;|                                       & \\
+  \verb|    RETURN (V r)|                                & \\
+  \verb|  )"|                                            & \\
+  \hline
+\end{tabular}
+
+\caption{Pretty printing of a factorial function declaration}
+\label{tab:pretty_function_fact}
+\end{table}
+
+
 \section{States}
 \subsection{Return locations}
 \section{Programs}
