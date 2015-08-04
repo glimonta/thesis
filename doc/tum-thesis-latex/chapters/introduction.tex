@@ -1,6 +1,6 @@
 \chapter{Introduction}\label{chapter:introduction}
 
-In this chapter we wil firstly discuss the motivation behind this work.
+In this chapter we will firstly discuss the motivation behind this work.
 Followed by theoretical background on concepts relating to semantics and Isabelle/HOL.
 
 Then we will describe the features of the language used in this work.
@@ -12,11 +12,11 @@ Finally we will proceed to outline the contents of the rest of this work.
 The goal of this work is to formalize the semantics of an imperative language (including pointers and arrays) that represents a subset of the C language and then generate executable C code from it.
 
 C is a language that is very widely used.
-It is particulary popular in the implementation of operating systems and embedded system applications.
-Since C is closer to the machine as oposed to other higher level languages and has a low overhead, it allows for efficient implementation of algorithms and data structures.
+It is particularly popular in the implementation of operating systems and embedded system applications.
+Since C is closer to the machine as opposed to other higher level languages and has a low overhead, it allows for efficient implementation of algorithms and data structures.
 Due to its efficiency it is also often used in the development of compilers, libraries and interpreters for other programming languages.
 
-Sadly, some of the semantics for the C language described in the standard~\parencite{c99} are prone to ambiguities due to the use of the english language to describe program behaviour.
+Sadly, some of the semantics for the C language described in the standard~\parencite{c99} are prone to ambiguities due to the use of the English language to describe program behavior.
 The use of formal mathematical constructs would rip it away from these ambiguities, although formalizing the semantics for the complete C language is no easy task and it is indeed one that has been subject to much research in the semantics area.
 
 Even though the semantics defined by our work covers a limited subset of C, it is expressive enough to allow the implementation of algorithms such as sorting, depth-first search, etc.
@@ -34,9 +34,9 @@ In this section we'll give a short introduction to the concepts regarding semant
 \subsubsection{Definition}
 
 The semantics of a programming language is the intended meaning of constructs in that language.
-According to Tenent~\parencite{tennent} in order to support and define these meanings for a construct in a programming language a rigorous mathematical theory of the semantics of programming languages is needed.
+According to Tennent~\parencite{tennent} in order to support and define these meanings for a construct in a programming language a rigorous mathematical theory of the semantics of programming languages is needed.
 
-As noted by Nielson and Nielson~\parencite{nielson}, the rigorous nature of this study is due to the fact that it can reveal ambiguities or underlying complexities in documents defined used natural language, and also that this mathematical rigour is necessary for correctness proofs.
+As noted by Nielson and Nielson~\parencite{nielson}, the rigorous nature of this study is due to the fact that it can reveal ambiguities or underlying complexities in documents defined used natural language, and also that this mathematical rigor is necessary for correctness proofs.
 Many big programming languages, e.g.\ the C language, have their reference document, where the semantics of the language is explained, written in natural language.
 Sadly natural language leads to subtle ambiguities that further make it harder to reason about programs in this language.
 
@@ -49,8 +49,8 @@ If we take the following construct
 \begin{equation*}
 z:=x; x:=y; y:=z
 \end{equation*}
-where ``$:=$'' is assignment to a variable and ``$;$'' is the instruction sequentiation.
-Syntactically this is three statements separated by ``$;$'', where each statement is confomed by a variable, the symbol ``$:=$'' and a second variable.
+Here ``$:=$'' is an assignment to a variable and ``$;$'' is the instruction sequencing.
+Syntactically this is three statements separated by ``$;$'', where each statement is conformed by a variable, the symbol ``$:=$'' and a second variable.
 
 The \textit{semantics} of this construct is the meaning of this program.
 Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a temporary variable).
@@ -58,9 +58,9 @@ Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a 
 \subsubsection{Types of semantics}
 
 The previous was a rough explanation of the semantics of that particular program.
-This semantical explanation can clearly be done in a more detailed way where we exaplain the meaning of the sequence of statements separated by ``$;$'' and the one of the individual assign statement.
+This semantical explanation can clearly be done in a more detailed way where we explain the meaning of the sequence of statements separated by ``$;$'' and the one of the individual assign statement.
 
-There are many differnt approaches on how to formalize the semantics of a programming language.
+There are many different approaches on how to formalize the semantics of a programming language.
 Each one of them has a different idea behind it and have a different degree of usefulness depending on the purpose one has for the semantics.
 The most widely used approaches are:
 
@@ -70,7 +70,7 @@ The most widely used approaches are:
     The meaning is specified by the computation on a machine when executing the program.
     The interest lies on the ``\textit{how} the effect of a computation is produced.''~\parencite{nielson}
     \item{Denotational semantics:}
-    The meaning of a construct are modelled mathematically by objects that represent the effect of executing the construct.
+    The meaning of a construct are modeled mathematically by objects that represent the effect of executing the construct.
     Here the main interest lies in the effect and not how it was obtained.
     \item{Axiomatic semantics:}
     Here the main interest lies in expressing some properties of the construct in the form of assertions.
@@ -108,7 +108,7 @@ The execution of the whole program will look as follows:
 \langle z:=x; x:=y; y:=z, s_{0} \rangle \rightarrow s_{3}
 \end{equation*}
 
-where the following abbreviations were used:
+Where the following abbreviations were used:
 \begin{align*}
 s_{0} &= [x\mapsto5, y\mapsto7, z\mapsto0]\\
 s_{3} &= [x\mapsto7, y\mapsto5, z\mapsto5]
@@ -126,7 +126,7 @@ However we can obtain the following \enquote{derivation sequence} for the previo
   {\langle z:=x; x:=y; y:=z, s_{0} \rangle \rightarrow s_{3}}
 \end{equation*}
 
-where the following abbreviations were used:
+Where the following abbreviations were used:
 \begin{align*}
 s_{0} &= [x\mapsto5, y\mapsto7, z\mapsto0]\\
 s_{1} &= [x\mapsto5, y\mapsto7, z\mapsto5]\\
@@ -163,7 +163,7 @@ After executing the first statement the program we're left with is $x:=y; y:=z$.
 We execute the second statement $x:=y$ and the value of $x$ changes to $7$, $y$ and $z$ remain unchanged.
 We're left then with the program $y:=z$, after executing this final statement the value of $y$ changes to $5$, $x$ and $z$ remain unchanged.
 
-Then we have that the behaviour of this program was to change the values of $x$ and $y$ using $z$ as a temporary variable.
+Then we have that the behavior of this program was to change the values of $x$ and $y$ using $z$ as a temporary variable.
 
 
 \subsubsection{Denotational semantics}
@@ -204,7 +204,7 @@ Examples of this are variable initialization, constant folding and reachability.
 This approach is used when the priority is to reason about a program and its properties.~\parencite{nielson}
 
 \begin{comment}
-what the program does oposed to how it does it. Modifying mathematical objects.
+what the program does opposed to how it does it. Modifying mathematical objects.
 \end{comment}
 
 \subsubsection{Axiomatic semantics}
@@ -216,23 +216,23 @@ Partial correctness with respect to a construct, a precondition and a postcondit
 If the precondition holds before the construct is executed and the execution of the construct terminates then the postcondition holds for the final state.
 \end{displayquote}
 
-It is partial correctness because it depends on the termination of the contruct's execution.~\parencite{nipkow}
+It is partial correctness because it depends on the termination of the construct's execution.~\parencite{nipkow}
 
 
-The following partial corretness property is defined for the construct of our example:
+The following partial correctness property is defined for the construct of our example:
 
 \begin{equation*}
 \lbrace x=n \land y=m \rbrace z:=x; x:=y; y:=z \lbrace x=m \land y=n \rbrace
 \end{equation*}
 
-where $\lbrace x=n \land y=m \rbrace $ and $\lbrace x=m \land y=n \rbrace $ are the precondition and postcondition, respectively.
+Where $\lbrace x=n \land y=m \rbrace $ and $\lbrace x=m \land y=n \rbrace $ are the precondition and postcondition, respectively.
 $n$ and $m$ indicate the initial values of $x$ and $y$.
-The state $[x\mapsto5, y\mapsto7, z\mapsto0]$ fulfils the precondition if $n=5$ and $m=7$ are taken.
-After the partial correcteness property is \textit{proved} then it can be deduced that \textit{if} the program terminates \textit{then} it will do so in a state where $x$ is $7$ and $y$ is $5$.
+The state $[x\mapsto5, y\mapsto7, z\mapsto0]$ fulfills the precondition if $n=5$ and $m=7$ are taken.
+After the partial correctness property is \textit{proved} then it can be deduced that \textit{if} the program terminates \textit{then} it will do so in a state where $x$ is $7$ and $y$ is $5$.
 Even though it is clear on this example program that it terminates it is important to note that, as was stated previously, the partial correctness property doesn't ensure a program's termination and is dependent on it.
 
 This approach relies on a \textit{proof system} or inference rules for deriving and proving partial correctness properties.~\parencite{nipkow}
-The following ``proof tree'' can express a proof for the above partial corretness property:
+The following ``proof tree'' can express a proof for the above partial correctness property:
 
 \begin{equation*}
 \cfrac{
@@ -244,7 +244,7 @@ The following ``proof tree'' can express a proof for the above partial corretnes
   { \lbrace p_{0} \rbrace z:=x; x:=y; y:=z \lbrace p_{3} \rbrace }
 \end{equation*}
 
-where the following abbreviations were used:
+Where the following abbreviations were used:
 \begin{align*}
 p_{0} &= x=n \land y=m\\
 p_{1} &= y=m \land z=n\\

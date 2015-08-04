@@ -105,7 +105,7 @@ A complete block will be printed as follows:
 <base>\ :\ <block_content> 
 \end{equation*}
 
-where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
+Where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
 
 Finally, in order to show the whole memory, we only need to show each block existing in the memory.
 For instance, the string representation of memory state:
@@ -277,41 +277,42 @@ Indentation will increase inside a block, i.e.\ the branches of a conditional, t
   \hline \hline
   \verb|SKIP| & $''$ \\
   \hline
-  \verb|Assignl| $(\mathtt{Derefl}\ foo)\ (\mathtt{Const}\ 4)$ & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ 4;$ \\
+  $\mathtt{Derefl}\ foo\ ::==\ \mathtt{Const}\ 4$                            & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ 4;$ \\
   \hline
-  \verb|Assign| $(\mathtt{V}\ foo)\ (\mathtt{Const}\ 4)$ & $foo\ =\ 4;$ \\
+  $foo\ ::=\ \mathtt{Const}\ 4$                                              & $foo\ =\ 4;$ \\
   \hline
-  \verb|Seq| $c_1\ c_2$ & $<c_1> <c_2>$ \\
+  $c_1;;\ c_2$                                                               & $<c_1> <c_2>$ \\
   \hline
-  $\mathtt{If}\ (\mathtt{V}\ b)$                              & $\mathtt{if}\ (b)\ \{$\\
-  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
-  $\mathtt{SKIP}$                                             & $\}$ \\
+  $\mathtt{IF}\ (\mathtt{V}\ b)\ \mathtt{THEN}$                              & $\mathtt{if}\ (b)\ \{$\\
+  $foo\ ::=\ \mathtt{Const}\ 4$                                              & $\ \ foo\ =\ 4;$ \\
+  $\mathtt{ELSE}$                                                            &  $\}$ \\
+  $\mathtt{SKIP}$                                                            & \\
   \hline
-  $\mathtt{If}\ (\mathtt{V}\ b)$                              & $\mathtt{if}\ (b)\ \{$\\
-  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
-  $(\mathtt{Assign}\ (\mathtt{V}\ bar) (\mathtt{Const}\ 3))$  & $\}\ else\ \{$ \\
-                                                              & $\ \ bar\ =\ 3;$ \\
-                                                              & $\}$ \\
+  $\mathtt{If}\ (\mathtt{V}\ b)\ \mathtt{THEN}$                              & $\mathtt{if}\ (b)\ \{$\\
+  $foo\ ::=\ \mathtt{Const}\ 4)$                                             & $\ \ foo\ =\ 4;$ \\
+  $\mathtt{ELSE}$                                                            & $\}\ else\ \{$ \\
+  $bar\ ::=\ \mathtt{Const}\ 3)$                                             & $\ \ bar\ =\ 3;$ \\
+                                                                             & $\}$ \\
   \hline
-  $\mathtt{While}\ (\mathtt{V}\ b)$                           & $\mathtt{while}\ (b)\ \{$\\
-  $(\mathtt{Assign}\ (\mathtt{V}\ foo) (\mathtt{Const}\ 4))$  & $\ \ foo\ =\ 4;$ \\
-                                                              & $\}$ \\
+  $\mathtt{While}\ (\mathtt{V}\ b)\ \mathtt{DO}$                             & $\mathtt{while}\ (b)\ \{$\\
+  $foo\ ::=\ \mathtt{Const}\ 4$                                              & $\ \ foo\ =\ 4;$ \\
+                                                                             & $\}$ \\
   \hline
-  \verb|Free| $(\mathtt{Derefl}\ foo)$ & $\mathtt{free}\ (\&\ (*((\mathtt{intptr\_t}\ *)\ foo));$ \\
+  \verb|FREE| $(\mathtt{Derefl}\ foo)$                                       & $\mathtt{free}\ (\&\ (*((\mathtt{intptr\_t}\ *)\ foo));$ \\
   \hline
-  \verb|Return| $(\mathtt{V}\ foo)$ & $\mathtt{return}\ (foo));$ \\
+  \verb|RETURN| $(\mathtt{V}\ foo)$                                          & $\mathtt{return}\ (foo));$ \\
   \hline
-  \verb|Returnv| & $\mathtt{return};$ \\
+  \verb|RETURNV|                                                             & $\mathtt{return};$ \\
   \hline
-  \verb|Callfunl| $(\mathtt{Derefl}\ foo)\ bar\ [\mathtt{V}\ baz,\mathtt{Const}\ 4]$ & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ bar(baz,\ 4);$ \\
+  $(\mathtt{Derefl}\ foo)\ ::==\ bar\ ([\mathtt{V}\ baz,\mathtt{Const}\ 4])$ & $*((\mathtt{intptr\_t}\ *)\ foo)\ =\ bar(baz,\ 4);$ \\
   \hline
-  \verb|Callfunl| $(\mathtt{V}\ foo)\ bar\ [\mathtt{Const}\ 65]$ & $foo =\ bar(65);$ \\
+  $foo\ ::=\ bar\ ([\mathtt{Const}\ 65])$                                    & $foo =\ bar(65);$ \\
   \hline
-  \verb|Callfunl| $bar\ []$ & $bar();$ \\
+  \verb|CALL| $bar\ ([])$                                                    & $bar();$ \\
   \hline
 \end{tabular}
 
-\caption{Examples of Comands' pretty printing}
+\caption{Examples of Commands' pretty printing}
 \label{tab:pretty_commands}
 \end{table}
 
@@ -467,7 +468,7 @@ definition "dflt_type_min_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MIN''"
 definition "dflt_type_max_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MAX''"
 \end{lstlisting}
 
-where $@$ stands for the append operation between strings.
+Where $@$ stands for the append operation between strings.
 It is important to note that the precision of the type used as \verb|dflt_type| must match the precision of \verb|int_width|.
 
 \paragraph{Global variables}

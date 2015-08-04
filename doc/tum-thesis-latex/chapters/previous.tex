@@ -24,9 +24,9 @@ One of the features that characterize his subset of the C language formalization
 He shows that \textit{pure} expressions in his language are deterministic, he defines pure expressions as expressions that do not contain function calls, assignment expressions, post-increments or post-decrements.
 He also defines \textit{sequence-point free} expressions, which overlap with the pure expressions but no set contains the other, and shows that they are deterministic.
 Norrish gives a programming logic to reason about programs at a statement level.
-He presents a derivation of a Hoare logic for C programs and then presents a system for analysing loop bodies and generate correct post-conditions even in the presence of \verb|break|, \verb|continue| and \verb|return| statements.
+He presents a derivation of a Hoare logic for C programs and then presents a system for analyzing loop bodies and generate correct post-conditions even in the presence of \verb|break|, \verb|continue| and \verb|return| statements.
 
-This work is relevant to ours since we are also formalising the semantics of a subset of the C language, albeit a smaller subset.
+This work is relevant to ours since we are also formalizing the semantics of a subset of the C language, albeit a smaller subset.
 It is an important work to take into account.
 It has many differences with our work, one of them is that Norrish's operational semantics for statements is a big-step semantics, whereas ours is a small-step semantics.
 Also Norrish takes the direction of presenting a programing logic and reasoning about programs in the theorem prover level, whereas we take the code generation approach and translate our semantics to executable code.
@@ -39,14 +39,14 @@ It compiles source code from the Clight semantics to assembly code preserving th
 For this several languages are necessary, as well as a memory model that allows for reasoning about memory states.
 
 Memory models are usually either too concrete or too abstract.
-When they're too abstract they can fail to represent aliasing or partial overlap making the semantics incorrect, whereas a too concrete memory model can make the proof process more dificult by maybe failing to validate algebraic properties that are valid in the language.
+When they're too abstract they can fail to represent aliasing or partial overlap making the semantics incorrect, whereas a too concrete memory model can make the proof process more difficult by maybe failing to validate algebraic properties that are valid in the language.
 The memory model used in the Compcert compiler~\parencite{leroy-blazy-memory-model} is somewhere in between a low-level model and a high-level model.
 The memory has a set of memory states which are indexed by a block reference and every block behaves like an array of bytes and can be addressed by using byte offsets.
-Leroy and Blazy give an abstract and a concrete description of their memory model and have a formalized and proved properties on memory operations on the Coq proof assistant~\parencite{coq-doc}, one of those properties is that separation between two blocks obtained from two different alloc calls is guaranteed.
+Leroy and Blazy give an abstract and a concrete description of their memory model and have a formalized and proved properties on memory operations on the Coq proof assistant~\parencite{coq-doc}, one of those properties is that separation between two blocks obtained from two different malloc calls is guaranteed.
 
 We model the memory of our semantics taking this model as inspiration.
 Our model differs from it in the sense that it is simpler.
-One of the differences is that Leroy and Blazy's model support lower and upper bounds for accesing a block whereas all blocks in our semantics are accesible from index $0$ up to the length of the block.
+One of the differences is that Leroy and Blazy's model support lower and upper bounds for accessing a block whereas all blocks in our semantics are accessible from index $0$ up to the length of the block.
 The fundamental idea behind this memory model is taken and adapted to our needs in this work.
 
 
@@ -57,7 +57,7 @@ The other direction of this approach is worth mentioning.
 The AutoCorres project~\parencite{autocorres} parses C code and generates a high-level monadic representation that is easier to reason with.
 This work allows for users to reason about C programs at a higher level.
 It generates an Isabelle/HOL specification as well as a proof of correctness in Isabelle/HOL for the translation it makes.
-It features a heap abstraction that allows for reasoning about memory for type-safe fucntions and a word abstraction that allows for abstract machine words into natural numbers and integers and reason about them in this level.
+It features a heap abstraction that allows for reasoning about memory for type-safe functions and a word abstraction that allows for abstract machine words into natural numbers and integers and reason about them in this level.
 
 This bottom-up approach is also relevant to take a look at and its worth mentioning in this work as a different approach at formal verification of programs.
 AutoCorres is used in several C verification projects such as the verification of a complex large-scale graph library, the verification of a file system and the verification of a real-time operating system for high-assurance systems.
