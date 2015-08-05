@@ -44,7 +44,7 @@ In figure~\ref{fig:chloe_expressions} we can find the datatype created in Isabel
 
 We define two new datatypes, one for expressions and one for left-hand-side expressions.
 It is important to differentiate between these two in the case where we are dealing with pointer expressions.
-For instance, let's take the following C expressions:
+For instance, let's take the following C statements:
 
 \begin{lstlisting}[language=C, frame=single]
 foo = *bar;
@@ -58,7 +58,7 @@ This also occurs with array indexing.
 In order to correctly model the semantics for the Chloe expressions it is necessary to have this distinction between left-hand-side expressions and right-hand-side expressions.
 In future sections we will proceed to refer to right-hand side expressions as simply expressions and we will use LHS instead of left-hand-side when referring to left-hand-side expressions.
 
-Chloe supports constant expressions, null pointer expression, variables as well as the following operation over expressions: addition, subtraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
+Chloe supports constant expressions, null pointer expression, variables as well as the following operations over expressions: addition, subtraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
 We also have a \verb|New| expression which is the equivalent of a \verb|malloc| call in C.
 We have dereferencing, referencing and array subscripting, these are in C the \verb|*|, \verb|&| and \verb|[]| operators, respectively.
 Finally as LHS expressions we have dereferencing and array subscripting.
@@ -109,7 +109,7 @@ We define the following \verb|datatype| in Isabelle to represent addresses:
 datatype addr = nat $\times$ int
 \end{lstlisting}
 
-An address will then be a pair conformed by a natural number and an integer (which is an Isabelle predefined \verb|int|), these represent a \verb|(block_id, offset)| pair.
+An address will then be a pair composed of a natural number and an integer (which is an Isabelle predefined \verb|int|), these represent a \verb|(block_id, offset)| pair.
 In the following section we will proceed to explain the layout of the memory.
 
 \subsubsection{Values} The values for any expression are defined as follows:
@@ -129,9 +129,9 @@ We model dynamic memory in the following way:
 type_synonym mem = val option list option list
 \end{lstlisting}
 
-The memory is represented by a list of allocated blocks, and each of these blocks is conformed by a list of cells with the values in memory.
+The memory is represented by a list of allocated blocks, and each of these blocks consists of a list of cells with the values in memory.
 For every block there's two possibilities: an allocated block or an unallocated block, this is modeled by the use of the \verb|option| type, where \verb|Some| $l$ (where $l$ is of type \verb|val option list|) denotes an allocated block and \verb|None| an unallocated one.
-Every block is conformed by a list of cells that contain the values in memory.
+Every block consists of a list of cells that contain the values in memory.
 Each cell can have different values depending on whether it is uninitialized or it holds a value.
 An uninitialized cell in memory is represented by the value \verb|None|.
 Whereas a cell holding a value is represented by the value \verb|Some| $v$, where $v$ is of type \verb|val|.
@@ -180,7 +180,7 @@ This memory model is inspired in the work of Blazy and Leroy~\parencite{compcert
 
 \subsection{Semantics}\label{subsection:semantics_expressions}
 
-The semantics of an expression is its value.
+The semantics of an expression is its value and its effect on the program state.
 For expressions such as $2 + 2$ is trivial to know the value is $4$.
 On the other hand when we have expressions with variables, such as $foo + 42$, then we depend on the value of the variable.
 Therefore we need to know the values of a variable, these values are stored in the program state.
@@ -215,11 +215,11 @@ The defined type for it is as follows:
 type_synonym visible_state = valuation $\times$ valuation $\times$ mem
 \end{lstlisting}
 
-A visible state is a tuple conformed by a valuation function for the local variables, a valuation function for the global variables and the dynamic memory of the program.
+A visible state is a tuple that contains a valuation function for the local variables, a valuation function for the global variables and the dynamic memory of the program.
 
 
 Now we can proceed to introduce the semantics for the expressions in Chloe.
-As we said before the semantics of an expression is its value, therefore we have defined two evaluation functions, one that computes the value of an expression and one that computes the value of a LHS expression.
+As we said before the semantics of an expression is its value and its effect on a program state, therefore we have defined two evaluation functions, one that computes the value of an expression and one that computes the value of a LHS expression.
 These functions defined as follows:
 
 \begin{lstlisting}[frame=single, mathescape=true]
@@ -231,7 +231,7 @@ Where \verb|eval|, given an expression and a visible state, will yield the value
 \verb|eval_l|, given a LHS expression and a visible state, will yield the value of that expression (which must be an address) and the state resulting after the evaluation of the LHS expression.
 Notice that the resulting type for these evaluation functions are an \verb|option| type.
 This is because these functions can fail, a failure can happen anywhere in the evaluation of the expression and if a failure is found then it will propagate until the whole expression evaluation returns a \verb|None| value indicating an error in evaluation.
-Expression evaluation might fail for several reasons which include, but are not limited to, variable undefinedness, an operation failing because it has some illegal operand, trying to access an invalid part of the memory, overflow, among others.
+Expression evaluation might fail for several reasons which include, but are not limited to, variable undefinedness, an operation failing because it has some illegal operand, trying to access an invalid part of the memory and overflow.
 Therefore if there's an error early in the expression evaluation semantics, it will be detected and propagated as a \verb|None| value which indicates an error state.
 
 
@@ -368,11 +368,11 @@ In figure~\ref{fig:chloe_commands} we can find the definition of the datatype cr
 For assignment commands we define two different commands, one of them allows assignment to a variable, whereas the other one allows assignment to an address location in memory.
 We need these two commands since our domain for addresses and integer values is disjoint, therefore an address cannot represent an integer value and vice versa.
 
-We also have two return commands, one of them is for returning from functions with a return value, whereas the other one is for returning from a procedure which has a void return value.
+We also have two return commands, one of them is for returning from functions with a return value, whereas the other one is for returning from a procedure which has no return value.
 
 Finally we have three different statements for function calling.
 One of them (\verb|Callfunv|) is for functions without a return value.
-The other two depend on the return location of the function, if the return location is a variable we use the \verb|Callfun| command and if the return location is a cell in memory we use the \verb|Callfunl| command.
+The other two depend on what is done with the return value of the function, if the return value should be assigned to a variable we use the \verb|Callfun| command and if the return is to be assigned to a cell in memory we use the \verb|Callfunl| command.
 
 In Isabelle we have defined a concrete infix syntax as well, which facilitates writing and reading commands in Chloe.
 In table~\ref{tab:concrete_syntax} we introduce the concrete syntax supposing we have $x$ that ranges over variable names, $a$ that ranges over expressions, $c$, $c_{1}$ and $c_{2}$ that range over commands, $y$ that ranges over the LHS expressions and $f$ that ranges over function names.
@@ -430,7 +430,7 @@ A function declaration is considered valid if and only if the function parameter
 
 \section{Programs}\label{section:programs_commands}
 
-A program in Chloe is conformed by a name, a list of global variables and a list of procedures as showed in figure~\ref{fig:prog_def}.
+A program in Chloe consists of a name, a list of global variables and a list of procedures as showed in figure~\ref{fig:prog_def}.
 In that same figure we can see a definition that every valid program must comply with.
 
 A program is considered valid if it complies with all the following conditions:
@@ -508,14 +508,14 @@ Previously, in section~\ref{subsection:semantics_expressions} we began explainin
 \subsection{Valuation}\label{subsection:valuation}
 
 As mentioned previously a valuation is simply a function that maps variable names to values.
-Its return is of type \verb|val option option| which models a variable having one of the following states: undefined, uninitialized or holding a value.
+The return type for this function is \verb|val option option| which models a variable having one of the following states: undefined, uninitialized or holding a value.
 
 
 \subsection{Stack}\label{subsection:stack}
 
 Chloe supports functions calls, in order to do so an execution stack must be maintained in the state.
-This execution stack (from now on we will refer to it as just the stack) is conformed by a list of stack frames.
-Each of these stack frames contain important information about the current function call.
+This execution stack (from now on we will refer to it as just the stack) consists of a list of stack frames.
+Each of these stack frames contains important information about the current function call.
 
 In figure~\ref{fig:stack_def} the type for a stack frame is a tuple containing a Chloe command, a valuation and a return location.
 The Chloe command corresponds to the body of the function to be executed.
@@ -525,7 +525,7 @@ Every function that returns a value has to return it to a dummy variable or to a
 Finally we have an invalid return location for the functions that don't return a value.
 
 The return location is set on the caller's stack frame, that is, when returning from a function the caller's stack frame is the one to be checked to know where to assign the return value or if a value is expected at all.
-To further clarify this we can take this example code from figure~\ref{fig:stack_example}, it is a simple program where a function that adds the value of its two parameters is defined and then called from the main function.
+To further clarify this we can take the example code from figure~\ref{fig:stack_example}, it is a simple program where a function that adds the value of its two parameters is defined and then called from the main function.
 Before the function call, the stack frame belonging to the main function has an $Invalid$ return location and after the function call, the return location changes to the variable $x$.
 Notice that the stack frame that changes it's return location is the one belonging to main, this is because the caller is the one saving the return location where it expects to store the value of a returning function.
 An $Invalid$ return value indicates the caller is not expecting to store any results, i.e.\ either the caller has not called any functions yet or the function it has called have no return value.
@@ -615,7 +615,7 @@ Every program has its own procedure table.
 
 \subsection{State}\label{subsection:state}
 
-A state is defined as a tuple conformed by the stack, a valuation for the globals and the dynamic memory.
+A state is defined as a tuple containing the stack, a valuation for the globals and the dynamic memory.
 
 \begin{lstlisting}[mathescape=true, frame=single]
 type_synonym state = stack_frame list $\times$ valuation $\times$ mem
@@ -663,14 +663,14 @@ Having defined all of these components the initial state configuration is given 
 
 \subsection{Visible State}\label{subsection:visible_state}
 We also define a visible state (as mentioned before in section~\ref{paragraph:visible_state}).
-Executing a transformer function\footnote{we will cover transformer functions further in section~\ref{section:small_step}} over a state, excepting the transformer functions for function calls or returns, will be able to modify any part of the stack other than the current frame's local variables valuation.
-This happens because we define the real transformations in the context of visible states and then lift the function to states.
-Therefore, a transformer function over states, other than the ones for function call or return, cannot temper with the stack.
+Executing a transformer function\footnote{we will cover transformer functions further in section~\ref{section:small_step}} over a state, excepting the transformer functions for function calls or returns, will not be able to modify any part of the stack other than the current frame's local variables valuation.
+This is because we define the real transformations in the context of visible states and then lift the function to states.
+Therefore, a transformer function over states, other than the ones for function call or return, cannot tamper with the stack.
 
-The stack frame on the top of the stack correspond to the current function that's being executed, and the command component of it is the Chloe command (or program) being executed.
+The stack frame on the top of the stack corresponds to the current function that's being executed, and the command component of it is the Chloe command (or program) being executed.
 Whenever a command is executed or a step is taken in our small-step semantics this command is updated to contain the command that is to be executed next.
-In order to prove the small-step semantics is deterministic we must prove that whenever we have a non-empty execution stack the order in which we apply the evaluation transformer\footnote{This is the eval function lifted to work on states instead of visible states, we will discuss it in further detail in section~\ref{section:small_step}} and the function that updates the command is irrelevant to the resulting final state.
-This is why we introduce a separate definition for a visible state apart from the regular state, it basically the same state with some limited information.
+In order to prove that the small-step semantics is deterministic we must prove that whenever we have a non-empty execution stack the order in which we apply the evaluation transformer\footnote{This is the eval function lifted to work on states instead of visible states, we will discuss it in further detail in section~\ref{section:small_step}} and the function that updates the command is irrelevant to the resulting final state.
+This is why we introduce a separate definition for a visible state apart from the regular state, it is a view of the same state with some limited information.
 
 \section{Small Step Semantics}\label{section:small_step}
 
@@ -698,7 +698,7 @@ Suppose we have the term ``\verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$
 The only cases where an execution wouldn't be enabled to continue is when a condition for an \verb|If| construct evaluates to \verb|True| and it would be attempting to take the \verb|False| branch or vice versa.
 This is the only interesting case given the set of commands Chloe supports, for every other command the enabled function will always yield true.
 In figure~\ref{fig:enabled_def} is the list of enabled functions we use.
-The function \verb|truth_value_of| maps a value to a real boolean type, namely \verb|True| or \verb|False|.
+The function \verb|truth_value_of| maps a value to a boolean value, namely \verb|True| or \verb|False|.
 We also find \verb|en_always| which always yields \verb|True|, the \verb|en_pos| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|True| and the \verb|en_neg| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|False|.
 These functions will be used later in the CFG definition.
 
@@ -748,7 +748,7 @@ The transformer for an evaluation yielded by \verb|tr_eval| will evaluate the ex
 
 The transformer for a free operation yielded by \verb|tr_free| will evaluate the LHS expression it receives as a parameter in order to obtain an address, and the block for this address will be deallocated, it yields the state resulting from the evaluation and deallocation of memory.
 
-When performing a function call one must check the that formal parameters and the actual parameters given to the function have the same type and that each formal parameter has a corresponding given parameter.
+When performing a function call one must check that the formal parameters and the actual parameters given to the function have the same type and that each formal parameter has a corresponding given parameter.
 Since we don't have a type system we will only check the second condition mentioned.
 Also, we fix the evaluation order for the parameters given to a function as left to right order.
 The parameters will always be evaluated following a left to right order.
@@ -757,13 +757,13 @@ Finally when calling a function we must also map the formal parameters to the va
 We have a \verb|call_function| which yields a transformer function for any function call, this transformer checks that the number of formal parameters and given parameters is the same, it evaluates the given parameters from left to right, it creates a new stack frame containing the body of the function, the local variables valuation (which includes the parameters mapped to their given values and the local variables mapped to an uninitialized value) and the return location \verb|Invalid|, it yields the state resulting from performing these operations over the state.
 
 When calling a function the caller has to change its stack frame in order to update the return location value in the current stack frame.
-We define different functions that perform that change depending on the type of function call and then proceed to yield a transformer by calling the \verb|call_function| function.
+We define different functions that perform that change depending on the type of function call and then proceed to yield a transformer by calling \verb|call_function|.
 
 \begin{comment}
 I should also explain here why function calls always return to a dummy variable, right?
 \end{comment}
 
-These functions are \verb|tr_callfunl|, \verb|tr_callfun| and \verb|tr_callfunv|.
+The different functions we define are \verb|tr_callfunl|, \verb|tr_callfun| and \verb|tr_callfunv|.
 We use \verb|tr_callfunl| when the function's return location is a cell in memory.
 In this case the function first evaluates the LHS expression to obtain the return address and updates the return location of the stack frame with it before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this evaluation, the update of the stack frame and the operations done by \verb|call_function|.
 It is important here that the evaluation of the LHS expression that yields an address value must be the first one done, this is in order to avoid unwanted behavior since the function could change the state.
@@ -875,7 +875,7 @@ A small-step semantics is chosen over a big-step definition for the semantics du
 The big-step semantics has a major drawback, which is that it cannot differentiate between a non-terminating execution and getting stuck in an erroneous configuration.
 This is why we prefer a more detailed semantics that allows us to differentiate between nontermination and getting stuck because it allows us to talk about intermediate states during evaluation.
 
-Usually a configuration in a small step semantics is a pair conformed by a command and a state.
+Usually a configuration in a small step semantics is a pair consisting of a command and a state.
 Since we are working with procedures and we have the command that is being executed in the stack frame our small-step definition is defined over states.
 A small, atomic step can be taken from one state to another.
 
@@ -949,7 +949,7 @@ The infix syntax for this is written as $s_{0} \rightarrow* s_{f}$, which means 
 
 \subsubsection{Determinism}
 
-We want to prove our semantics to be deterministic.
+To be able to make our semantics executable inside of the Isabelle/HOL environment it must be deterministic, this is why we prove the determinism property for the semantics..
 In order to go through with that proof a set of lemmas must be first defined and proved.
 We will proceed to explain such defined lemmas for our semantics in this section.
 
@@ -1214,7 +1214,8 @@ There are two kinds of edges in the CFG.
 We create a new datatype for representing them.
 
 
-A $Base$ edge that has a transformer function and is always enabled and takes us to a new command and a $Cond$ edge that apart from the transformer function also has an enabled function and two commands, the enabled function indicates whether we take a step to the first or the second command.
+A $Base$ edge that has a transformer function and is always enabled and takes us to a new command and a $Cond$ edge that, apart from the transformer function, also has an enabled function and two commands.
+This enabled function indicates whether we take a step to the first or the second command.
 Also we define a \verb|cfg_step| function that given the starting command returns which kind of edge follows in the CFG.
 
 The function \verb|fstep|, defined in figure~\ref{fig:fstep_def}, is how we take a single step in the execution of the semantics.
@@ -1252,6 +1253,7 @@ $\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow\ s\ \rightarrow\ (\mathtt{f
 \end{lemma}
 
 \begin{proof}
+This proof is done automatically by making a case distinction on the result of ``\verb|tr_return_void| $s$'' and using the lemmas~\ref{lemma:can_take_step} and~\ref{lemma:fstep1}.
 \end{proof}
 
 Both directions together (Lemma~\ref{lemma:fstep1} and lemma~\ref{lemma:fstep2}) let us then show the equivalence we were aiming for originally:

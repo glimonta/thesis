@@ -21,8 +21,18 @@ The use of formal mathematical constructs would rip it away from these ambiguiti
 
 Even though the semantics defined by our work covers a limited subset of C, it is expressive enough to allow the implementation of algorithms such as sorting, depth-first search, etc.
 The goal of this work is to also generate executable C code from our semantics.
-This generated code would behave as expected since it is written in our formal semantics, and then we can compile and execute this code outside of the Isabelle/HOL environment.
-This allows for implementation of some verified algorithms using our semantics and then generate efficient C code from it that can be compiled and executed.
+Our formal semantics corresponds to the semantics of the C language implemented by a compiler.
+Therefore, since our code is written in our formal semantics, the generated code will behave as expected when compiled and executed outside of the Isabelle/HOL environment.
+This allows for implementation of some verified algorithms using our semantics and generation of efficient C code from it that can be compiled and executed.
+
+Another goal of this work is to make this semantics executable in the Isabelle/HOL environment.
+The semantics we formalize is deterministic, that allows us to define an interpreter that can, effectively, execute the semantics.
+This interpreter will return the final state resulting from executing our semantics.
+
+Finally we also want to test that our semantics is compatible with an actual C compiler.
+For this purpose we define a test harness and a test suite that is meant to increment trust in our translation process i.e.\ the semantics of our program is not changed by the translation to C process.
+We guarantee that the final state of a program executed in our semantics and the final state of the generated program, that is compiled and executed outside of the Isabelle/HOL environment, will be the same.
+To ensure this, we write a test harness library in C that we will use to perform automatically generated tests for our programs that, will compare the final state of the executed semantics with that of the compiled program.
 
 
 \section{Theoretical Background}
@@ -41,19 +51,20 @@ Many big programming languages, e.g.\ the C language, have their reference docum
 Sadly natural language leads to subtle ambiguities that further make it harder to reason about programs in this language.
 
 The lack of a rigorous mathematically defined semantics also makes it harder for developers of tools for that programing language, i.e.\ compilers, to write accurate tools for it since, due to the ambiguities, some part of the language is subject to the interpretation of the reader.
-This doesn't happen with formally defined terms, by using these we lose the possibility of ambiguity and can ensure that the meaning of a construct in the language always has the same meaning as defined in its semantics.
+By using formally defined terms we can get rid of this possible ambiguity.
+If every term is described mathematically then we can ensure that the meaning defined in the semantics of a language can only be that one and it is not subject to different interpretations.
 
-In order to further clarify the definition and the different types of semantics there exists we are going to use an example we considered relevant from Nielson and Nielson~\parencite{nielson}:
+In order to further clarify the definition and the different types of semantics we are going to use an example we considered relevant from Nielson and Nielson~\parencite{nielson}:
 
-If we take the following construct
+We take the following construct
 \begin{equation*}
 z:=x; x:=y; y:=z
 \end{equation*}
-Here ``$:=$'' is an assignment to a variable and ``$;$'' is the instruction sequencing.
-Syntactically this is three statements separated by ``$;$'', where each statement is conformed by a variable, the symbol ``$:=$'' and a second variable.
+Where ``$:=$'' is an assignment to a variable and ``$;$'' is sequential composition.
+Syntactically this is three statements separated by ``$;$'', where each statement consists of a variable, the symbol ``$:=$'' and a second variable.
 
 The \textit{semantics} of this construct is the meaning of this program.
-Semantically, this program, exchanges the values of $x$ and $y$ (using $z$ as a temporary variable).
+Semantically, this program exchanges the values of $x$ and $y$ (using $z$ as a temporary variable).
 
 \subsubsection{Types of semantics}
 
@@ -64,29 +75,17 @@ There are many different approaches on how to formalize the semantics of a progr
 Each one of them has a different idea behind it and have a different degree of usefulness depending on the purpose one has for the semantics.
 The most widely used approaches are:
 
-\begin{comment}
-  \begin{itemize}
-    \item{Operational semantics:}
-    The meaning is specified by the computation on a machine when executing the program.
-    The interest lies on the ``\textit{how} the effect of a computation is produced.''~\parencite{nielson}
-    \item{Denotational semantics:}
-    The meaning of a construct are modeled mathematically by objects that represent the effect of executing the construct.
-    Here the main interest lies in the effect and not how it was obtained.
-    \item{Axiomatic semantics:}
-    Here the main interest lies in expressing some properties of the construct in the form of assertions.
-  \end{itemize}
-\end{comment}
 
 \subsubsection{Operational semantics}
 
 A semantics is defined using the operational approach when the focus is turned to \textit{how} a construct is executed, it can be thought of as an abstraction of the execution of the program in a machine.~\parencite{nielson}
 
-There's two different kinds of operational semantics, namely \textit{small-step semantics} (or structural operational semantics) and \textit{big-step semantics} (or natural semantics).
+There are two different kinds of operational semantics, namely \textit{small-step semantics} (or structural operational semantics) and \textit{big-step semantics} (or natural semantics).
 
 The operational explanation of the meaning of this program indicates how it is executed.
 
-Our example consists of a series of three statements separated by ``$;$'' and each of this statements is an assignment.
-The operational semantics will define how are sequence of statements and assignment statement executed.
+Our example contains a series of three statements separated by ``$;$'' and each of this statements is an assignment.
+The operational semantics will define how are sequences of statements and assignment statements executed.
 
 For this particular construct the semantics will be as follows:
 
@@ -260,7 +259,7 @@ The benefit of using this approach is that we are provided with an easy way to p
 Nowadays we have mechanized theorem provers that assist on the formalization and proving of different constructs.
 Pen and paper proofs are prone to errors and humans are easier to fool than a machine.
 Therefore we should take advantage of the resources of a machine to let it work for us.
-Reasoning about the semantics of Chloe without using mechanized tools becomes a great task and, as said before, prone to errors, not to mention that the certainty on the correctness of our proofs diminishes.
+Reasoning about the semantics of a programming language without using mechanized tools becomes a great task and, as said before, prone to errors, not to mention that the certainty on the correctness of our proofs diminishes.
 
 By using a theorem prover, in our case Isabelle/HOL~\parencite{isabelle-tutorial}, one can be certain that the results proved are correct.
 In the environment of Isabelle/HOL we can make logical definitions and prove lemmas and theorems about those constructs in a sound way.
@@ -280,7 +279,7 @@ The syntax and semantics of this programming language are discussed in further d
 
 This language has the following features: variables, arrays, pointer arithmetic, while loop construct, if-then-else conditional construct and dynamic memory.
 Sadly, the scope of this project was limited to the features mentioned previously and there are several features that are currently not supported by the language.
-These features are a sound and correct type system, concurrency, I/O operations, goto, labels, break and continue.
+These features are a proven sound and correct static type system, concurrency, I/O operations, goto, labels, break and continue.
 
 While it will be convenient in the future to have the features not covered by the scope of this work, the current set of features supported by Chloe is enough to show some relevant program examples and it has enough expressive power to be Turing-complete.
 
