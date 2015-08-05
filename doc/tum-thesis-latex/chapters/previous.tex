@@ -11,12 +11,12 @@ This work is closely related to ours because it formalizes the semantics of a bi
 Then we will discuss the memory model used in the formal verification of the CompCert compiler.~\parencite{leroy-blazy-memory-model}
 In our work we adopt the memory model used for the verified C compiler in the CompCert Project.
 
-Finally, we will write about the Autocorres and other VCGs that abstracts low-level C semantics into higher level representations.
+Finally, we will write about the Autocorres, a project that has the goal of abstracting low-level C semantics into higher level representations.
 It translates C code into the logic of a theorem prover in order to prove properties about the C source code.
 
 \section{C formalized in HOL}
 
-An important previous work to take into account when talking about C semantics is the work by Michael Norrish in 1998~\parencite{norrish}, where he formalizes the semantics for a big subset of the C programming language.
+An important previous work to take into account when talking about C semantics is the work by Michael Norrish~\parencite{norrish}, where he formalizes the semantics for a big subset of the C programming language.
 In his work he formalizes an operational semantics for the Cholera subset of the C language.
 His semantics is formalized in the HOL~\parencite{hol-doc} theorem prover.
 
@@ -34,7 +34,7 @@ Also Norrish takes the direction of presenting a programing logic and reasoning 
 
 \section{CompCert Compiler's Memory Model}
 
-The Compcert compiler is a moderately optimizing compiler that translates code from the Clight subset of the C programming language~\parencite{clight} to PowerPC assembly code, in chapter 4 of~\parencite{compcert-float-point} a description of the Compcert compiler.
+The Compcert compiler is a moderately optimizing compiler that translates code from the Clight subset of the C programming language~\parencite{clight} to PowerPC assembly code, in chapter 4 of~\parencite{compcert-float-point} a description of the Compcert compiler can be found.
 It compiles source code from the Clight semantics to assembly code preserving the semantics of the original language.
 For this several languages are necessary, as well as a memory model that allows for reasoning about memory states.
 
