@@ -1,9 +1,14 @@
 \chapter{Syntax and Semantics}\label{chapter:semantics}
 
-\section{Expressions}\label{section:expressions}
-
 Our imperative language is called Chloe and it represents a subset of the C language.
-We will now proceed to discuss more in detail the syntax and semantics of the expressions in Chloe.
+A program is a sequence of one or more statements (or commands) written to perform a task in a computer.
+Each of these statements represents an instruction the machine will execute.
+These statements can contain internal components called expressions.
+An expression is a term consisting of values, constant, variables, operators, etc. which can be evaluated in the context of a program state to obtain a value that will be used in a statement.
+In the following sections we will proceed to discuss more in detail the syntax and semantics of programs in Chloe.
+
+
+\section{Expressions}\label{section:expressions}
 
 \subsection{Syntax}\label{subsection:syntax_expressions}
 
@@ -46,10 +51,12 @@ We define two new datatypes, one for expressions and one for left-hand-side expr
 It is important to differentiate between these two in the case where we are dealing with pointer expressions.
 For instance, let's take the following C statements:
 
-\begin{lstlisting}[language=C, frame=single]
+\begin{lstlisting}[mathescape=true, frame=single]
 foo = *bar;
 *baz = 1;
 \end{lstlisting}
+
+Where \verb|foo| and \verb|bar| are variables, \verb|1| is a constant value, ``\verb|=|'' denotes an assignment statement and ``\verb|*|'' corresponds to the derefferencing operator.
 
 In the first expression \verb|*bar| is on the right-hand-side, in this case we want \verb|*bar| to yield a value we can then assign to \verb|foo|.
 On the other hand, in the second expression \verb|*baz| is on the left-hand-side, in this case we want \verb|*baz| to yield an address to which we can assign the value \verb|1|.
