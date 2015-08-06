@@ -213,7 +213,7 @@ text \<open>From the previous definitions on pretty printing the definition of @
   | "shows_exp (And e1 e2) = shows_binop (shows_exp e1) ''&&'' (shows_exp e2)"
   | "shows_exp (Or e1 e2) = shows_binop (shows_exp e1) ''||'' (shows_exp e2)"
   | "shows_exp (Eq e1 e2) = shows_binop (shows_exp e1) ''=='' (shows_exp e2)"
-  | "shows_exp (New e) = shows ''__MALLOC(sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')''"
+  | "shows_exp (New e) = shows_cast_to_dflt_type (shows ''__MALLOC(sizeof('' o shows dflt_type o shows '') * '' o shows_paren (shows_exp e) o shows '')'')"
   | "shows_exp (Deref e) = shows ''*'' o shows_paren (shows_cast_to_pointer (shows_exp e))"
   | "shows_exp (Ref e) = shows_cast_to_pointer (shows_unop ''&'' (shows_lexp e))"
   | "shows_exp (Index e1 e2) = shows_paren (shows_cast_to_pointer (shows_exp e1)) o shows CHR ''['' o shows_exp e2 o shows CHR '']''"
