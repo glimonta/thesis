@@ -20,6 +20,7 @@ Sadly, some of the semantics for the C language described in the standard~\paren
 The use of formal mathematical constructs would rip it away from these ambiguities, although formalizing the semantics for the complete C language is no easy task and it is indeed one that has been subject to much research in the semantics area.
 
 Even though the semantics defined by our work covers a limited subset of C, it is expressive enough to allow the implementation of algorithms such as sorting, depth-first search, etc.
+
 The goal of this work is to also generate executable C code from our semantics.
 Our formal semantics corresponds to the semantics of the C language implemented by a compiler.
 Therefore, since our code is written in our formal semantics, the generated code will behave as expected when compiled and executed outside of the Isabelle/HOL environment.
@@ -31,7 +32,7 @@ This interpreter will return the final state resulting from executing our semant
 
 Finally we also want to test that our semantics is compatible with an actual C compiler.
 For this purpose we define a test harness and a test suite that is meant to increment trust in our translation process i.e.\ the semantics of our program is not changed by the translation to C process.
-We guarantee that the final state of a program executed in our semantics and the final state of the generated program, that is compiled and executed outside of the Isabelle/HOL environment, will be the same.
+We guarantee that the final state of a program executed in our semantics and the final state of the generated program, that is compiled and executed outside of the Isabelle/HOL environment, will be the same (except for the case where we are in the presence of a failure while allocating memory).
 To ensure this, we write a test harness library in C that we will use to perform automatically generated tests for our programs that, will compare the final state of the executed semantics with that of the compiled program.
 
 

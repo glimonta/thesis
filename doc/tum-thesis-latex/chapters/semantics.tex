@@ -56,7 +56,7 @@ foo = *bar;
 *baz = 1;
 \end{lstlisting}
 
-Where \verb|foo| and \verb|bar| are variables, \verb|1| is a constant value, ``\verb|=|'' denotes an assignment statement and ``\verb|*|'' corresponds to the derefferencing operator.
+Where \verb|foo| and \verb|bar| are variables, \verb|1| is a constant value, ``\verb|=|'' denotes an assignment statement and ``\verb|*|'' corresponds to the dereference operator.
 
 In the first expression \verb|*bar| is on the right-hand-side, in this case we want \verb|*bar| to yield a value we can then assign to \verb|foo|.
 On the other hand, in the second expression \verb|*baz| is on the left-hand-side, in this case we want \verb|*baz| to yield an address to which we can assign the value \verb|1|.
@@ -145,7 +145,7 @@ Whereas a cell holding a value is represented by the value \verb|Some| $v$, wher
 
 There are four main operations that can manage the memory, these are \verb|new_block|, \verb|free|, \verb|load| and \verb|store| and these are specified in figure~\ref{fig:mem_operations}.
 Each of these operations can fail, therefore their return type is $\tau\ \verb|option|$.
-The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
+The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ (where $v$ is of type $\tau$).
 
 The functionalities of the memory management operations are the following:
 
@@ -181,16 +181,13 @@ Since we assume the memory to be unlimited, there will not be a case where a \ve
 
 However, the resources in a machine are limited, we cannot use an unlimited amount of memory.
 Here is where we find a discrepancy with what the C semantics describes and this breaks one of our assumptions.
-When performing a malloc call in a C program, there is a possibility that this call yields \verb|NULL|, in that case our semantics and the C semantics act different.
+When performing a malloc call in a C program, there is a possibility that this call yields \verb|NULL|, in that case our semantics and the C semantics act differently.
 
 In order to model an allocation function that presents this kind of behavior one would probably have to either say non-deterministically that one's function may return \verb|NULL| which would make proving any properties about a program really hard because any call to an allocation function might fail, or assume that a fixed amount of memory is available.
 In any case, modeling this kind of function is not a trivial task and remains out of the scope of this work.
 
-Therefore we have decided to assume an unlimited amount of memory and later when doing the translation process, we will wrap C's malloc function in an user defined macro that will check whether the malloc call is successful or not.
-This way, what we will be able to guarantee about our generated program will either be generated and the execution of it in the semantics and the execution in the machine will yield final states that are equal or the program will abort when an out of memory error is encountered.
-
-
-Also one of the types used in figure~\ref{fig:mem_operations}, namely \verb|visible_state|, we have not yet talked about, it will be discussed in further detail in section~\ref{paragraph:visible_state}.
+Therefore we have decided to assume an unlimited amount of memory and later when doing the translation process, we will wrap C's malloc function in an user defined function that will check whether the malloc call is successful or not.
+This way, what we will be able to guarantee about our generated program is that it will either be generated and, both, the execution of it in the semantics and the execution in the machine will yield final states that are equal or the program will abort when an out of memory error is encountered.
 
 This memory model is inspired in the work of Blazy and Leroy~\parencite{leroy-blazy-memory-model}, it is a simpler model adjusted to satisfy our needs.
 
@@ -485,8 +482,7 @@ A program is considered valid if it complies with all the following conditions:
 
   test_keywords =
     [''__test_harness_num_tests'', ''__test_harness_passed'',
-     ''__test_harness_failed'', ''__test_harness_discovered'',
-     ''__ret_malloc'']
+     ''__test_harness_failed'', ''__test_harness_discovered'' ]
 
   definition valid_program :: program $\Rightarrow$ bool where
   valid_program p $\equiv$
@@ -858,7 +854,7 @@ A program pointer to the command of a function pushed to the stack when there is
 This concept will become important when talking about function calls and return commands further ahead.
 
 We can see an inductive definition in figure~\ref{fig:cfg_rules} for CFG, where we can see the rules to form edges between commands.
-An assignment to a variable can be reduced to the \verb|SKIP| command by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assign| called with the parameters specific for the command.
+We can follow an edge in the CFG from an assignment to a variable to \verb|SKIP|, this edge is always enabled and has a transformer function to update the state which is given by the result of \verb|tr_assign| called with the parameters specific for the command.
 
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
@@ -891,26 +887,31 @@ An assignment to a variable can be reduced to the \verb|SKIP| command by an edge
   \label{fig:cfg_rules}
 \end{figure}
 
-An assignment to a cell in memory can also be reduced to \verb|SKIP| by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assignl| called with the parameter specific for the command.
+We can follow an edge in the CFG from an assignment to a cell in memory to \verb|SKIP|, this edge is always enabled and the transformer function to update the state is given by the result of \verb|tr_assignl| called with the parameter specific for the command.
 
-The sequential composition has two different ways in which it can be reduced.
-When the first command in the sequential composition is a \verb|SKIP| command we can reduce the whole command to just the second command by an edge that is always enabled and that the transformer over the state is the \verb|tr_id|.
-For the second case of sequential composition \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| where $c_{1}$ is not \verb|SKIP|, if we have a reduction from $c_{1}$ to some other command $c_{1}'$ with some edge label $a$ containing an enabled and a transformer function, then we can reduce from \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| to \verb|(| $c_{1}'$ \verb|;;| $c_{2}$ \verb|)| with the same $a$ edge label.
+The sequential composition has two different edges that can be followed.
+When the first command in the sequential composition is a \verb|SKIP| command we can follow an edge that will lead us from the node with the whole command to a node with just the second command, this edge is always enabled and the transformer over the state is the \verb|tr_id|.
+For the second case of sequential composition \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| where $c_{1}$ is not \verb|SKIP|, if we follow an edge from $c_{1}$ to some other node $c_{1}'$, and this edge is labelled $a$, which contains an enabled and a transformer function, then we can follow an edge, also labelled with $a$ from \verb|(| $c_{1}$ \verb|;;| $c_{2}$ \verb|)| to \verb|(| $c_{1}'$ \verb|;;| $c_{2}$ \verb|)|.
 
 We also have two cases when it comes to the case of the conditional.
-We will have a reduction for taking true branch and another one for taking the false branch.
-In the case where we take the true branch we can reduce \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{1}$, by an edge with an enabled function given by \verb|en_pos| which will be enabled only when the condition $b$ evaluates to \verb|True| and with a transformer function given by \verb|tr_eval|.
-In the case where we take the false branch we can reduce \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{2}$, by an edge with an enabled function given by \verb|en_neg| which will be enabled only when the condition $b$ evaluates to \verb|False| and with a transformer function given by \verb|tr_eval|.
+We will have the possibility to follow an edge to the first command or an edge to the second command, depending on the value of the guard.
+In the case where we follow the edge that leads us to the first command, we will go from \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{1}$.
+This edge will be labelled with an enabled function given by \verb|en_pos| which will be enabled only when the condition $b$ evaluates to \verb|True| and with a transformer function given by \verb|tr_eval|.
+In the case where we follow the edge that leads us to the second command, we will go from \verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$ to $c_{2}$.
+This edge will be labelled with an enabled function given by \verb|en_neg| which will be enabled only when the condition $b$ evaluates to \verb|False| and with a transformer function given by \verb|tr_eval|.
 
-In the case of a loop it can be always reduced from \verb|WHILE| $b$ \verb|DO| $c$ to \verb|IF| $b$ \verb|THEN| $c$ \verb|;; WHILE| $b$ \verb|DO| $c$ \verb|ELSE SKIP| by unrolling the loop once, the edge will have an enabled function that's always enabled and the transformer over the state is the \verb|tr_id|.
+In the case of a loop we can always follow an edge that takes us from \verb|WHILE| $b$ \verb|DO| $c$ to \verb|IF| $b$ \verb|THEN| $c$ \verb|;; WHILE| $b$ \verb|DO| $c$ \verb|ELSE SKIP| by unrolling the loop once.
+The edge will have an enabled function that's always enabled and the transformer over the state is the \verb|tr_id|.
 
-The \verb|FREE| $x$ command can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_free| called with $x$.
+We can follow an edge from \verb|FREE| $x$ to \verb|SKIP|, this edge is always enabled and a has transformer function given by the result of \verb|tr_free| called with $x$.
 
-Both return commands can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_return| or \verb|tr_return_void| depending on which return command it is.
-Note that when \textit{executing} this command in the CFG, following the node from a return node to a \verb|SKIP| node will pop the program pointer pointing to the \verb|SKIP| node and we will continue our ``execution'' in the location pointed by the next program pointer in the stack.
+We can follow an edge from any of the two existing return commands to \verb|SKIP|.
+This edge is always enabled and has a transformer function given by the result of \verb|tr_return| or \verb|tr_return_void| depending on which return command it is.
+Note that when \textit{executing} this command in the CFG, following the edge from a return node to a \verb|SKIP| node will pop the program pointer pointing to the \verb|SKIP| node and we will continue our ``execution'' in the location pointed by the next program pointer in the stack.
 
-Finally all function calls can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of either \verb|tr_callfunl|, \verb|tr_callfun| or \verb|tr_callfunv| depending on whether it is a function call that returns to a memory cell, a variable or returns no value.
-Note that, also in this case, when \textit{executing} this command in the CFG, following the node from a function call node to a \verb|SKIP| node will push a new program pointer to the stack that points to the location of the node that contains the command of the function and we will continue our ``execution'' in the location pointed by this next program pointer.
+Finally, we can follow an edge from any of the function call nodes to \verb|SKIP|.
+This edge is always enabled and has a transformer function given by the result of either \verb|tr_callfunl|, \verb|tr_callfun| or \verb|tr_callfunv| depending on whether it is a function call that returns to a memory cell, a variable or returns no value.
+Note that, also in this case, when \textit{executing} this command in the CFG, following the edge from a function call node to a \verb|SKIP| node will push a new program pointer to the stack that points to the location of the node that contains the command of the function and we will continue our ``execution'' in the location pointed by this next program pointer.
 
 \subsection{Small Step semantics rules}\label{subsection:rules_small_step}
 
