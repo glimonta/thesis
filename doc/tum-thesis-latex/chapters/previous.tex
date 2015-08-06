@@ -21,8 +21,8 @@ In his work he formalizes an operational semantics for the Cholera subset of the
 His semantics is formalized in the HOL~\parencite{hol-doc} theorem prover.
 
 One of the features that characterize his subset of the C language formalization is the fact that it considers every possible order of evaluation for side effects.
-He shows that \textit{pure} expressions in his language are deterministic, he defines pure expressions as expressions that do not contain function calls, assignment expressions, post-increments or post-decrements.
-He also defines \textit{sequence-point free} expressions, which overlap with the pure expressions but no set contains the other, and shows that they are deterministic.
+He shows that \textit{pure} expressions\footnote{He defines pure expressions as expressions that do not contain function calls, assignment expressions, post-increments or post-decrements} in his language are deterministic.
+He also defines \textit{sequence-point free} expressions\footnote{He defines sequence-point free expressions as expressions that do not contain an evaluation of the logical operators $\&\&$, $||$ and $?:$, a comma-operator or a function call.}, which overlap with the pure expressions but no set contains the other, and shows that they are deterministic.
 Norrish gives a programming logic to reason about programs at a statement level.
 He presents a derivation of a Hoare logic for C programs and then presents a system for analyzing loop bodies and generate correct post-conditions even in the presence of \verb|break|, \verb|continue| and \verb|return| statements.
 
@@ -36,10 +36,10 @@ Also Norrish takes the direction of presenting a programing logic and reasoning 
 
 The Compcert compiler is a moderately optimizing compiler that translates code from the Clight subset of the C programming language~\parencite{clight} to PowerPC assembly code, in chapter 4 of~\parencite{compcert-float-point} a description of the Compcert compiler can be found.
 It compiles source code from the Clight semantics to assembly code preserving the semantics of the original language.
-For this several languages are necessary, as well as a memory model that allows for reasoning about memory states.
+For doing this translation several languages are necessary, as well as a memory model that allows for reasoning about memory states.
 
 Memory models are usually either too concrete or too abstract.
-When they're too abstract they can fail to represent aliasing or partial overlap making the semantics incorrect, whereas a too concrete memory model can make the proof process more difficult by maybe failing to validate algebraic properties that are valid in the language.
+When they're too abstract they can fail to represent things like aliasing or partial overlap making the semantics incorrect, whereas a too concrete memory model can make the proof process more difficult by maybe failing to validate algebraic properties that are indeed valid in the language.
 The memory model used in the Compcert compiler~\parencite{leroy-blazy-memory-model} is somewhere in between a low-level model and a high-level model.
 The memory has a set of memory states which are indexed by a block reference and every block behaves like an array of bytes and can be addressed by using byte offsets.
 Leroy and Blazy give an abstract and a concrete description of their memory model and have a formalized and proved properties on memory operations on the Coq proof assistant~\parencite{coq-doc}, one of those properties is that separation between two blocks obtained from two different malloc calls is guaranteed.
@@ -47,6 +47,7 @@ Leroy and Blazy give an abstract and a concrete description of their memory mode
 We model the memory of our semantics taking this model as inspiration.
 Our model differs from it in the sense that it is simpler.
 One of the differences is that Leroy and Blazy's model support lower and upper bounds for accessing a block whereas all blocks in our semantics are accessible from index $0$ up to the length of the block.
+Also each memory cell in Leroy and Blazy's model represents a byte, whereas each of our memory cells can hold an integer value or a pointer.
 The fundamental idea behind this memory model is taken and adapted to our needs in this work.
 
 
@@ -54,7 +55,7 @@ The fundamental idea behind this memory model is taken and adapted to our needs 
 
 Our work has a top-down approach where we intend to generate C code from a formal specification.
 The other direction of this approach is worth mentioning.
-The AutoCorres project~\parencite{autocorres} parses C code and generates a high-level monadic representation that is easier to reason with.
+The AutoCorres project~\parencite{autocorres} parses C code and generates a high-level monadic representation that makes it easier to reason about a program.
 This work allows for users to reason about C programs at a higher level.
 It generates an Isabelle/HOL specification as well as a proof of correctness in Isabelle/HOL for the translation it makes.
 It features a heap abstraction that allows for reasoning about memory for type-safe functions and a word abstraction that allows for abstract machine words into natural numbers and integers and reason about them in this level.

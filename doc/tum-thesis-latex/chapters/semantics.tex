@@ -66,7 +66,7 @@ In order to correctly model the semantics for the Chloe expressions it is necess
 In future sections we will proceed to refer to right-hand side expressions as simply expressions and we will use LHS instead of left-hand-side when referring to left-hand-side expressions.
 
 Chloe supports constant expressions, null pointer expression, variables as well as the following operations over expressions: addition, subtraction, unary minus, division, modulo, multiplication, less than, not, and, or, equality.
-We also have a \verb|New| expression which is the equivalent of a \verb|malloc| call in C.
+We also have a \verb|New| expression which corresponds to a \verb|malloc| call in C.
 We have dereferencing, referencing and array subscripting, these are in C the \verb|*|, \verb|&| and \verb|[]| operators, respectively.
 Finally as LHS expressions we have dereferencing and array subscripting.
 
@@ -143,7 +143,7 @@ Each cell can have different values depending on whether it is uninitialized or 
 An uninitialized cell in memory is represented by the value \verb|None|.
 Whereas a cell holding a value is represented by the value \verb|Some| $v$, where $v$ is of type \verb|val|.
 
-There are four main operations that can manage the memory, these are \verb|new_block|, \verb|free|, \verb|load| and \verb|store| and these are specified in figure ~\ref{fig:mem_operations}.
+There are four main operations that can manage the memory, these are \verb|new_block|, \verb|free|, \verb|load| and \verb|store| and these are specified in figure~\ref{fig:mem_operations}.
 Each of these operations can fail, therefore their return type is $\tau\ \verb|option|$.
 The values of that type are either \verb|None| when the operation fails or $\verb|Some|(v)$ where $v$ is of type $\tau$.
 
@@ -176,13 +176,23 @@ The functionalities of the memory management operations are the following:
   \label{fig:mem_operations}
 \end{figure}
 
-It is important to note that the only reasons why the memory allocation can fail are the ones described above.
+It is important to note that the only reasons why the memory allocation can fail in our semantics are the ones described above.
 Since we assume the memory to be unlimited, there will not be a case where a \verb|new| call fails due to a lack of memory.
 
+However, the resources in a machine are limited, we cannot use an unlimited amount of memory.
+Here is where we find a discrepancy with what the C semantics describes and this breaks one of our assumptions.
+When performing a malloc call in a C program, there is a possibility that this call yields \verb|NULL|, in that case our semantics and the C semantics act different.
 
-Also one of the types used in figure ~\ref{fig:mem_operations}, namely \verb|visible_state|, we have not yet talked about, it will be discussed in further detail in section~\ref{paragraph:visible_state}.
+In order to model an allocation function that presents this kind of behavior one would probably have to either say non-deterministically that one's function may return \verb|NULL| which would make proving any properties about a program really hard because any call to an allocation function might fail, or assume that a fixed amount of memory is available.
+In any case, modeling this kind of function is not a trivial task and remains out of the scope of this work.
 
-This memory model is inspired in the work of Blazy and Leroy~\parencite{compcert}, it is a simpler model adjusted to satisfy our needs.
+Therefore we have decided to assume an unlimited amount of memory and later when doing the translation process, we will wrap C's malloc function in an user defined macro that will check whether the malloc call is successful or not.
+This way, what we will be able to guarantee about our generated program will either be generated and the execution of it in the semantics and the execution in the machine will yield final states that are equal or the program will abort when an out of memory error is encountered.
+
+
+Also one of the types used in figure~\ref{fig:mem_operations}, namely \verb|visible_state|, we have not yet talked about, it will be discussed in further detail in section~\ref{paragraph:visible_state}.
+
+This memory model is inspired in the work of Blazy and Leroy~\parencite{leroy-blazy-memory-model}, it is a simpler model adjusted to satisfy our needs.
 
 
 \subsection{Semantics}\label{subsection:semantics_expressions}
@@ -227,7 +237,7 @@ type_synonym visible_state = valuation $\times$ valuation $\times$ mem
 
 A visible state is a tuple that contains a valuation function for the local variables, a valuation function for the global variables and the dynamic memory of the program.
 
-
+\paragraph{}
 Now we can proceed to introduce the semantics for the expressions in Chloe.
 As we said before the semantics of an expression is its value and its effect on a program state, therefore we have defined two evaluation functions, one that computes the value of an expression and one that computes the value of a LHS expression.
 These functions defined as follows:
@@ -241,6 +251,7 @@ Where \verb|eval|, given an expression and a visible state, will yield the value
 \verb|eval_l|, given a LHS expression and a visible state, will yield the value of that expression (which must be an address) and the state resulting after the evaluation of the LHS expression.
 Notice that the resulting type for these evaluation functions are an \verb|option| type.
 This is because these functions can fail, a failure can happen anywhere in the evaluation of the expression and if a failure is found then it will propagate until the whole expression evaluation returns a \verb|None| value indicating an error in evaluation.
+
 Expression evaluation might fail for several reasons which include, but are not limited to, variable undefinedness, an operation failing because it has some illegal operand, trying to access an invalid part of the memory and overflow.
 Therefore if there's an error early in the expression evaluation semantics, it will be detected and propagated as a \verb|None| value which indicates an error state.
 
@@ -473,7 +484,9 @@ A program is considered valid if it complies with all the following conditions:
      ''_Bool'', ''_Complex'', ''_Imaginary'']
 
   test_keywords =
-    [''num_tests'', ''passed'', ''failed'']
+    [''__test_harness_num_tests'', ''__test_harness_passed'',
+     ''__test_harness_failed'', ''__test_harness_discovered'',
+     ''__ret_malloc'']
 
   definition valid_program :: program $\Rightarrow$ bool where
   valid_program p $\equiv$

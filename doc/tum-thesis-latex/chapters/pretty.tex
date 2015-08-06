@@ -183,6 +183,8 @@ Since the values we are working with must be interpreted in C sometimes as integ
 We include casts to pointers when dealing with referencing, dereferencing and indexing.
 We will want to cast to integers in the case of a memory allocation.
 A memory allocation returns a pointer but in order to assign that to a variable we must cast it to an integer, due to the fact that all our variables are declared with the \verb|intptr_t| type and not \verb|intptr_t *|, we can do this and we know that when working with addresses these will be interpreted the right way since we will add a cast back to pointer.
+The cast to integer in the memory allocation is addressed in next section due to the fact that it is more complicated and requires its own section.
+Casts to integers in the memory allocation case are not pretty printed directly by our show function.
 
 
 A cast to an address value will be pretty printed in the following way:
@@ -203,14 +205,37 @@ In table~\ref{tab:pretty_casts} we can find examples of the pretty printing of c
   \hline
   \textbf{Abstract syntax} & \textbf{String representation} \\ [0.5ex]
   \hline \hline
-  \verb|New| (\verb|Const| $9$) & $(\mathtt{intptr\_t})\ \mathtt{malloc}\ (\mathtt{sizeof}(\mathtt{intptr\_t}) * ($9$))$ \\
-  \verb|Deref| (\verb|V| $foo$) & $*((\mathtt{intptr\_t}\ *)\ $x$)$ \\
+  \verb|Deref| (\verb|V| $foo$) & $*((\mathtt{intptr\_t}\ *)\ $foo$)$ \\
+  \verb|Ref| (\verb|V| $foo$)   & $((\mathtt{intptr\_t}\ *)\ \&($foo$))$ \\
   \hline
 \end{tabular}
 
 \caption{Examples of casts' pretty printing}
 \label{tab:pretty_casts}
 \end{table}
+
+
+\paragraph{Memory allocations}
+
+The translation process for memory allocation requires its own section.
+As we mentioned in chapter~\ref{chapter:semantics} the behaviour of our allocation function and C's allocation function differ due to the fact that we assume that the memory is unlimited.
+Therefore we cannot just translate our memory allocation function to a \verb|malloc| call in C.
+
+We must wrap C's \verb|malloc| function in another function that will abort the program in the case a program runs out of memory.
+In figure~\ref{fig:macro_malloc} we have the definition of a C macro that will be used for this purpose.
+Note that we do the cast to an integer value as we mentioned in the previous section inside this macro.
+If a program fails because of an out of memory error then we will exit with the 3 code which we assigned as an user defined code to indicate out of memory error and to be able to catch it later in our testing process.
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+#define __MALLOC(size) __ret_malloc = malloc(size); (NULL == __ret_malloc) ? exit(3) : ((intptr_t) __ret_malloc);
+\end{lstlisting}
+\caption{C macro for handling malloc calls}
+\label{fig:macro_malloc}
+\end{figure}
+
+
 
 
 \paragraph{Expressions}
@@ -237,7 +262,7 @@ We use simple expressions as operands such as variables or constant values for s
   \verb|And| $(\mathtt{Const}\ 1)\ (\mathtt{Const}\ 1)$ & $(1\ \&\&\ 1)$ \\
   \verb|Or| $(\mathtt{Const}\ 1)\ (\mathtt{Const}\ 0)$ & $(1\ || 0)$ \\
   \verb|Eq| $(\mathtt{Const}\ 6)\ (\mathtt{Const}\ 4)$ & $(6\ == 4)$ \\
-  \verb|New| $(\mathtt{Const}\ 9)$ & $(\mathtt{intptr\_t})\ \mathtt{malloc}\ (\mathtt{sizeof}(\mathtt{intptr\_t}) * ($9$))$ \\
+  \verb|New| $(\mathtt{Const}\ 9)$ & $mathtt{\_\_MALLOC}(\mathtt{sizeof}(\mathtt{intptr\_t}) * ($9$))$ \\
   \verb|Deref| $(\mathtt{V}\ foo)$ & $*((\mathtt{intptr\_t}\ *)\ foo)$ \\
   \verb|Ref| $(\mathtt{V}\ foo)$ & $((\mathtt{intptr\_t}\ *)\ \&(foo))$ \\
   \verb|Index| $(\mathtt{V}\ bar)\ (\mathtt{Const}\ 3)$ & $((\mathtt{intptr\_t}\ *)\ bar[3])$ \\
@@ -444,7 +469,8 @@ In this section we can now talk about translating a complete program.
 In our real C code we export we will, more often than not, want to include the header files for the C standard libraries, these allow us to use malloc and free for instance, these are \verb|stdlib.h| and \verb|stdio.h|.
 Also we include two more header files that allow the use of \verb|intptr_t| type and a header where the macro definitions that specify limits of integer types are defined.
 These are \verb|limits.h| and \verb|stdint.h|, respectively.
-Finally we also want to include the header file that defines some macros used by our test harness for testing purposes, this will be addressed in more detail in chapter~\ref{chapter:testing}.
+We also want to include the header file that defines some macros used by our test harness for testing purposes, this will be addressed in more detail in chapter~\ref{chapter:testing}.
+Finally we include the header file that contains a macro for handling malloc calls.
 Before pretty printing any part of our program we will want to pretty print the directive to include the header files mentioned before.
 
 
@@ -498,7 +524,7 @@ To get rid of that warning we instead compare the \verb|INTPTR_MIN + 1| value to
     ( fun_decl.name = fact,
       fun_decl.params = [n],
       fun_decl.locals = [r, i],
-      fun_decl.body = 
+      fun_decl.body =
         r ::= (Const 1);;
         i ::= (Const 1);;
         (WHILE (Less (V i) (Plus (V n) (Const 1))) DO
@@ -513,17 +539,17 @@ definition main_decl :: fun_decl
     ( fun_decl.name = main,
       fun_decl.params = [],
       fun_decl.locals = [],
-      fun_decl.body = 
+      fun_decl.body =
         n ::= Const 5;;
         r ::= fact ([V n])
     )"
 
 definition p :: program
-  where "p $\equiv$ 
+  where "p $\equiv$
     ( program.name = fact,
       program.globals = [n, r],
       program.procs = [factorial_decl, main_decl]
-    )" 
+    )"
 \end{lstlisting}
 \caption{Factorial definition in Isabelle}
 \label{fig:factorial_isabelle}
@@ -537,6 +563,7 @@ definition p :: program
   #include <limits.h>
   #include <stdint.h>
   #include "../test_harness.h"
+  #include "../malloc_lib.h"
   #ifndef INTPTR_MIN
     #error ("Macro INTPTR_MIN undefined")
   #endif
@@ -549,11 +576,11 @@ definition p :: program
   #if ( INTPTR_MAX != 9223372036854775807 )
     #error ("Assertion INTPTR_MAX == 9223372036854775807 failed")
   #endif
-  
-  
+
+
   intptr_t n;
   intptr_t r;
-  
+
   intptr_t fact(intptr_t n) {
     intptr_t r;
     intptr_t i;
@@ -565,7 +592,7 @@ definition p :: program
     }
     return(r);
   }
-  
+
   intptr_t main() {
     n = (5);
     (r) = (fact(n));
@@ -600,28 +627,28 @@ We define an ML function inside Isabelle that exports the C code of a program:
 
 \begin{lstlisting}
   fun export_c_code (SOME code) rel_path name thy =
-    let 
+    let
       val str = code |> String.implode;
     in
       if rel_path="" orelse name="" then
         (writeln str; thy)
-      else let  
+      else let
         val base_path = Resources.master_directory thy
         val rel_path = Path.explode rel_path
         val name_path = Path.basic name |> Path.ext "c"
-      
+
         val abs_path = Path.appends [base_path, rel_path, name_path]
         val abs_path = Path.implode abs_path
-     
+
         val _ = writeln ("Writing to file " ^ abs_path)
- 
+
         val os = TextIO.openOut abs_path;
         val _ = TextIO.output (os, str);
         val _ = TextIO.flushOut os;
         val _ = TextIO.closeOut os;
-        in thy end  
+        in thy end
       end
-  | export_c_code NONE _ _ thy = 
+  | export_c_code NONE _ _ thy =
       (error "Invalid program, no code is generated."; thy)
 \end{lstlisting}
 
