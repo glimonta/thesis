@@ -176,6 +176,8 @@ imports
   "../InvalidTests/Test_Keywords_Failed"
   "../InvalidTests/Test_Keywords_Num_Tests"
   "../InvalidTests/Test_Keywords_Passed"
+  "../InvalidTests/Test_Keywords_Discovered"
+  "../InvalidTests/Test_Keywords_Ret_Malloc"
   "../InvalidTests/Variable_Returnv"
   "../InvalidTests/Wrong_Scope"
   "../InvalidTests/Zero_Div"

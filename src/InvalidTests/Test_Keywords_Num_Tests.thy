@@ -8,13 +8,13 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body =
-        ''num_tests'' ::= (Const 42) (* ''num_tests'' is a reserved keyword *)
+        ''__test_harness_num_tests'' ::= (Const 42) (* ''__test_harness_num_tests'' is a reserved keyword *)
     \<rparr>"
 
 definition p :: program
   where "p \<equiv>
     \<lparr> program.name = ''reserved_keywords_num_tests'',
-      program.globals = [''num_tests''],
+      program.globals = [''__test_harness_num_tests''],
       program.procs = [main_decl]
     \<rparr>"
 

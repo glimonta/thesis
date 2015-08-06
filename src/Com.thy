@@ -97,7 +97,8 @@ definition reserved_keywords :: "vname list" where
 text \<open>We define a list containing the reserved keywords we will use for testing\<close>
 definition test_keywords :: "vname list" where
   "test_keywords =
-    [''num_tests'', ''passed'', ''failed'']"
+    [''__test_harness_num_tests'', ''__test_harness_passed'',
+     ''__test_harness_failed'', ''__test_harness_discovered'']"
 
 
 text \<open>We define a @{term collect_locals} function that collect the names of the local variables in

@@ -8,13 +8,13 @@ definition main_decl :: fun_decl
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body =
-        ''passed'' ::= (Const 42) (* ''passed'' is a test keyword *)
+        ''__test_harness_passed'' ::= (Const 42) (* ''__test_harness_passed'' is a test keyword *)
     \<rparr>"
 
 definition p :: program
   where "p \<equiv>
     \<lparr> program.name = ''reserved_keywords_passed'',
-      program.globals = [''passed''],
+      program.globals = [''__test_harness_passed''],
       program.procs = [main_decl]
     \<rparr>"
 

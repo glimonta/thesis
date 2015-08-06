@@ -128,18 +128,18 @@ section \<open>Test Harness\<close>
       ) l"
 
   definition init_discovered_shows :: "nat \<Rightarrow> shows" where
-    "init_discovered_shows ind \<equiv> indent_basic ind (shows ''discovered = hashset_create()'')"
+    "init_discovered_shows ind \<equiv> indent_basic ind (shows ''__test_harness_discovered = hashset_create()'')"
 
 
   definition failed_check_shows :: "string \<Rightarrow> nat \<Rightarrow> shows" where
     "failed_check_shows program_name ind \<equiv> indent ind (
-      shows ''if (failed > 0)'' o shows_nl o
+      shows ''if (__test_harness_failed > 0)'' o shows_nl o
         (indent_basic (ind + 1) (
-          shows \<open>printf(\"Failed %d test(s) in file \<close> o shows program_name o shows \<open>.c (passed %d)\\n\", failed, passed)\<close>
+          shows \<open>printf(\"Failed %d test(s) in file \<close> o shows program_name o shows \<open>.c (passed %d)\\n\", __test_harness_failed, __test_harness_passed)\<close>
         )) o shows_nl o
       shows ''else'' o shows_nl o  
       (indent_basic (ind + 1) (
-          shows \<open>printf(\"Passed all %d test(s) in file \<close> o shows program_name o shows \<open>.c\\n\", passed)\<close>
+          shows \<open>printf(\"Passed all %d test(s) in file \<close> o shows program_name o shows \<open>.c\\n\", __test_harness_passed)\<close>
         )) o shows_nl
     )"
 
