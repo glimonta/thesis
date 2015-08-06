@@ -215,7 +215,10 @@ Therefore, given a variable name, this function can yield one of the following t
 
 \paragraph{Visible States}\label{paragraph:visible_state}
 
-A visible state is the state that is visible at any point of a program that is not a function call or a function return.
+When we execute a command, this command can only \textit{see} certain part of the state.
+The part of the state a command can see is the one consisting of the variables that are local to the function that is being executed, the global variables and the memory.
+This part of the state is precisely what we call a \textit{visible state}.
+This way we can define a visible state as the part of the state a single command can view and modify.
 The defined type for it is as follows:
 
 \begin{lstlisting}[frame=single, mathescape=true]
@@ -412,8 +415,8 @@ We will continue to use the concrete syntax throughout the rest of this work to 
 \section{Functions}\label{section:functions_commands}
 
 In Chloe we have both functions that return values and those which do not have a return value.
-For functions that do return a value we needed to figure out what to do with it.
-We decided that the return value of every function should be assigned to a dummy variable or to a destination in a memory cell whenever a function was returning from a call.
+For functions that do return a value we needed to figure out what to do with that return value.
+We decided that the return value of every function should either be assigned to a variable or to a destination in a memory cell or ignored whenever a function was returning from a call.
 We won't go into details explaining this design decision now but rather delay it until section~\ref{subsection:cfg} where we will be able to explain the reasoning behind this in a better way.
 
 As we see in the definition in figure~\ref{fig:fun_def}, a function consists of a name, the formal parameters, the local variables and the body of the function, which is a, potentially big, command in the Chloe language.
@@ -501,8 +504,14 @@ A program is considered valid if it complies with all the following conditions:
 
 
 \section{Restrictions}\label{subsection:restrictions_commands}
-Here we mention the architecture restrictions (64 bit architectures) this semantics assumes.
-Not sure if int width should be explained here or before in the integer types.
+
+This semantics does an assumption regarding the machine where the code is going to be executed.
+This restriction is parameterized and corresponds to the architecture of the machine where our code is going to be ultimately executed.
+As we mentioned before the precision of the integer values can be changed in order to make this semantics compatible with different architectures, e.g.\ 32-bit architectures.
+
+We can change the assumptions this semantics makes by changing the \verb|int_width| parameter, which will automatically change the upper and lower bounds we assume for integers (these bounds are described in figure~\ref{fig:int_bounds}).
+
+In order to guarantee the assumptions our semantics makes, later in the code generation process, we generate assertions that make sure the conditions we assume are met.
 
 
 \section{States}\label{section:states}
@@ -528,13 +537,18 @@ In figure~\ref{fig:stack_def} the type for a stack frame is a tuple containing a
 The Chloe command corresponds to the body of the function to be executed.
 The valuation corresponds to the values of the variables that are local to the function that was called.
 Finally the return location can be one of the following three: an address, a variable or an invalid return location.
-Every function that returns a value has to return it to a dummy variable or to a cell in memory, those are what the variable and address return location indicate.
-Finally we have an invalid return location for the functions that don't return a value.
+When a function returns a variable several things can happen:
+\begin{itemize}
+  \item{The value will be assigned to a variable, this is indicated by the variable return location}
+  \item{The value will be assigned to a cell in memory, this is indicated by the address return location}
+  \item{The value will be ignored, this is indicated by the invalid return location}
+\end{itemize}
+For functions that do not have a return value we also use the invalid return location.
 
 The return location is set on the caller's stack frame, that is, when returning from a function the caller's stack frame is the one to be checked to know where to assign the return value or if a value is expected at all.
 To further clarify this we can take the example code from figure~\ref{fig:stack_example}, it is a simple program where a function that adds the value of its two parameters is defined and then called from the main function.
 Before the function call, the stack frame belonging to the main function has an $Invalid$ return location and after the function call, the return location changes to the variable $x$.
-Notice that the stack frame that changes it's return location is the one belonging to main, this is because the caller is the one saving the return location where it expects to store the value of a returning function.
+Notice that the stack frame that changes its return location is the one belonging to main, this is because the caller is the one saving the return location where it expects to store the value of a returning function.
 An $Invalid$ return value indicates the caller is not expecting to store any results, i.e.\ either the caller has not called any functions yet or the function it has called have no return value.
 
 \begin{figure}
@@ -671,7 +685,7 @@ Having defined all of these components the initial state configuration is given 
 \subsection{Visible State}\label{subsection:visible_state}
 We also define a visible state (as mentioned before in section~\ref{paragraph:visible_state}).
 Executing a transformer function\footnote{we will cover transformer functions further in section~\ref{section:small_step}} over a state, excepting the transformer functions for function calls or returns, will not be able to modify any part of the stack other than the current frame's local variables valuation.
-This is because we define the real transformations in the context of visible states and then lift the function to states.
+We define the real transformations in the context of visible states and then lift this function to states.
 Therefore, a transformer function over states, other than the ones for function call or return, cannot tamper with the stack.
 
 The stack frame on the top of the stack corresponds to the current function that's being executed, and the command component of it is the Chloe command (or program) being executed.
@@ -687,6 +701,16 @@ add a little summary here.
 
 \subsection{CFG}\label{subsection:cfg}
 
+A Control Flow Graph is a graph representation that covers the different paths a program can take during its execution.
+We have the concept of a current location which is a program pointer to a node.
+A command can be executed by following edges from the node pointed to by the program pointer to a new node.
+The nodes in our CFG are commands.
+The edges in our CFG are annotated with two functions that depend on the current program state, these indicate two things.
+The first one indicates whether an edge can be followed or not (for example, in the case of a conditional) and the second one indicates how the state is transformed by following the edge i.e.\ the effect that following the edge has on the state.
+We call these two functions \textit{enabled} and \textit{transformer} functions.
+We will now describe in detail the definitions for these functions.
+
+
 \paragraph{Enabled functions}\label{paragraph:enabled}
 
 An enabled function is a partial function as follows:
@@ -701,9 +725,12 @@ The execution of an enabled function will fail whenever an error is encountered 
 
 This function is useful for the execution of conditional constructs in our language.
 
-Suppose we have the term ``\verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$'' depending on the result of the enabled function we will decide whether the term reduces to $c_{1}$ or $c_{2}$.
-The only cases where an execution wouldn't be enabled to continue is when a condition for an \verb|If| construct evaluates to \verb|True| and it would be attempting to take the \verb|False| branch or vice versa.
+Suppose we have the term ``\verb|IF| $b$ \verb|THEN| $c_{1}$ \verb|ELSE| $c_{2}$''.
+When the evaluation of the condition $b$ yields a \verb|True| value we will follow an edge that leads us to the node that contains $c_1$ whereas when the evaluation of $b$ yields a \verb|False| value we will follow an edge that leads us to the node that contains $c_2$
+depending on the result of the enabled function we will decide whether the term is enabled to follow one edge or the other.
+The only cases where an execution would not be enabled to continue is when a condition for a conditional construct evaluates to \verb|True| and it would be attempting to follow an edge that would lead us to the node that contains $c_2$ or vice versa.
 This is the only interesting case given the set of commands Chloe supports, for every other command the enabled function will always yield true.
+
 In figure~\ref{fig:enabled_def} is the list of enabled functions we use.
 The function \verb|truth_value_of| maps a value to a boolean value, namely \verb|True| or \verb|False|.
 We also find \verb|en_always| which always yields \verb|True|, the \verb|en_pos| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|True| and the \verb|en_neg| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|False|.
@@ -756,7 +783,7 @@ The transformer for an evaluation yielded by \verb|tr_eval| will evaluate the ex
 The transformer for a free operation yielded by \verb|tr_free| will evaluate the LHS expression it receives as a parameter in order to obtain an address, and the block for this address will be deallocated, it yields the state resulting from the evaluation and deallocation of memory.
 
 When performing a function call one must check that the formal parameters and the actual parameters given to the function have the same type and that each formal parameter has a corresponding given parameter.
-Since we don't have a type system we will only check the second condition mentioned.
+Since we don't have a static type system we will only check the second condition mentioned.
 Also, we fix the evaluation order for the parameters given to a function as left to right order.
 The parameters will always be evaluated following a left to right order.
 Finally when calling a function we must also map the formal parameters to the values of the given parameters and regard these as local variables in the scope of our function.
@@ -766,18 +793,10 @@ We have a \verb|call_function| which yields a transformer function for any funct
 When calling a function the caller has to change its stack frame in order to update the return location value in the current stack frame.
 We define different functions that perform that change depending on the type of function call and then proceed to yield a transformer by calling \verb|call_function|.
 
-\begin{comment}
-I should also explain here why function calls always return to a dummy variable, right?
-\end{comment}
-
 The different functions we define are \verb|tr_callfunl|, \verb|tr_callfun| and \verb|tr_callfunv|.
 We use \verb|tr_callfunl| when the function's return location is a cell in memory.
 In this case the function first evaluates the LHS expression to obtain the return address and updates the return location of the stack frame with it before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this evaluation, the update of the stack frame and the operations done by \verb|call_function|.
 It is important here that the evaluation of the LHS expression that yields an address value must be the first one done, this is in order to avoid unwanted behavior since the function could change the state.
-
-\begin{comment}
-You can do a better job at clarifying this!
-\end{comment}
 
 We use \verb|tr_callfun| when the function's return location is a variable.
 In this case the function updates the return location of the stack frame with the variable name before calling \verb|call_function|, the resulting transformer function will yield a state resulting from this update of the stack frame and the operations done by \verb|call_function|.
@@ -788,7 +807,7 @@ In this case the function updates the return location of the stack frame with \v
 We have a \verb|tr_return| which yields a transformer function for a return call returning an expression in a function, this transformer will pop the last stack frame in the stack belonging to the returning function, evaluate the value corresponding to the expression returned by the function and if the stack is not empty then proceed to retrieve the return location and depending on if it is an address, a variable or an invalid location it will yield the state resulting from storing the value in memory, writing the value to a variable or yield the state as it is, respectively as well as popping the last stack frame of the stack.
 Note that if the function returns a value but its return location is expected to be invalid then the returned value is ignored instead of being considered an erroneous execution.
 
-Finally we have a \verb|tr_return_void| which yields a transformer function for a return call in a function, this transformer will pop the last stack frame belonging to the returning function and if the stack is not empty then proceed to get the return location and if it is anything different from an invalid return location proceed to return a \verb|None| value which represents an error.
+Finally we have a \verb|tr_return_void| which yields a transformer function for a return call in a function which has no return value, this transformer will pop the last stack frame belonging to the returning function and if the stack is not empty then proceed to get the return location and if it is anything different from an invalid return location proceed to return a \verb|None| value which represents an error.
 If, on the other hand, the return location is in fact an invalid one then it will yield the state resulting from the last frame of the stack being popped.
 
 \begin{comment}
@@ -817,10 +836,16 @@ FIXME
 
 
 \paragraph{CFG}
-A Control Flow Graph is a graph representation that covers the different paths a program can take during its execution.
-In our CFG the nodes represent commands and the edges are labeled with a tuple containing an enabled function and a transformer function.
-The meaning is that execution moves a command from node to node upon successful application of the enabled and transformer functions on the edge label over the state.
 
+In order to talk about executions by following edges in the CFG we must introduce yet another concept.
+Taking the definition given at the beginning of this section of what a CFG is we know that in order to talk about an execution of a command by following the edges of the CFG we must have a program pointer that indicates the current node.
+We also need to introduce the concept of a stack.
+We will have a stack of program pointers to accompany our CFG and we will pop a new program pointer from the stack once we have \verb|followed| the current pointer all the way to a \verb|SKIP| node.
+A program pointer to the command of a function pushed to the stack when there is a function call and a program pointer will be popped from the stack when there is a return command.
+This concept will become important when talking about function calls and return commands further ahead.
+
+We can see an inductive definition in figure~\ref{fig:cfg_rules} for CFG, where we can see the rules to form edges between commands.
+An assignment to a variable can be reduced to the \verb|SKIP| command by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assign| called with the parameters specific for the command.
 
 \begin{figure}
   \begin{lstlisting}[frame=single, mathescape=true]
@@ -853,9 +878,6 @@ The meaning is that execution moves a command from node to node upon successful 
   \label{fig:cfg_rules}
 \end{figure}
 
-We can see an inductive definition in figure~\ref{fig:cfg_rules} for CFG, where we can see the rules to form edges between commands.
-An assignment to a variable can be reduced to the \verb|SKIP| command by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assign| called with the parameters specific for the command.
-
 An assignment to a cell in memory can also be reduced to \verb|SKIP| by an edge that is always enabled and the transformer function to update the state is given by the result of \verb|tr_assignl| called with the parameter specific for the command.
 
 The sequential composition has two different ways in which it can be reduced.
@@ -872,8 +894,10 @@ In the case of a loop it can be always reduced from \verb|WHILE| $b$ \verb|DO| $
 The \verb|FREE| $x$ command can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_free| called with $x$.
 
 Both return commands can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of \verb|tr_return| or \verb|tr_return_void| depending on which return command it is.
+Note that when \textit{executing} this command in the CFG, following the node from a return node to a \verb|SKIP| node will pop the program pointer pointing to the \verb|SKIP| node and we will continue our ``execution'' in the location pointed by the next program pointer in the stack.
 
 Finally all function calls can be reduced to \verb|SKIP|, by an edge which is always enabled and a transformer function given by the result of either \verb|tr_callfunl|, \verb|tr_callfun| or \verb|tr_callfunv| depending on whether it is a function call that returns to a memory cell, a variable or returns no value.
+Note that, also in this case, when \textit{executing} this command in the CFG, following the node from a function call node to a \verb|SKIP| node will push a new program pointer to the stack that points to the location of the node that contains the command of the function and we will continue our ``execution'' in the location pointed by this next program pointer.
 
 \subsection{Small Step semantics rules}\label{subsection:rules_small_step}
 
@@ -960,9 +984,12 @@ To be able to make our semantics executable inside of the Isabelle/HOL environme
 In order to go through with that proof a set of lemmas must be first defined and proved.
 We will proceed to explain such defined lemmas for our semantics in this section.
 
+Whenever we introduce a lemma, next to its number we will have a name in parenthesis, this corresponds to the name of the lemma in the Isabelle source files submitted with this work.
+In the case where the reader is interested in the exact proof for a particular lemma he or she can search for the corresponding lemma in the theory files and read the proof.
+
 This first lemma indicates that whenever we have a command different from \verb|SKIP| there is either always an enabled action to take in the CFG or an error occurs when trying to evaluate the enabled function.
 
-\begin{lemma}[CFG has enabled action]
+\begin{lemma}[cfg\_has\_enabled\_action]
 $\newline$
 $c$ $\neq$ \verb|SKIP| $\Longrightarrow$ $\exists\ c'\ en\ tr$. \verb|cfg| $c\ (en,tr)\ c'\ \wedge\ (en\ s\ =$ \verb|None| $\vee\ en\ s\ =$ \verb|Some True|$)$
 \label{lemma:cfg_enabled_action}
@@ -985,8 +1012,9 @@ Therefore when $\mathtt{en\_pos}\ b\ s$ is \verb|False|, $\mathtt{en\_neg}\ b\ s
 
 Next we want to prove that as long as the stack is not empty the small-step semantics can always take a step.
 We will make use of the previous lemma in the proof for this new lemma.
+This lemma states that the semantics can take a step.
 
-\begin{lemma}[Semantics can take a step]
+\begin{lemma}[can\_take\_step]
 $\newline$
 $\neg$ \verb|is_empty_stack| $s$ $\Longrightarrow$ $\exists\ x.\ s\ \rightarrow\ x$
 \label{lemma:can_take_step}
@@ -1021,7 +1049,8 @@ In the case it doesn't fail, it will return $\mathtt{Some}\ s_{2}$, in which cas
 
 We define several lemmas that will come in handy later on.
 
-\begin{lemma}[CFG gets stuck at SKIP]
+The first lemma states that the CFG gets stuck at SKIP:
+\begin{lemma}[cfg\_SKIP\_stuck]
 $\newline$
 $\neg$ \verb|cfg SKIP| $a\ c$
 \label{lemma:stuck_at_skip}
@@ -1031,7 +1060,8 @@ $\neg$ \verb|cfg SKIP| $a\ c$
 The property is proved automatically.
 \end{proof}
 
-\begin{lemma}[Small step gets stuck on an empty stack]
+
+\begin{lemma}[ss\_empty\_stack\_stuck]
 $\newline$
 \verb|is_empty_stack| $s$ $\Longrightarrow$ $\neg$ $(s\ \rightarrow\ cs')$
 \label{lemma:ss_empty_stack_stuck}
@@ -1041,7 +1071,8 @@ $\newline$
 The property is proved automatically.
 \end{proof}
 
-\begin{lemma}[Small step' gets stuck on an empty stack]
+
+\begin{lemma}[ss'\_SKIP\_stuck]
 $\newline$
 \verb|is_empty_stack| $s$ $\Longrightarrow$ $\neg$ $(Some s\ \rightarrow\ cs')$
 \label{lemma:ss'_empty_stack_stuck}
@@ -1053,7 +1084,8 @@ The property is proved automatically.
 
 Lemmas~\ref{lemma:ss_empty_stack_stuck} and~\ref{lemma:ss'_empty_stack_stuck} define the final state in which the semantics will get stuck, the semantics will get stuck when there are no more stack frames in the stack.
 
-\begin{lemma}[en\_neg has the opposite result as en\_pos]
+
+\begin{lemma}[en\_neg\_by\_pos]
 $\newline$
 \verb|en_neg| $e\ s$ = \verb|map_option (HOL.Not) (en_pos| $e\ s$ \verb|)|
 \label{lemma:en_neg_by_pos}
@@ -1068,7 +1100,7 @@ In the case where one of the functions fails the other one will too, and they wi
 If they don't fail their results will be opposite, that is, if one has \verb|Some True| as a result, the other one will have \verb|Some False| as a result.
 This lemma will come in handy when proving determinism.
 
-\begin{lemma}[CFG is deterministic]
+\begin{lemma}[cfg\_determ]
 $\newline$
 $\mathtt{cfg}$ $c$ $a1$ $c'$ $\wedge$
 $\mathtt{cfg}$ $c$ $a2$ $c''$
@@ -1092,7 +1124,7 @@ It can happen that we have a CFG rule starting at an \verb|If| command that has 
 This is not really a problem since the enabled functions guarantee that whenever that happens only one of the branches can be taken.
 
 
-\begin{lemma}[Update command and transformer function independence]
+\begin{lemma}[lift\_upd\_com]
 $\newline$
 $\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow$
 $\newline$
@@ -1106,7 +1138,7 @@ $\mathtt{map\_option}\ (\mathtt{upd\_com}\ c)\ (\mathtt{lift\_transformer\_nr}\ 
 It is proved automatically by unfolding the definition of \verb|lift_transformer_nr|.
 \end{proof}
 
-\begin{lemma}[Update command and evaluation transformer function independence]
+\begin{lemma}[tr\_eval\_upd\_com]
 $\newline$
 $\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow$
 $\newline$
@@ -1128,7 +1160,7 @@ Lemma~\ref{lemma:tr_eval_upd_com} is a more specific version of the previous lem
 
 
 All the previous lemmas and definitions have been building up to this next proof, the determinism of the small step semantics.
-\begin{lemma}[Small step is deterministic]
+\begin{lemma}[small\_step\_determ]
 $\newline$
 $s\ \rightarrow\ s'\ \wedge\ s\ \rightarrow\ s''\ \Longrightarrow\ s'\ =\ s''$
 \label{lemma:small_step_determ}
@@ -1143,7 +1175,7 @@ The goals generated by the \verb|Base| and the \verb|None| are solved automatica
 
 Then we are only left to show that \verb|small_step'| is also deterministic.
 
-\begin{lemma}
+\begin{lemma}[small\_step'\_determ]
 $\newline$
 $s\ \rightarrow'\ s'\ \wedge\ s\ \rightarrow'\ s''\ \Longrightarrow\ s'\ =\ s''$
 \label{lemma:small_step'_determ}
@@ -1241,7 +1273,7 @@ We prove both directions of the equivalence separately: for every step taken in 
 
 We start by showing that any step taken in the small-step semantics can be simulated by a step taken with fstep.
 
-\begin{lemma}[($\Rightarrow$) direction of the proof.]
+\begin{lemma}[fstep1]
 $\newline$
 $s\ \rightarrow\ s'\ \Longrightarrow\ \mathtt{fstep}\ s\ =\ s'$
 \label{lemma:fstep1}
@@ -1253,7 +1285,7 @@ This proof is done by induction over the small-step semantics.
 
 Then we consider the other direction:
 
-\begin{lemma}[($\Leftarrow$) direction of the proof.]
+\begin{lemma}[fstep2]
 $\newline$
 $\neg\ \mathtt{is\_empty\_stack}\ s\ \Longrightarrow\ s\ \rightarrow\ (\mathtt{fstep}\ s)$
 \label{lemma:fstep2}
@@ -1265,10 +1297,10 @@ This proof is done automatically by making a case distinction on the result of `
 
 Both directions together (Lemma~\ref{lemma:fstep1} and lemma~\ref{lemma:fstep2}) let us then show the equivalence we were aiming for originally:
 
-\begin{lemma}[Equivalence between a small step and a single step]
+\begin{lemma}[ss\_fstep\_equiv]
 $\newline$
 $\neg\ \mathtt{is\_empty\_stack}\ \Longrightarrow\ s\ \rightarrow\ s'\ \longleftrightarrow\ \mathtt{fstep}\ s\ =\ s'$
-\label{lemma:equivalence_ss_ss'}
+\label{lemma:ss_fstep_equiv}
 \end{lemma}
 
 
@@ -1301,7 +1333,7 @@ The interpreter for our semantics works as follows: As long as a final state is 
 
 Finally we also show a lemma that states that if a state is final, then it is the result of the interpretation.
 
-\begin{lemma}
+\begin{lemma}[interp\_term]
 $\newline$
 $\mathtt{is\_term}\ \mathtt{(Some}\ cs\mathtt{)}\ \Longrightarrow\ \mathtt{interp}\ \mathtt{proc\_table}\ cs\ =\ \mathtt{Some}\ cs$
 \label{lemma:interp_term}
@@ -1309,7 +1341,7 @@ $\mathtt{is\_term}\ \mathtt{(Some}\ cs\mathtt{)}\ \Longrightarrow\ \mathtt{inter
 
 In order to show this we need a lemma that unfolds the loop in the definition of our interpreter:
 
-\begin{lemma}
+\begin{lemma}[interp\_unfold]
 $\newline$
 $\mathtt{interp}\ \mathtt{proc\_table}\ cs = ($
 $\newline$
@@ -1364,7 +1396,7 @@ Secondly, we define an execution of a state to terminate if there exists a state
 Before showing the correctness lemma for the correctness of the interpreter we must show that the small steps execution will preserve an erroneous \verb|None| state if it is reached by the path of steps taken.
 Upon erroneous execution we will get stuck in a \verb|None| state.
 
-\begin{lemma}
+\begin{lemma}[None\_star\_preserved]
 $\newline$
 $\mathtt{None}\ \rightarrow*\ z\ \longleftrightarrow\ z\ =\ \mathtt{None}$
 \label{lemma:none_star_preserved}
@@ -1378,7 +1410,7 @@ The goals are solved automatically.
 
 Finally we show the correctness property for our interpreter.
 Theorem~\ref{theorem:interp_correct} states that if the execution of $cs$ terminates, then that execution yields $cs'$ if and only if $cs'$ is the result we get from executing the program in the interpreter.
-\begin{theorem}
+\begin{theorem}[interp\_correct]
 $\newline$
 $\mathtt{terminates}\ cs\ \Longrightarrow\ (\mathtt{yields}\ cs\ cs')\ \longleftrightarrow\ (cs'\ =\ \mathtt{interp}\ \mathtt{proc\_table}\ cs)$
 \label{theorem:interp_correct}

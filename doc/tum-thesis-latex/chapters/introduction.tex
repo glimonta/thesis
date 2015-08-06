@@ -198,24 +198,26 @@ S [\![ z:=x; & x:=y; y:=z ]\!]([x\mapsto5, y\mapsto7, z\mapsto0])\\
 We focus on the resulting state that represents the effect the program had in the initial state.
 It is easier to reason about programs using this approach since it is similar to reasoning about mathematical objects.
 Although it is important to note that establishing a firm mathematical basis to do so is not a trivial task.
-The denotational approach is useful since it can easily be adapted to represent some properties of programs.
-Examples of this are variable initialization, constant folding and reachability.
-This approach is used when the priority is to reason about a program and its properties.~\parencite{nielson}
+The denotational approach can easily be adapted to represent some properties of programs.
+Examples of this are variable initialization, constant folding and reachability.~\parencite{nielson}
 
-\begin{comment}
-what the program does opposed to how it does it. Modifying mathematical objects.
-\end{comment}
 
 \subsubsection{Axiomatic semantics}
 
-This final approach is used when one is interested in \textit{partial correctness properties} of programs.
-Partial correctness with respect to a construct, a precondition and a postcondition whenever the following implication holds:
+Also known as Hoare Logic, this final approach is used when one is interested in proving properties of programs.
+We can talk about \textit{partial correctness} of a program with regard to a construct, a precondition and a postcondition whenever the following implication holds:
 
 \begin{displayquote}
 If the precondition holds before the construct is executed and the execution of the construct terminates then the postcondition holds for the final state.
 \end{displayquote}
 
-It is partial correctness because it depends on the termination of the construct's execution.~\parencite{nipkow}
+We can also talk about \textit{total correctness} of a program with regard to a construct, a precondition and a postcondition whenever the following implication holds:
+
+\begin{displayquote}
+If the precondition holds before the construct is executed then the execution of the construct terminates then the postcondition holds for the final state.
+\end{displayquote}
+
+It is usually easier to talk about the concept of partial correctness.~\parencite{nipkow}
 
 
 The following partial correctness property is defined for the construct of our example:
@@ -228,7 +230,7 @@ Where $\lbrace x=n \land y=m \rbrace $ and $\lbrace x=m \land y=n \rbrace $ are 
 $n$ and $m$ indicate the initial values of $x$ and $y$.
 The state $[x\mapsto5, y\mapsto7, z\mapsto0]$ fulfills the precondition if $n=5$ and $m=7$ are taken.
 After the partial correctness property is \textit{proved} then it can be deduced that \textit{if} the program terminates \textit{then} it will do so in a state where $x$ is $7$ and $y$ is $5$.
-Even though it is clear on this example program that it terminates it is important to note that, as was stated previously, the partial correctness property doesn't ensure a program's termination and is dependent on it.
+Even though it is clear on this example program that it terminates it is important to note that, the partial correctness property doesn't guarantee a program's termination and is depends on it to guarantee the postcondition holds.
 
 This approach relies on a \textit{proof system} or inference rules for deriving and proving partial correctness properties.~\parencite{nipkow}
 The following ``proof tree'' can express a proof for the above partial correctness property:
