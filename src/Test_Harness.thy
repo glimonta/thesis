@@ -8,7 +8,7 @@ section \<open>Test Harness\<close>
     Discover string nat
   | Assert_Eq string int_val   
   | Assert_Eq_Null string
-  | Assert_Eq_Ptr string nat int
+  | Assert_Eq_Ptr string nat
 
   fun adjust_addr :: "int \<Rightarrow> string \<Rightarrow> string" 
     -- \<open>Adjust address to beginning of its block\<close>
@@ -67,8 +67,8 @@ section \<open>Test Harness\<close>
       case \<mu>!base of
         None \<Rightarrow> Some (D,[])
       | Some b \<Rightarrow> do {  
+          let ca = adjust_addr ofs ca;
           if base \<notin> D then do {
-            let ca = adjust_addr ofs ca;
             let D = insert base D;
             let emit = [Discover ca base];
             
@@ -88,7 +88,7 @@ section \<open>Test Harness\<close>
               (D,emit)
 
           } else do {
-            Some (D,[Assert_Eq_Ptr ca base ofs])
+            Some (D,[Assert_Eq_Ptr ca base])
           }
         }    
     }"
@@ -125,7 +125,7 @@ section \<open>Test Harness\<close>
         (Discover ca i) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
       | (Assert_Eq ca v) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v))
       | (Assert_Eq_Null ca) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ))
-      | (Assert_Eq_Ptr ca b ofs) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows_paren (shows ''&'' o shows (base_var_name b) o shows ''['' o shows ofs o shows '']'')))
+      | (Assert_Eq_Ptr ca i) \<Rightarrow> indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
       ) l"
 
   definition init_discovered_shows :: "nat \<Rightarrow> shows" where
