@@ -609,7 +609,7 @@ To guarantee this we define a function that prepares a program for exporting:
 \end{lstlisting}
 
 
-This function takes a program and asserts that it is valid, according to the definition of a valid program given in~\ref{section:programs_commands}, if it is not valid we return a \verb|None| value, if it is valid we proceed to generate the string containing the C program with the function \verb|shows_prog|\footnote{We don't define the code for the show functions in this document but rather explain how they work. For implementation details the Isabelle theories can be checked.}.
+This function takes a program and asserts that it is valid, according to the definition of a valid program given in~\ref{section:programs_commands}, if it is not valid we return a \verb|None| value, if it is valid we proceed to generate the string containing the C program with the function \verb|shows_prog|\footnote{We do not define the code for the show functions in this document but rather explain how they work. For implementation details the Isabelle theories can be checked.}.
 
 We export C code to external files.
 The name of the files is given by the program name in its definitions.
@@ -644,7 +644,7 @@ We define an ML function inside Isabelle that exports the C code of a program:
 \end{lstlisting}
 
 The first parameter of the function \verb|export_c_code| is a \verb|string option| this corresponds to the string representation of the program in C code.
-If it receives a \verb|None| value this means the \verb|prepare_export| function fail and we don't want to generate a C program for it.
+If it receives a \verb|None| value this means the \verb|prepare_export| function failed and we do not want to generate a C program for it.
 The second parameter is the path to the directory where we want the program to be exported, this parameter is a relative path to the directory where the theory containing the pretty printing directives is.
 The third parameter is the name of the program.
 Finally, the last parameter is the theory context we are in.

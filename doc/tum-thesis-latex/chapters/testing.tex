@@ -46,7 +46,8 @@ We will have a pointer to a block in the memory and we want to check if the cont
 That complete block qualifies as reachable memory which is why we must check the content of each cell in the block.
 For each cell in the block we will generate checks depending on what the expected content in the memory cell is, i.e\ an integer value, a null value or a pointer.
 
-In the case of the pointer value checks we will follow every pointer until we reach an integer value, in which case we will generate an integer kind of test or we reach a pointer we already followed in which case we check that the pointers are the same.
+In the case of the pointer value checks we will follow every pointer until we reach an integer value, in which case we will generate an integer kind of test or we reach a pointer we already followed in which case we know that the path does not contain any pointer to invalid memory.
+We check that the address for the beginning of the block is the same as the one we get from adjusting the pointer we followed to the beginning of the block.
 In order to do this we must follow pointers in a certain order and maintain a set of already \textit{discovered} blocks of memory, this way when we find a pointer to a block of memory we already checked (or \textit{discovered}) we can stop and compare the pointer values instead of following the pointers in a cyclic way indefinitely.
 
 We present here the intuitive idea behind our tests generation and will describe the implementation details for the test harnesses, both in Isabelle and in C, in the following sections.
@@ -60,18 +61,18 @@ We can see this definition in figure~\ref{fig:test_harness_datatype}.
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true]
-datatype test_instr = 
+datatype test_instr =
   Discover string nat
-| Assert_Eq string int_val   
+| Assert_Eq string int_val
 | Assert_Eq_Null string
 | Assert_Eq_Ptr string nat
 
-fun adjust_addr :: "int $\Rightarrow$ string $\Rightarrow$ string" 
+fun adjust_addr :: "int $\Rightarrow$ string $\Rightarrow$ string"
   where
   "adjust_addr ofs ca = shows_binop (shows ca) (''-'') (shows ofs) ''''"
 
 definition ofs_addr :: "int $\Rightarrow$ string $\Rightarrow$ string"
-  where 
+  where
   "ofs_addr ofs ca =
     (shows ''*'' o
       shows_paren (shows_binop (shows ca) (''+'') (shows ofs))) ''''"
@@ -110,9 +111,9 @@ For example, for block number $2$ the function will yield the string ``\verb|__t
 
 \begin{figure}
 \begin{lstlisting}[mathescape=true]
-context fixes $\mu$ :: mem begin  
+context fixes $\mu$ :: mem begin
 
-partial_function (option) dfs 
+partial_function (option) dfs
   :: "nat set $\Rightarrow$ addr $\Rightarrow$ string $\Rightarrow$ (nat set $\times$ test_instr list) option"
   where
   [code]: "dfs D a ca = do {
@@ -120,12 +121,12 @@ partial_function (option) dfs
 
     case $\mu$!base of
       None $\Rightarrow$ Some (D,[])
-    | Some b $\Rightarrow$ do {  
+    | Some b $\Rightarrow$ do {
         let ca = adjust_addr ofs ca;
         if base $\notin$ D then do {
           let D = insert base D;
           let emit = [Discover ca base];
-            
+
           fold_option ($\lambda$i (D,emit). do {
             let i=int i;
             let cval = (ofs_addr i (base_var_name base));
@@ -144,7 +145,7 @@ partial_function (option) dfs
         } else do {
           Some (D,[Assert_Eq_Ptr ca base])
         }
-      }    
+      }
   }"
 end
 \end{lstlisting}
@@ -153,122 +154,210 @@ end
 \label{fig:dfs_test}
 \end{figure}
 
-Previously we talked about following pointers 
+Previously we talked about following pointers until we reach either an integer or null value or until we reach a pointer which we already followed.
+In order to do this we must follow pointers in a certain order and maintain a set of already \textit{discovered} blocks of memory, this way when we find a pointer to a block of memory we already checked (or \textit{discovered}) we can stop and compare the pointer values instead of following the pointers in a cyclic way indefinitely re-checking parts of the memory which we already checked.
+We follow the pointers in depth-first search (DFS).
+In figure~\ref{fig:dfs_test} we have the algorithm used for following a pointer.
+It takes a set of natural numbers which are the blocks we have already discovered, an address (the one we are following), a string which is the string representation of the expression in C which should contain this same address and will yield a new set of discovered blocks and a list of test instructions we have to generate.
 
-In order to do this we must follow pointers in a certain order and maintain a set of already \textit{discovered} blocks of memory, this way when we find a pointer to a block of memory we already checked (or \textit{discovered}) we can stop and compare the pointer values instead of following the pointers in a cyclic way indefinitely.
+The algorithm goes as follows:
+First, we try to index the block, to see whether the memory is free or holds some content.
+If the memory is free we will return the same discovered set and will generate no extra instructions.
+Next, we will adjust the address to the start of the block, this is because when checking the memory we want to check the complete blocks since they are a part of the reachable memory.
+If the block we are currently checking is already in the discovered set we will simply return the same discovered set and a \verb|Assert_Eq_Ptr| instructions to check the pointers.
+If, on the other hand, the block we are currently checking is a new block we have not \textit{seen} we proceed to insert it to the discovered set and add a \verb|Discover| instruction to the list of instructions generated.
+
+We will then proceed to check the contents of the block of memory, starting from the first cell up until the last cell of that block.
+When checking each cell we will check whether the content of the cell is an integer value, a null value or an address.
+If the cell contains an integer value, we return the same discovered set and we add a \verb|Assert_Eq| instruction to the list of test instructions to generate.
+If the cell contains a null value, we return the same discovered set and we add a \verb|Assert_Eq_Null| instruction to the list of test instructions to generate.
+Finally, if the cell contains an address, we will proceed to follow that address and do a recursive call to \verb|dfs| before continuing to check the current memory block and after this call returns we return the new discovered set from the recursive call and we append the list of test instructions we had generated so far with the list of instructions that the recursive call returns.
+
 
 \section{Test Harness in C}
+
+In order to support the testing in C we need to have some macros that will correspond to the ones generated in Isabelle.
+We write a C header file where we define the macros necessary to do the tests and also some useful variables.
+
+This header file can be seen in figure~\ref{fig:header_test_harness}.
+There we can find the definitions for the macros that correspond to the \verb|Discover|, \verb|Assert_Eq|, \verb|Assert_Eq_Null| and \verb|Assert_Eq_Ptr| instructions.
+For maintaining the discovered set we use a hash set.
+The implementation of the hash set is done by Sergey Avseyev and it is available online~\parencite{hashset}.
+We also define three variables that help us keep track of the number of tests made as well as how many passed and how many failed and a variable that contains the discovered hash set.
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <inttypes.h>
+#include "hashset.h"
+
+hashset_t __test_harness_discovered;
+int __test_harness_num_tests = 0;
+int __test_harness_passed = 0;
+int __test_harness_failed = 0;
+
+#define __TEST_HARNESS_DISCOVER(addr, var)
+  hashset_add(__test_harness_discovered, addr); var = addr;
+
+#define __TEST_HARNESS_ASSERT_EQ(var, val)
+  ++__test_harness_num_tests;
+  (var != val) ? ++__test_harness_failed : ++__test_harness_passed;
+
+#define __TEST_HARNESS_ASSERT_EQ_NULL(var)
+  ++__test_harness_num_tests;
+  (var != NULL) ? ++__test_harness_failed : ++__test_harness_passed;
+
+#define __TEST_HARNESS_ASSERT_EQ_PTR(var, val)
+  ++__test_harness_num_tests;
+  (var != val) ? ++__test_harness_failed : ++__test_harness_passed;
+\end{lstlisting}
+
+\caption{Header file test\_harness.h}
+\label{fig:header_test_harness}
+\end{figure}
+
+
+The test instructions are pretty printed to C macros by using the \verb|test_instructions| function:
+
+\begin{lstlisting}[mathescape=true, frame=single]
+definition tests_instructions :: "test_instr list $\Rightarrow$ nat $\Rightarrow$ shows" where
+  "tests_instructions l ind $\equiv$ foldr ($\lambda$
+      (Discover ca i) $\Rightarrow$
+        indent_basic ind
+          (shows ''__TEST_HARNESS_DISCOVER '' o
+            shows_paren
+             ( shows ca o shows '', '' o shows (base_var_name i)))
+    | (Assert_Eq ca v) $\Rightarrow$
+        indent_basic ind
+          (shows ''__TEST_HARNESS_ASSERT_EQ '' o
+            shows_paren ( shows ca o shows '', '' o shows v))
+    | (Assert_Eq_Null ca) $\Rightarrow$
+        indent_basic ind
+          (shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o
+            shows_paren ( shows ca ))
+    | (Assert_Eq_Ptr ca i) $\Rightarrow$
+        indent_basic ind
+          (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o
+            shows_paren
+             ( shows ca o shows '', '' o shows (base_var_name i)))
+    ) l"
+\end{lstlisting}
+
+
+And for each block we generate a \verb|Discover| instruction for, we must also pretty print a declaration for each of the variables we use for testing.
+We do so in the following way:
+
+\begin{lstlisting}[mathescape=true, frame=single]
+  definition tests_variables :: "test_instr list $\Rightarrow$ nat $\Rightarrow$ shows" where
+    "tests_variables l ind $\equiv$ foldr ($\lambda$
+      (Discover _ i) $\Rightarrow$
+        indent_basic ind
+          (shows dflt_type o shows '' *'' o shows (base_var_name i))
+      | _ $\Rightarrow$ id
+      ) l"
+\end{lstlisting}
+
+
+Finally, we can get the list of test instructions that must be generated by using \verb|emit_global_tests|, given a list of variables it will generate a list of test instructions which we will then generate C code for.
+This function is defined as follows:
+
+
+\begin{lstlisting}[mathescape=true, frame=single]
+definition
+  emit_globals_tests ::
+    "vname list $\Rightarrow$ state $\rightharpoonup$ (nat set $\times$ test_instr list)"
+where "emit_globals_tests $\equiv$ $\lambda$vnames ($\sigma$,$\gamma$,$\mu$).
+  fold_option ($\lambda$x (D,emit). do {
+    case $\gamma$ x of
+      Some vo $\Rightarrow$ do {
+        let cai = x;
+        case vo of
+            None $\Rightarrow$ Some (D,emit)
+          | Some (I v) $\Rightarrow$ Some (D,emit @ [Assert_Eq cai v])
+          | Some (NullVal) $\Rightarrow$ Some (D,emit @ [Assert_Eq_Null cai] )
+          | Some (A addr) $\Rightarrow$ do {
+              (D,emit $\leftarrow$ dfs $\mu$ D addr cai;
+              Some (D,emit@emit')
+            }
+      }
+    | _ $\Rightarrow$ Some (D,emit)
+  }
+  ) vnames ({},[])"
+\end{lstlisting}
+
 
 \section{Tests}
 
 \subsection{Generation of code with tests}
+
 In section~\ref{section:exporting_c_code} we described a way of exporting C programs.
-We have a second way to export C programs w
+We have a second way to export C programs where we also generate C code for tests regarding the equality of final states.
 
-using the test harness and the C macros.
-The semantics stays the same during the translation process.
-What properties are covered by this test suite?
+We defined already the way in which every construct necessary for tests is pretty printed, now we proceed to describe how this test code is generated.
 
+We have a similar function to prepare a program for exporting code with tests, it is defined in figure~\ref{fig:prepare_test_export} (where $\Downarrow$ stands for the new line character).
+We first get the code for the program without tests by using the \verb|prepare_export| function.
+We only generate test code for valid programs whose execution yields a final state, therefore we must check that by executing the program.
+Then we create the list of tests for the global variables.
+Later we generate the string for the variable declarations, a string for initializing the hash set and the string for the actual calls to the macros defined in C.
+We also generate an instruction that checks for failed tests, we add this instruction which will check the number of tests executed and how many of those failed and passed and will proceed to print to the standard output the results.
+Finally, \verb|prepare_test_export| will yield a tuple which contains the code for the program without tests, and the respective tests for it.
 
-
-\begin{comment}
-
-
-    definition emit_globals_tests :: "vname list ⇒ state ⇀ (nat set × test_instr list)" where
-    "emit_globals_tests ≡ λvnames (σ,γ,μ). 
-      fold_option (λx (D,emit). do {
-        case γ x of
-          Some vo ⇒ do {
-            let cai = x;
-            case vo of
-                None ⇒ Some (D,emit)
-              | Some (I v) ⇒ Some (D,emit @ [Assert_Eq cai v])
-              | Some (NullVal) ⇒ Some (D,emit @ [Assert_Eq_Null cai] )
-              | Some (A addr) ⇒ do {
-                  (D,emit')←dfs μ D addr cai;
-                  Some (D,emit@emit')
-                }
-          }
-        | _ ⇒ Some (D,emit)
-      }
-      ) vnames ({},[])"
-
-
-
-  definition tests_variables :: "test_instr list ⇒ nat ⇒ shows" where
-    "tests_variables l ind ≡ foldr (λ                   
-      (Discover _ i) ⇒ indent_basic ind (shows dflt_type o shows '' *'' o shows (base_var_name i))
-      | _ ⇒ id
-      ) l"
-
-  definition tests_instructions :: "test_instr list ⇒ nat ⇒ shows" where
-    "tests_instructions l ind ≡ foldr (λ                   
-        (Discover ca i) ⇒ indent_basic ind (shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
-      | (Assert_Eq ca v) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v))
-      | (Assert_Eq_Null ca) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ))
-      | (Assert_Eq_Ptr ca i) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
-      ) l"
-
-  definition init_discovered_shows :: "nat ⇒ shows" where
-    "init_discovered_shows ind ≡ indent_basic ind (shows ''__test_harness_discovered = hashset_create()'')"
-
-
-  definition failed_check_shows :: "string ⇒ nat ⇒ shows" where
-    "failed_check_shows program_name ind ≡ indent ind (
-      shows ''if (__test_harness_failed > 0)'' o shows_nl o
-        (indent_basic (ind + 1) (
-          shows ‹printf(\"Failed %d test(s) in file › o shows program_name o shows ‹.c (passed %d)\\n\", __test_harness_failed, __test_harness_passed)›
-        )) o shows_nl o
-      shows ''else'' o shows_nl o  
-      (indent_basic (ind + 1) (
-          shows ‹printf(\"Passed all %d test(s) in file › o shows program_name o shows ‹.c\\n\", __test_harness_passed)›
-        )) o shows_nl
-    )"
-
-    definition "init_disc ≡ init_discovered_shows 1 ''''"
-
-    definition "failed_check p' ≡ failed_check_shows (program.name p') 1 ''''"
-
-
-
-
-
-
-
-
-definition prepare_test_export :: "program ⇒ (string × string) option"
-where "prepare_test_export prog ≡ do {
-  code ← prepare_export prog;
-  s ← execute prog;
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+definition prepare_test_export :: "program $\Rightarrow$ (string $\times$ string) option"
+where "prepare_test_export prog $\equiv$ do {
+  code $\leftarrow$ prepare_export prog;
+  s $\leftarrow$ execute prog;
   let vnames = program.globals prog;
-  (_,tests) ← emit_globals_tests vnames s;
+  (_,tests) $\leftarrow$ emit_globals_tests vnames s;
   let vars = tests_variables tests 1 '''';
   let instrs = tests_instructions tests 1 '''';
   let failed_check = failed_check prog;
   let init_hash = init_disc;
-  let nl = ''⏎'';
+  let nl = ''$\Downarrow$'';
   let test_code = nl @ vars @ nl @ init_hash @ nl @ instrs @ nl @ failed_check @ nl @ ''}'';
   Some (code,test_code)
 }"
+\end{lstlisting}
+
+\caption{Function that prepares a program for test export}
+\label{fig:prepare_test_export}
+\end{figure}
 
 
+In order to export the code with the added tests we define a new ML function called \verb|generate_c_test_code|, its definition is on figure~\ref{fig:generate_c_test_code}.
+The first parameter of the function is a \verb|(string, string) option| which corresponds to the tuple containing the string representation of the program in C code and the tests for that program, respectively.
+If it receives a \verb|None| value, this means the \verb|prepare_test_export| function failed and we do not want to generate a C program for it.
+The second parameter is the path to the directory where we want the program to be exported, this parameter is a relative path to the directory where the theory containing the pretty printing directives is.
+The third parameter is the name of the program.
+Finally, the last parameter is the theory context we are in.
 
-ML ‹
+If the path given is an empty string the generated C code with tests will be pretty printed to Isabelle's output view.
+This function will create a new file with the name indicated in the parameters with an extra "\verb|.c|" (i.e.\ $<name>\mathtt{.c}$) added in the directory indicated by the path parameter.
+The user will then be able to find the generated code in the directory indicated.
+This function works by writing the C code for the program in a file and appending the tests we generate for the program at the end of the main function.
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
   fun generate_c_test_code (SOME (code,test_code)) rel_path name thy =
-    let 
+    let
       val code = code |> String.implode
       val test_code = test_code |> String.implode
     in
       if rel_path="" orelse name="" then
         (writeln (code ^ " <rem last line> " ^ test_code); thy)
-      else let  
+      else let
         val base_path = Resources.master_directory thy
         val rel_path = Path.explode rel_path
         val name_path = Path.basic name |> Path.ext "c"
-      
+
         val abs_path = Path.appends [base_path, rel_path, name_path]
         val abs_path = Path.implode abs_path
-     
+
         val _ = writeln ("Writing to file " ^ abs_path)
 
         val os = TextIO.openOut abs_path;
@@ -276,28 +365,31 @@ ML ‹
         val _ = TextIO.flushOut os;
         val _ = TextIO.closeOut os;
 
-        val _ = Isabelle_System.bash ("sed -i '$d ' " ^ abs_path);
-      
+        val _ = Isabelle_System.bash ("sed -i '$\mathtt{\$}$d ' " ^ abs_path);
+
         val os = TextIO.openAppend abs_path;
         val _ = TextIO.output (os, test_code);
         val _ = TextIO.flushOut os;
         val _ = TextIO.closeOut os;
-      in thy end  
+      in thy end
     end
-  | generate_c_test_code NONE _ _ _ = 
-      error "Invalid program or failed execution"
 
+  | generate_c_test_code NONE _ _ _ =
+      error "Invalid program or failed execution"
 
   fun expect_failed_test (SOME _) = error "Expected Failed test"
     | expect_failed_test NONE = ()
+\end{lstlisting}
 
-›
+\caption{Generation of C code with tests}
+\label{fig:generate_c_test_code}
+\end{figure}
 
-
-\end{comment}
 
 \subsection{Incorrect tests}
 We use these programs as regression tests, if any of those programs gets successfully executed an C code is generated we will have an error in isabelle that indicates that and we will know that we're generating code for programs with undefined behavior.
 An example of undefined behavior is integer overflow.
 
 \section{Example programs}
+
+\section{Running Tests}

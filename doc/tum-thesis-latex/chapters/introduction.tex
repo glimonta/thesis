@@ -31,7 +31,7 @@ The semantics we formalize is deterministic, that allows us to define an interpr
 This interpreter will return the final state resulting from executing our semantics.
 
 Finally we also want to test that our semantics is compatible with an actual C compiler.
-For this purpose we define a test harness and a test suite that is meant to increment trust in our translation process i.e.\ the semantics of our program is not changed by the translation to C process.
+For this purpose we define a test harness and a test suite that is meant to increment trust in our translation process i.e.\ the semantics of our program is not changed by the process of translation to C.
 We guarantee that the final state of a program executed in our semantics and the final state of the generated program, that is compiled and executed outside of the Isabelle/HOL environment, will be the same (except for the case where we are in the presence of a failure while allocating memory).
 To ensure this, we write a test harness library in C that we will use to perform automatically generated tests for our programs that, will compare the final state of the executed semantics with that of the compiled program.
 
@@ -47,9 +47,9 @@ In this section we'll give a short introduction to the concepts regarding semant
 The semantics of a programming language is the intended meaning of constructs in that language.
 According to Tennent~\parencite{tennent} in order to support and define these meanings for a construct in a programming language a rigorous mathematical theory of the semantics of programming languages is needed.
 
-As noted by Nielson and Nielson~\parencite{nielson}, the rigorous nature of this study is due to the fact that it can reveal ambiguities or underlying complexities in documents defined used natural language, and also that this mathematical rigor is necessary for correctness proofs.
+As noted by Nielson and Nielson~\parencite{nielson}, the rigorous nature of this study is due to the fact that it can reveal ambiguities or underlying complexities in documents defined using natural language, and also that this mathematical rigor is necessary for correctness proofs.
 Many big programming languages, e.g.\ the C language, have their reference document, where the semantics of the language is explained, written in natural language.
-Sadly natural language leads to subtle ambiguities that further make it harder to reason about programs in this language.
+Sadly natural language leads to subtle ambiguities can make it harder to reason about programs in this language.
 
 The lack of a rigorous mathematically defined semantics also makes it harder for developers of tools for that programing language, i.e.\ compilers, to write accurate tools for it since, due to the ambiguities, some part of the language is subject to the interpretation of the reader.
 By using formally defined terms we can get rid of this possible ambiguity.
@@ -73,7 +73,7 @@ The previous was a rough explanation of the semantics of that particular program
 This semantical explanation can clearly be done in a more detailed way where we explain the meaning of the sequence of statements separated by ``$;$'' and the one of the individual assign statement.
 
 There are many different approaches on how to formalize the semantics of a programming language.
-Each one of them has a different idea behind it and have a different degree of usefulness depending on the purpose one has for the semantics.
+They are all based on different ideas and have a different degree of usefulness depending on the purpose one has for the semantics.
 The most widely used approaches are:
 
 
