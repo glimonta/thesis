@@ -14,6 +14,7 @@ section \<open>Test Harness\<close>
     -- \<open>Adjust address to beginning of its block\<close>
     where
     "adjust_addr ofs ca = shows_binop (shows ca) (''-'') (shows ofs) ''''"
+
   definition ofs_addr :: "int \<Rightarrow> string \<Rightarrow> string"
     where 
     "ofs_addr ofs ca = (shows ''*'' o shows_paren (shows_binop (shows ca) (''+'') (shows ofs))) ''''"

@@ -1,23 +1,303 @@
 \chapter{Testing}\label{chapter:testing}
 
+We have already formalized the semantics for Chloe and described the translation process to C code, now we proceed to describe the testing process done to increment the trust in our translation process.
+We guarantee that the code generated from our semantics will either end with an out of memory error or it will yield the same result as the same program executed in our semantics.
+Now we will define what \textit{same} in this context means.
+We say that the result of an execution of the semantics and the execution of the generated program in the machine is the same if the final state yielded by both are the same.
+This means that we compare the final state yielded by our semantics and verify that after executing the generated program the state is the same i.e.\ the contents of the reachable memory and the global variables is the same.
+When generating programs we can either just generate the C code by itself or we can include a set of extra tests in the form of C macros that will guarantee what we mentioned before.
+
+In the following sections we will proceed to describe the test harness created in the Isabelle environment and the one created in the form of C macros in order to generate tests for our code.
+We will also describe the meaning of two final states being the same more in detail.
+Finally, we will talk about a set of tests and example programs written in the semantics.
+We only generate code for valid programs, this means that we will go to an erroneous state if any undefined behavior arises.
+In this set of tests we include programs which we expect to go to an erroneous state because they present undefined behavior or border cases, C code will not be generated for these programs.
+We also present some example programs such as sorting algorithms to demonstrate how our semantics and code generation process work.
+
+
+\section{Equality of final states}
+
+We consider a final state yielded by the execution of our semantics equal to a final state of its generated C program, when, at the end of the execution, the values of the global variables are the same for both cases and every block of reachable memory has the same content.
+We will now proceed to detail how we check for this equality between final states by the use of tests.
+
+\subsection{Generation of Tests}
+
+We can generate tests for our programs, these will be executed at the end of the execution of the program and will test that the final state of the generated program is the same as the final state from the execution of the semantics.
+We compare these final states by checking the values of global variables at the end of an execution against the ones in the final state of the execution of the semantics.
+
+The direction in which the testing is done is by taking the values from the final state of the semantics' execution and checking whether the execution of the generated code has the same values we expect it to have according to the execution of the semantics.
+
+We will now introduce which kind of tests are done depending on whether the content of a global variable is an integer value or a pointer value.
+
+\subsubsection{Integer Values}
+
+When the content of a global variable we want to check is an integer value the test check we generate for it is very simple.
+We must simply generate a test that will check whether the integer value in the global variable at the end of the execution of the C code is the same value as the one we get from the global variables valuation in the final state of the execution of the semantics.
+
+\subsubsection{Pointers}
+
+With the checks for pointers we have two cases.
+We have the null pointer and the non-null pointer case.
+
+For null values we will generate a test, similar to the one for integer values, where we check if the content of the global variable is \verb|NULL|.
+
+In the case of pointer values different from null this check gets a bit more complicated.
+We will have a pointer to a block in the memory and we want to check if the content of that block in memory at the end of the generated program's execution is the same as the content of that same block in our final state in the semantics.
+That complete block qualifies as reachable memory which is why we must check the content of each cell in the block.
+For each cell in the block we will generate checks depending on what the expected content in the memory cell is, i.e\ an integer value, a null value or a pointer.
+
+In the case of the pointer value checks we will follow every pointer until we reach an integer value, in which case we will generate an integer kind of test or we reach a pointer we already followed in which case we check that the pointers are the same.
+In order to do this we must follow pointers in a certain order and maintain a set of already \textit{discovered} blocks of memory, this way when we find a pointer to a block of memory we already checked (or \textit{discovered}) we can stop and compare the pointer values instead of following the pointers in a cyclic way indefinitely.
+
+We present here the intuitive idea behind our tests generation and will describe the implementation details for the test harnesses, both in Isabelle and in C, in the following sections.
+
 \section{Test Harness in Isabelle}
+
+In this section we will introduce the Isabelle test harness that assists us in the generation of tests for our programs.
+First, we define a new datatype for every kind of test instruction we can generate.
+We can see this definition in figure~\ref{fig:test_harness_datatype}.
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+datatype test_instr = 
+  Discover string nat
+| Assert_Eq string int_val   
+| Assert_Eq_Null string
+| Assert_Eq_Ptr string nat
+
+fun adjust_addr :: "int $\Rightarrow$ string $\Rightarrow$ string" 
+  where
+  "adjust_addr ofs ca = shows_binop (shows ca) (''-'') (shows ofs) ''''"
+
+definition ofs_addr :: "int $\Rightarrow$ string $\Rightarrow$ string"
+  where 
+  "ofs_addr ofs ca =
+    (shows ''*'' o
+      shows_paren (shows_binop (shows ca) (''+'') (shows ofs))) ''''"
+
+definition base_var_name :: "nat $\Rightarrow$ string" where
+  "base_var_name i $\equiv$ ''__test_harness_x_'' @ show i"
+\end{lstlisting}
+
+\caption{Definitions for the test harness}
+\label{fig:test_harness_datatype}
+\end{figure}
+
+We have four different test instructions we can generate:
+
+\begin{itemize}
+  \item{\verb|Discover| represents an instruction that adds a block to the list of our \textit{discovered} blocks.
+  The \verb|string| stands for the string representation in C of the expression and the \verb|nat| stands for the identification number of the current memory block.
+  The actual addresses for the allocated memory blocks will vary with every execution of the program in the machine.
+  The discover instruction pairs the actual address of a beginning of a block with the base block number to which it corresponds in our abstract representation.
+  For this purpose we generate local variables with the function \verb|base_var_name| that are called \verb|__test_harness_x_|$n$ where $n$ represents the identification number for the block and in those variables we will save the actual address for the beginning of the block for that particular execution.}
+  \item{\verb|Assert_Eq| represents an instruction that will check that the value to which an expression evaluates is the same as the integer value we expect it to have.
+  The \verb|string| stands for the string representation in C of the expression and the \verb|int_val| stands for the value we expect that variable to have according to our final state in the semantics execution.}
+  \item{\verb|Assert_Eq_Null| represents an instruction that will check that the value to which an expression evaluates is the null pointer.
+  The \verb|string| stands for the string representation in C of the expression.}
+  \item{\verb|Assert_Eq_Pointer| represents an instruction that will check that the pointer value to which an expression evaluates points to the same block we expect it to point.
+  where \verb|string| stands for the string representation in C of the expression and the \verb|nat| stands for the identification number for the block of memory.}
+\end{itemize}
+
+We also have some auxiliary functions that aid us in the test generation process.
+The function \verb|adjust_addr| will take an offset and a string representation of a c expression (which evaluates to a pointer) and yield a string representation that adjusts the address to the beginning of the block by subtracting the offset from it.
+The function \verb|ofs_addr| will take an offset and a string representation of a c expression (which evaluates to a pointer) and yield a string representation that adjusts the address to point to the specific cell in the specified offset by adding it to the address.
+Finally, the function \verb|base_var_name| given a natural number $n$ yields a variable we use for testing which will be used to save the address to the beginning of block $n$.
+This created variable will always have the previx \verb|__test_harness_x_| plus the number $n$.
+For example, for block number $2$ the function will yield the string ``\verb|__test_harness_x_2|''.
+
+
+\begin{figure}
+\begin{lstlisting}[mathescape=true]
+context fixes $\mu$ :: mem begin  
+
+partial_function (option) dfs 
+  :: "nat set $\Rightarrow$ addr $\Rightarrow$ string $\Rightarrow$ (nat set $\times$ test_instr list) option"
+  where
+  [code]: "dfs D a ca = do {
+    let (base,ofs) = a;
+
+    case $\mu$!base of
+      None $\Rightarrow$ Some (D,[])
+    | Some b $\Rightarrow$ do {  
+        let ca = adjust_addr ofs ca;
+        if base $\notin$ D then do {
+          let D = insert base D;
+          let emit = [Discover ca base];
+            
+          fold_option ($\lambda$i (D,emit). do {
+            let i=int i;
+            let cval = (ofs_addr i (base_var_name base));
+            case b!!i of
+              None $\Rightarrow$ Some (D,emit)
+            | Some (I v) $\Rightarrow$ Some (D,emit @ [Assert_Eq cval v])
+            | Some (NullVal) $\Rightarrow$ Some (D,emit @ [Assert_Eq_Null cval] )
+            | Some (A addr) $\Rightarrow$ do {
+                (D,emit') $\leftarrow$ dfs D addr cval;
+                Some (D,emit@emit')
+              }
+          })
+            [0..<length b]
+            (D,emit)
+
+        } else do {
+          Some (D,[Assert_Eq_Ptr ca base])
+        }
+      }    
+  }"
+end
+\end{lstlisting}
+
+\caption{DFS for test generation}
+\label{fig:dfs_test}
+\end{figure}
+
+Previously we talked about following pointers 
+
+In order to do this we must follow pointers in a certain order and maintain a set of already \textit{discovered} blocks of memory, this way when we find a pointer to a block of memory we already checked (or \textit{discovered}) we can stop and compare the pointer values instead of following the pointers in a cyclic way indefinitely.
 
 \section{Test Harness in C}
 
 \section{Tests}
 
-\subsection{Equality of final states or configurations}
-
-Final state of reachable memory and global variables yielded by the Isabelle interpreter is the same as the one yielded by the generated, compiled and run C program.
-
-\subsection{Generation of Tests}
-
-\subsubsection{Integer Values}
-\subsubsection{Pointers}
-
 \subsection{Generation of code with tests}
+In section~\ref{section:exporting_c_code} we described a way of exporting C programs.
+We have a second way to export C programs w
+
 using the test harness and the C macros.
 The semantics stays the same during the translation process.
 What properties are covered by this test suite?
+
+
+
+\begin{comment}
+
+
+    definition emit_globals_tests :: "vname list ⇒ state ⇀ (nat set × test_instr list)" where
+    "emit_globals_tests ≡ λvnames (σ,γ,μ). 
+      fold_option (λx (D,emit). do {
+        case γ x of
+          Some vo ⇒ do {
+            let cai = x;
+            case vo of
+                None ⇒ Some (D,emit)
+              | Some (I v) ⇒ Some (D,emit @ [Assert_Eq cai v])
+              | Some (NullVal) ⇒ Some (D,emit @ [Assert_Eq_Null cai] )
+              | Some (A addr) ⇒ do {
+                  (D,emit')←dfs μ D addr cai;
+                  Some (D,emit@emit')
+                }
+          }
+        | _ ⇒ Some (D,emit)
+      }
+      ) vnames ({},[])"
+
+
+
+  definition tests_variables :: "test_instr list ⇒ nat ⇒ shows" where
+    "tests_variables l ind ≡ foldr (λ                   
+      (Discover _ i) ⇒ indent_basic ind (shows dflt_type o shows '' *'' o shows (base_var_name i))
+      | _ ⇒ id
+      ) l"
+
+  definition tests_instructions :: "test_instr list ⇒ nat ⇒ shows" where
+    "tests_instructions l ind ≡ foldr (λ                   
+        (Discover ca i) ⇒ indent_basic ind (shows ''__TEST_HARNESS_DISCOVER '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
+      | (Assert_Eq ca v) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ '' o shows_paren ( shows ca o shows '', '' o shows v))
+      | (Assert_Eq_Null ca) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_NULL '' o shows_paren ( shows ca ))
+      | (Assert_Eq_Ptr ca i) ⇒ indent_basic ind (shows ''__TEST_HARNESS_ASSERT_EQ_PTR '' o shows_paren ( shows ca o shows '', '' o shows (base_var_name i)))
+      ) l"
+
+  definition init_discovered_shows :: "nat ⇒ shows" where
+    "init_discovered_shows ind ≡ indent_basic ind (shows ''__test_harness_discovered = hashset_create()'')"
+
+
+  definition failed_check_shows :: "string ⇒ nat ⇒ shows" where
+    "failed_check_shows program_name ind ≡ indent ind (
+      shows ''if (__test_harness_failed > 0)'' o shows_nl o
+        (indent_basic (ind + 1) (
+          shows ‹printf(\"Failed %d test(s) in file › o shows program_name o shows ‹.c (passed %d)\\n\", __test_harness_failed, __test_harness_passed)›
+        )) o shows_nl o
+      shows ''else'' o shows_nl o  
+      (indent_basic (ind + 1) (
+          shows ‹printf(\"Passed all %d test(s) in file › o shows program_name o shows ‹.c\\n\", __test_harness_passed)›
+        )) o shows_nl
+    )"
+
+    definition "init_disc ≡ init_discovered_shows 1 ''''"
+
+    definition "failed_check p' ≡ failed_check_shows (program.name p') 1 ''''"
+
+
+
+
+
+
+
+
+definition prepare_test_export :: "program ⇒ (string × string) option"
+where "prepare_test_export prog ≡ do {
+  code ← prepare_export prog;
+  s ← execute prog;
+  let vnames = program.globals prog;
+  (_,tests) ← emit_globals_tests vnames s;
+  let vars = tests_variables tests 1 '''';
+  let instrs = tests_instructions tests 1 '''';
+  let failed_check = failed_check prog;
+  let init_hash = init_disc;
+  let nl = ''⏎'';
+  let test_code = nl @ vars @ nl @ init_hash @ nl @ instrs @ nl @ failed_check @ nl @ ''}'';
+  Some (code,test_code)
+}"
+
+
+
+ML ‹
+  fun generate_c_test_code (SOME (code,test_code)) rel_path name thy =
+    let 
+      val code = code |> String.implode
+      val test_code = test_code |> String.implode
+    in
+      if rel_path="" orelse name="" then
+        (writeln (code ^ " <rem last line> " ^ test_code); thy)
+      else let  
+        val base_path = Resources.master_directory thy
+        val rel_path = Path.explode rel_path
+        val name_path = Path.basic name |> Path.ext "c"
+      
+        val abs_path = Path.appends [base_path, rel_path, name_path]
+        val abs_path = Path.implode abs_path
+     
+        val _ = writeln ("Writing to file " ^ abs_path)
+
+        val os = TextIO.openOut abs_path;
+        val _ = TextIO.output (os, code);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+
+        val _ = Isabelle_System.bash ("sed -i '$d ' " ^ abs_path);
+      
+        val os = TextIO.openAppend abs_path;
+        val _ = TextIO.output (os, test_code);
+        val _ = TextIO.flushOut os;
+        val _ = TextIO.closeOut os;
+      in thy end  
+    end
+  | generate_c_test_code NONE _ _ _ = 
+      error "Invalid program or failed execution"
+
+
+  fun expect_failed_test (SOME _) = error "Expected Failed test"
+    | expect_failed_test NONE = ()
+
+›
+
+
+\end{comment}
+
+\subsection{Incorrect tests}
+We use these programs as regression tests, if any of those programs gets successfully executed an C code is generated we will have an error in isabelle that indicates that and we will know that we're generating code for programs with undefined behavior.
+An example of undefined behavior is integer overflow.
 
 \section{Example programs}
