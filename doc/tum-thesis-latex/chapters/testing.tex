@@ -291,7 +291,7 @@ where "emit_globals_tests $\equiv$ $\lambda$vnames ($\sigma$,$\gamma$,$\mu$).
 
 \section{Tests}
 
-\subsection{Generation of code with tests}
+\subsection{Generation of code with tests}\label{subsection:codegen_with_tests}
 
 In section~\ref{section:exporting_c_code} we described a way of exporting C programs.
 We have a second way to export C programs where we also generate C code for tests regarding the equality of final states.
@@ -341,6 +341,9 @@ This function will create a new file with the name indicated in the parameters w
 The user will then be able to find the generated code in the directory indicated.
 This function works by writing the C code for the program in a file and appending the tests we generate for the program at the end of the main function.
 
+The function \verb|expect_failed_test| is very similar to the \verb|expect_failed_export| function presented in section~\ref{section:exporting_c_code} but with a different error message.
+This function will then generate an error in Isabelle if code is generated for the program and tests when we expect the translation process to fail and it will do nothing when the code is not generated.
+
 \begin{figure}
 \begin{lstlisting}[mathescape=true]
   fun generate_c_test_code (SOME (code,test_code)) rel_path name thy =
@@ -387,9 +390,106 @@ This function works by writing the C code for the program in a file and appendin
 
 
 \subsection{Incorrect tests}
-We use these programs as regression tests, if any of those programs gets successfully executed an C code is generated we will have an error in isabelle that indicates that and we will know that we're generating code for programs with undefined behavior.
-An example of undefined behavior is integer overflow.
+
+When developing a test suite it is also important to consider the incorrect cases.
+We wrote a set of programs for which we expect code generation to fail.
+By using the functions \verb|expect_failed_export| and \verb|expect_failed_test| defined in sections~\ref{section:exporting_c_code} and~\ref{subsection:codegen_with_tests}, respectively, we can write incorrect programs and when generating C code for them we can tell Isabelle to expect those processes to fail and not to raise an error.
+
+Having incorrect programs is very useful because they serve as regression tests.
+When adding new features to our semantics we can then run all the tests in our test suite.
+Then, if for some reason, any of those programs gets successfully executed in our semantics and C code is generated, we will have an error in Isabelle that indicates code is being generated for a program we expect to fail.
+If the changes we make when adding new features somehow change the semantics we had, then these incorrect tests will help us detect those kind of errors faster.
+
+However, it is important to note that in order for a regression test suite to be useful it most cover as many cases as possible, which, when working with a bigger language than Chloe, requires a lot of tests written.
 
 \section{Example programs}
 
+Apart from the tests described in this section we also present a set of example programs in Chloe.
+This are meant to show how programs are written in Chloe and how the execution and code generation work.
+The list of example programs included in the source code are:
+
+\begin{itemize}
+  \item{Bubblesort: implementation of the bubblesort sorting algorithm.}
+  \item{Count: simple program that counts the ocurrences of an element in an array.}
+  \item{Cyclic linked list:}
+  \item{Factorial:}
+  \item{Fibonacci:}
+  \item{Linked list:}
+  \item{Mergesort:}
+  \item{Minimum:}
+  \item{Quicksort:}
+  \item{Selectionsort:}
+  \item{String length:}
+\end{itemize}
+
 \section{Running Tests}
+
+\subsection{Running tests in Isabelle}
+
+Finally, in the source code submitted with this work we have a directory which includes all the tests and example programs written for Chloe.
+We need a way of running those tests in Isabelle automatically.
+
+In the source code we have also included an Isabelle theory called ``\verb|All_Tests.thy|'' which is simply an Isabelle theory that imports every test written for Isabelle, both incorrect and correct.
+When we open this file in Isabelle all the theory files corresponding to the tests and example programs will be loaded.
+We will then have two cases for every test.
+
+For regular tests and example programs, code will be generated.
+For incorrect tests, no code will be generated.
+In the case where an error occurs, whether it is code being generated for an invalid tests, or code not being generated for a valid tests, we will have an error and it is possible to view those in the `Theories' view of Isabelle's GUI since theory files with an error get marked in red.
+
+\subsection{Running tests in C}
+
+When code is successfully generated we will want to compile and run the tests in an automated way.
+We have a Makefile that will compile every test in the test suite as well as a bash shell script which will run every test in the test suite.
+The result of running the tests will be the number of tests passed and/or failed.
+When a test is failed the output is printed in red so it is visible to the user.
+Also other behaviors are catched by the script and informed to the user, such as out of memory errors, segmentation faults and programs that exited with any of the reserved exit codes~\parencite{bash-scripting}.
+This script is presented in figure~\ref{fig:bash_script}.
+
+\begin{figure}
+\begin{lstlisting}
+#!/bin/bash
+
+TEST_NAMES=(bubblesort_test count_test fact_test fib_test
+  mergesort_test min_test occurs_test quicksort_test selection_test
+  strlen_test plus_test subst_test outer_scope_test local_scope_test
+  global_scope_test global_scope2_test mod_test div_test mult_test
+  less_test and_test or_test not_test eq_test new_test deref_test
+  while_test returnv_test linked_list_test cyclic_linked_list_test)
+
+for test_name in ${TEST_NAMES[@]}
+do
+  res=$(./${test_name});
+  ret=$?
+
+if [[ ${res} == Failed* ]];
+  then
+    echo -e "\e[31mFAILED: \e[39m${res}"
+else
+  case ${ret} in
+
+  1) echo -e "\e[31mError\e[39m (general error)
+    occurred in the execution of ${test_name}";;
+  2) echo -e "\e[31mError\e[39m (misuse of shell builtins)
+    occurred in the execution of ${test_name}";;
+  3) echo -e "\e[31mMemory allocation error\e[39m ocurred
+    in execution of ${test_name}";;
+  126) echo -e "\e[31mError\e[39m (command invoked cannot execute)
+    occurred in the execution of ${test_name}";;
+  127) echo -e "\e[31mError\e[39m (command not found)
+    occurred in the execution of ${test_name}";;
+  128) echo -e "\e[31mError\e[39m (invalid argument given to exit)
+    occurred in the execution of ${test_name}";;
+  130) echo -e "\e[31mError\e[39m (program terminated by Ctrl+C)
+    occurred in the execution of ${test_name}";;
+  139) echo -e "\e[31mSegmentation fault\e[39m ocurred
+    in execution of ${test_name}";;
+  *) echo ${res};;
+  esac
+fi
+done
+\end{lstlisting}
+
+\caption{Shell script for running tests}
+\label{fig:bash_script}
+\end{figure}

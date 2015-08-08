@@ -344,7 +344,7 @@ Upon successful execution with two integer values the function will yield an int
 Upon successful execution with two address values the function will yield an integer value of \verb|I| $1$ if both addresses were equal and an integer value of \verb|I| $0$ otherwise.
 Two addresses are regarded to as equal whenever both components of the address tuple are equal.
 
-The functions \verb|new_block| and \verb|load| are the ones explained earlier in section~\ref{subsection:syntax_expressions} that allocate a new block of memory and load a value of memory, respectively.
+The functions \verb|new_block| and \verb|load| are the ones explained earlier in section~\ref{subsection:syntax_expressions} that allocate a new block of memory and load a value from memory, respectively.
 
 
 \section{Commands}\label{section:commands}
@@ -386,7 +386,7 @@ In figure~\ref{fig:chloe_commands} we can find the definition of the datatype cr
 For assignment commands we define two different commands, one of them allows assignment to a variable, whereas the other one allows assignment to an address location in memory.
 We need these two commands since our domain for addresses and integer values is disjoint, therefore an address cannot represent an integer value and vice versa.
 
-We also have two return commands, one of them is for returning from functions with a return value, whereas the other one is for returning from a procedure which has no return value.
+We also have two return commands, one of them is for returning from functions with a return value, whereas the other one is for returning from a function which has no return value.
 
 Finally we have three different statements for function calling.
 One of them (\verb|Callfunv|) is for functions without a return value.
@@ -448,18 +448,18 @@ A function declaration is considered valid if and only if the function parameter
 
 \section{Programs}\label{section:programs_commands}
 
-A program in Chloe consists of a name, a list of global variables and a list of procedures as showed in figure~\ref{fig:prog_def}.
+A program in Chloe consists of a name, a list of global variables and a list of functions as showed in figure~\ref{fig:prog_def}.
 In that same figure we can see a definition that every valid program must comply with.
 
 A program is considered valid if it complies with all the following conditions:
 
 \begin{itemize}
   \item{The names for the global variables are different from one another.}
-  \item{The names for the procedures in the program are different from one another.}
+  \item{The names for the functions in the program are different from one another.}
   \item{Every function declaration for every function in the program must be valid.}
-  \item{The main procedure must be defined.}
-  \item{None of the variable names or procedure names in the program must be a reserved keyword from C or a reserved keyword for testing.\footnote{Since we want to generate C code from the Chloe semantics we must guarantee that neither variable nor procedure names are any of the reserved C keywords or any of the reserved keywords used for testing variables.}}
-  \item{The global variables and the procedure names in a program can't be the same.}
+  \item{The main function must be defined.}
+  \item{None of the variable names or function names in the program must be a reserved keyword from C or a reserved keyword for testing.\footnote{Since we want to generate C code from the Chloe semantics we must guarantee that neither variable nor function names are any of the reserved C keywords or any of the reserved keywords used for testing variables.}}
+  \item{The global variables and the function names in a program can't be the same.}
 \end{itemize}
 
 
@@ -521,6 +521,9 @@ As we mentioned before the precision of the integer values can be changed in ord
 We can change the assumptions this semantics makes by changing the \verb|int_width| parameter, which will automatically change the upper and lower bounds we assume for integers (these bounds are described in figure~\ref{fig:int_bounds}).
 
 In order to guarantee the assumptions our semantics makes, later in the code generation process, we generate assertions that make sure the conditions we assume are met.
+
+Another restriction from our semantics is that it only works for a subset of C where the semantics is deterministic and we consider any undefined behavior to be an error in our semantics.
+We will go to an erroneous state if our semantics encounters behavior that is undefined by the C standard~\parencite{c99}, an example of undefined behavior is integer overflow.
 
 
 \section{States}\label{section:states}
@@ -921,7 +924,7 @@ The big-step semantics has a major drawback, which is that it cannot differentia
 This is why we prefer a more detailed semantics that allows us to differentiate between nontermination and getting stuck because it allows us to talk about intermediate states during evaluation.
 
 Usually a configuration in a small step semantics is a pair consisting of a command and a state.
-Since we are working with procedures and we have the command that is being executed in the stack frame our small-step definition is defined over states.
+Since we are working with functions and we have the command that is being executed in the stack frame our small-step definition is defined over states.
 A small, atomic step can be taken from one state to another.
 
 The small-step rules for the semantics are detailed in figure~\ref{fig:small_step_rules}.

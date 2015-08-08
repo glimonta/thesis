@@ -102,7 +102,7 @@ We will proceed to define the two different kind of operational semantics by usi
 
 This kind of semantics represents the execution of a program from an initial state to a final state in one single step, therefore it does not allow for explicit inspection of intermediate execution states.~\parencite{nipkow}
 
-The execution of the whole program will look as follows:
+Supposing we have a state where the variable $x$ has the value $5$, the variable $y$ has the value $7$ and the variable $z$ the value $0$ and the construct from our example, the execution of the whole program will look as follows:
 
 \begin{equation*}
 \langle z:=x; x:=y; y:=z, s_{0} \rangle \rightarrow s_{3}
@@ -175,7 +175,7 @@ Taking the previous example we can define the effects of the different construct
 
 \begin{itemize}
 \item{The effect of functional composition of each individual statement will define the effect of a sequence of statements.}
-\item{The effect of assignment between two variables is defined by a function that takes a state and yields the same state where the current value of the right-hand-side variable is updated with the new value of the left-hand-side variable.}
+\item{The effect of assignment between two variables is defined by a function that takes a state and yields the same state where the current value of the left-hand-side variable is updated with the new value of the right-hand-side variable.}
 \end{itemize}
 
 For this particular example construct we would obtain functions of the form $S [\![ z:=x ]\!]$, $S [\![ x:=y ]\!]$ and $S [\![ y:=z ]\!]$ for each individual statement.
@@ -272,7 +272,7 @@ We won't specify the details from Isabelle/HOL in this section but rather refer 
 
 On the other hand, Isabelle/HOL has also code generation facilities~\parencite{isabelle-codegen} that allow us to generate executable SML code from the HOL specification of our semantics.
 This generated code will later on enable us to execute the semantics we define.
-Also Isabelle/HOL allows for Isabelle/ML code embedded in the theories~\parencite{isabelle-implementation} this facilitates the final translation to C process.
+Also Isabelle/HOL allows for Isabelle/ML code to be embedded in the theories~\parencite{isabelle-implementation}, this facilitates the final translation to C process.
 
 \subsection{Chloe}\label{subsection:chloe}
 

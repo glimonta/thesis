@@ -652,3 +652,13 @@ Finally, the last parameter is the theory context we are in.
 If the path given is an empty string the generated C code will be pretty printed to Isabelle's output view.
 This function will create a new file with the name indicated in the parameters with an extra "\verb|.c|" (i.e.\ $<name>\mathtt{.c}$) added in the directory indicated by the path parameter.
 The user will then be able to find the generated code in the directory indicated.
+
+We also have defined a function in ML that we use when we write an erroneous program on purpose and we expect its execution and translation to C fail:
+
+\begin{lstlisting}
+fun expect_failed_export (SOME _) = error ``Expected failed export''
+  | expect_failed_export NONE = ()
+\end{lstlisting}
+
+The function \verb|expect_failed_export| will then generate an error in Isabelle if code is generated for the program when we expect it to fail and it will do nothing when no code is generated.
+Having this kind of function is useful later for testing purposes.
