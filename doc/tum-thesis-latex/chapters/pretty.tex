@@ -217,7 +217,7 @@ In table~\ref{tab:pretty_casts} we can find examples of the pretty printing of c
 \paragraph{Memory allocations}
 
 The translation process for memory allocation requires its own section.
-As we mentioned in chapter~\ref{chapter:semantics} the behaviour of our allocation function and C's allocation function differ due to the fact that we assume that the memory is unlimited.
+As we mentioned in chapter~\ref{chapter:semantics} the behavior of our allocation function and C's allocation function differ due to the fact that we assume that the memory is unlimited.
 Therefore we cannot just translate our memory allocation function to a \verb|malloc| call in C.
 
 We must wrap C's \verb|malloc| function in another function that will abort the program in the case a program runs out of memory.

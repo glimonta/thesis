@@ -1,10 +1,56 @@
 \chapter{Conclusion and Future Work}\label{chapter:conclusion}
 
-Future work includes:
-\begin{itemize}
-\item Parsing C tests from the gcc torture test suite and translating to our semantics in order to generate and test C code from them.
-\item Formalize proof rules for the language, separation logic for pointers
-\item Link the language with the Isabelle Refinement Framework so programs from the Isabelle Refinement Framework can be refined to programs in this language.
-\item Expand the set of expressions and instruccions, doesn't add computational power to the language but adds comfort for the programmer.
-\item Add a type system.
-\end{itemize}
+\section{Conclusions}
+
+In this work we have managed to successfully formalize the semantics for an imperative language called Chloe which covers a subset of the C language.
+Chloe has the following features: variables, arrays, pointer arithmetic, while loop construct, if-then-else conditional construct and dynamic memory.
+We have formalized a small-step semantics in the Isabelle/HOL theorem prover for Chloe and proven the semantics to be deterministic.
+We also present an interpreter for the language, thus allowing for programs written in Chloe to be executed within the Isabelle/HOL environment.
+In order to do so we needed the determinism proofs for the semantics.
+
+Another result of this work was to present a code generator for the Chloe language.
+This code generator will translate programs from the formal semantics to real C code which can be executed.
+We guarantee that the generated program can be compiled and executed in a machine given that it is a program without undefined behavior, which complies with the restrictions assumed in the formalization of our semantics (section~\ref{subsection:restrictions_commands}) and doesn't run out of memory during execution.
+Moreover, we will only generate C code for programs that are valid and execute correctly in our interpreter.
+
+We faced some problems when formalizing the semantics such as allowing only programs with defined behavior to be executed in our semantics.
+This means we had to detect undefined behavior according to the C standard~\parencite{c99} such as integer overflow and consider it an error in our semantics.
+We also faced a problem when formalizing the semantics for the memory allocation function because we assume an unlimited amount of memory, whereas the resources in a machine are limited.
+In order to solve this problem we decided to change the way a memory allocation call would be translated to C code.
+We wrap C's malloc function in a function defined by us that would abort the program if a call to malloc fails.
+We also had to assume architecture restrictions over the target machine where the generated code will be executed and generate code that checks if the machine satisfies our assumptions.
+
+Finally, we also present a test harness and a test suite for testing the translation process.
+The goal of this test suite created is to increase the trust in the translation process and to make sure that the semantics of a Chloe program does not change when translated to C code.
+In this test suite we include incorrect cases that cover all the border cases or cases where no code should be generated due to the program facing an error.
+We also include example programs to demonstrate how the language works and how the programs are translated to C code.
+There is also a set of correct tests written that are meant to generate code.
+
+To guarantee that the semantics of a program is not changed by the translation process we also include a way of generating code with tests.
+These tests are meant to check that the final state of the program executed in the interpreters within Isabelle/HOL is the same as the state the program is in after being compiled and executed.
+Two states are equivalent when the global variables and the reachable dynamic memory, at the end of execution, have the same content.
+For this purpose we wrote a test harness in Isabelle which translates the tests to be made into a set of C macros that we define outside of Isabelle/HOL, and include in our compilation process, which test the equivalence between final states.
+In order to not run these tests manually we defined a little bash script which runs all the existing tests automatically.
+
+\section{Future work}
+
+In this section we will point some directions in which this work can be taken in the future.
+The time frame available for doing this work made it impossible to include these features in the scope of our work.
+
+First of all, we can upgrade the testing process by parsing C tests from an outer test suite (as mentioned in the previous chapter) and translating them to Chloe.
+After having the translation to Chloe we can generate code and tests for them in order to enhance the current test suite we have provided with this work.
+
+Another interesting direction this work might take is to formalize an axiomatic semantics in order to reason about programs and their properties in Chloe.
+Since Chloe has pointers as a feature it would be necessary to formalize a separation logic~\parencite{sep-logic} in order to reason about pointers in programs.
+By extending the work in this direction it would be possible to show partial and total correctness properties proofs of our programs.
+
+One of the features not included in the scope of our work is a proven sound and correct static type system.
+This would allow to reason about type safety for programs written in Chloe.
+
+There is an Isabelle Refinement Framework~\parencite{Refine_Monadic-AFP}, which provides a way of formulating non-deterministic algorithms in a monadic style and refine them to obtain an executable algorithm.
+It also provides tools to reason about these programs.
+Another source of future work would be to link our language to the Isabelle Refinement Framework, so that programs from the framework can be refined to programs in Chloe.
+
+Finally, the set of features that are currently supported by Chloe is limited.
+Another way to improve the results from this work is to expand the set of features supported by Chloe.
+This might include expanding the set of expressions and instructions, adding I/O operations or support for concurrency.

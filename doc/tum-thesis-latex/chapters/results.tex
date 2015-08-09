@@ -1,1 +1,39 @@
 \chapter{Results}\label{chapter:results}
+
+In this chapter we will describe the results and conclusions from the testing process in our work.
+
+\section{Tests}
+
+In the previous chapter we described the different kind of tests that compose the test suite for Chloe.
+Our main goal with the testing process was to increase the trust in the translation process and test that this process does not change the semantics of the programs.
+For this purpose we created two sets of tests, one with correct programs and the other one with incorrect ones, as well as example programs in the language.
+The example programs are meant to show how the language works and how programs can be written in it.
+They also were useful in the beginning of the testing process to intuitively verify that the generated program was behaving according to the semantics.
+For the incorrect programs, the tests help verify that no code is being generated for programs that are invalid in our semantics.
+For the correct programs we do generate code.
+
+The code we generate for correct programs can be generated with tests.
+The tests we generate will verify that the final states of both the execution in the semantics and the one in the machine are the same.
+We define this as having the same content in every global variable and in the part of the dynamic memory that is reachable.
+The specifics of this equivalence between states was already detailed in the previous chapter.
+The complete battery of tests can be found in the source code submitted with this work.
+
+\section{Results}
+
+Having a test suite that allowed us to check whether our translation process was being done correctly was certainly very useful during the execution of this work.
+At first we had simple programs written in the language which helped us to intuitively verify that the translation process was done correctly and the program's semantics was not changed.
+Later on we had to automate this testing process and more specific tests.
+We then proceeded to add the test harness and to create the battery of tests.
+The results we got from this tests were positive.
+All the incorrect test cases we wrote fail as expected.
+For all the correct cases we generate code with tests and all the tests generated for these programs run successfully.
+
+It is important to note that the test cases were written by us, so we cannot state exact metrics about the results we obtained during the testing process.
+There is always the slightest chance some cases are not covered completely by our test suite since the tests were written by us.
+This is why new tests can, and should, be added to the test suite in order to keep increasing the trust in the translation process.
+New tests should also be added when new functionality is added to the semantics.
+
+As a recommendation for future work we would propose to translate to Chloe a set of tests developed by people outside of this work in order to have more precise metrics about the testing process.
+An example of this would be to take a test suite made for C compilers such as gcc's C testsuites~\parencite{gcc-tests} and narrow the tests to tests that can be translated to our semantics, translate them from C to Chloe and generate the code with tests from them.
+By doing so it would be possible to provide more precise metrics e.g.\ how much of the test suite is successfully covered by our work.
+Sadly, this lies beyond the scope of this work.

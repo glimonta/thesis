@@ -105,7 +105,7 @@ We also have some auxiliary functions that aid us in the test generation process
 The function \verb|adjust_addr| will take an offset and a string representation of a c expression (which evaluates to a pointer) and yield a string representation that adjusts the address to the beginning of the block by subtracting the offset from it.
 The function \verb|ofs_addr| will take an offset and a string representation of a c expression (which evaluates to a pointer) and yield a string representation that adjusts the address to point to the specific cell in the specified offset by adding it to the address.
 Finally, the function \verb|base_var_name| given a natural number $n$ yields a variable we use for testing which will be used to save the address to the beginning of block $n$.
-This created variable will always have the previx \verb|__test_harness_x_| plus the number $n$.
+This created variable will always have the prefix \verb|__test_harness_x_| plus the number $n$.
 For example, for block number $2$ the function will yield the string ``\verb|__test_harness_x_2|''.
 
 
@@ -319,7 +319,8 @@ where "prepare_test_export prog $\equiv$ do {
   let failed_check = failed_check prog;
   let init_hash = init_disc;
   let nl = ''$\Downarrow$'';
-  let test_code = nl @ vars @ nl @ init_hash @ nl @ instrs @ nl @ failed_check @ nl @ ''}'';
+  let test_code =
+    nl @ vars @ nl @ init_hash @ nl @ instrs @ nl @ failed_check @ nl @ ''}'';
   Some (code,test_code)
 }"
 \end{lstlisting}
@@ -410,16 +411,16 @@ The list of example programs included in the source code are:
 
 \begin{itemize}
   \item{Bubblesort: implementation of the bubblesort sorting algorithm.}
-  \item{Count: simple program that counts the ocurrences of an element in an array.}
-  \item{Cyclic linked list:}
-  \item{Factorial:}
-  \item{Fibonacci:}
-  \item{Linked list:}
-  \item{Mergesort:}
-  \item{Minimum:}
-  \item{Quicksort:}
-  \item{Selectionsort:}
-  \item{String length:}
+  \item{Count: implementation of a function that counts the occurrences of an element in an array.}
+  \item{Cyclic linked list: implementation of a cyclic single linked list.}
+  \item{Factorial: implementation of the factorial function.}
+  \item{Fibonacci: implementation of a function that computes the Fibonacci number of some number.}
+  \item{Linked list: implementation of a single linked list.}
+  \item{Mergesort: implementation of the mergesort sorting algorithm.}
+  \item{Minimum: implementation of a function that returns the minimum element of an array.}
+  \item{Quicksort: implementation of the quicksort sorting algorithm.}
+  \item{Selectionsort: implementation of the selection sort sorting algorithm.}
+  \item{String length: implementation of a function that computes the length of a string ending in zero.}
 \end{itemize}
 
 \section{Running Tests}
@@ -443,7 +444,7 @@ When code is successfully generated we will want to compile and run the tests in
 We have a Makefile that will compile every test in the test suite as well as a bash shell script which will run every test in the test suite.
 The result of running the tests will be the number of tests passed and/or failed.
 When a test is failed the output is printed in red so it is visible to the user.
-Also other behaviors are catched by the script and informed to the user, such as out of memory errors, segmentation faults and programs that exited with any of the reserved exit codes~\parencite{bash-scripting}.
+Also other behaviors are caught by the script and informed to the user, such as out of memory errors, segmentation faults and programs that exited with any of the reserved exit codes~\parencite{bash-scripting}.
 This script is presented in figure~\ref{fig:bash_script}.
 
 \begin{figure}
