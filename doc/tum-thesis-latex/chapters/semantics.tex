@@ -195,9 +195,10 @@ This memory model is inspired in the work of Blazy and Leroy~\parencite{leroy-bl
 \subsection{Semantics}\label{subsection:semantics_expressions}
 
 The semantics of an expression is its value and its effect on the program state.
-For expressions such as $21 + 21$ is trivial to know the value is $4$.
+For expressions such as $21 + 21$, the evaluation of this expression is trivial ($42$).
 On the other hand when we have expressions with variables, such as $foo + 42$, then we depend on the value of the variable.
-Therefore we need to know the values of a variable, these values are stored in the program state.
+Therefore we need to know the values of a variable at the time of execution.
+These values are stored in the program state.
 
 The program state is a bit more complicated than what we are about to present.
 Section~\ref{section:states} is dedicated exclusively to discuss states but we will proceed to clarify in this section the part of the state needed for the expressions' semantics.
@@ -284,67 +285,69 @@ The values of that type are either \verb|None| when the operation fails or $\ver
 
 The functionalities of the auxiliary functions are the following:
 
-The function \verb|detect_overflow| detects integer overflow.
+\begin{itemize}
+\item{The function \verb|detect_overflow| detects integer overflow.
 It takes an Isabelle predefined integer value as a parameter and checks for overflow with the bounds described in figure~\ref{fig:int_bounds}.
 This function will fail whenever overflow is detected.
-Upon successful execution the function will yield the value corresponding to the given integer parameter.
+Upon successful execution the function will yield the value corresponding to the given integer parameter.}
 
-The function \verb|read_var| computes the value of a variable.
+\item{The function \verb|read_var| computes the value of a variable.
 This function will fail whenever the variable name given as a parameter corresponds to an undefined variable.
 Upon successful execution the function will yield the value of the variable.
 In order to compute the value of said variable this function checks the local valuation in the visible state and proceeds to yield the value of the variable if it is defined there.
-In the case where the variable is not defined in the local scope, the function will proceed to check the global scope and yield the value of the variable.
+In the case where the variable is not defined in the local scope, the function will proceed to check the global scope and yield the value of the variable.}
 
-The function \verb|plus_val| computes the value of an addition between two values.
+\item{The function \verb|plus_val| computes the value of an addition between two values.
 This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
 Upon successful execution with two integer values the function will yield an integer value corresponding to the addition of those operands.
-Upon successful execution with an address and an integer the function will yield an address value corresponding to adding the integer offset to the original address value.
+Upon successful execution with an address and an integer the function will yield an address value corresponding to adding the integer offset to the original address value.}
 
-The function \verb|subst_val| computes the value of a subtraction between two values.
+\item{The function \verb|subst_val| computes the value of a subtraction between two values.
 This function will fail whenever overflow is detected or when anything different than two integers or an address and an integer (in that specific order) are given as parameters to the function.
 Upon successful execution with two integer values the function will yield an integer value corresponding to the subtraction of those operands.
-Upon successful execution with an address and an integer the function will yield an address value corresponding to subtracting the integer offset to the original address value.
+Upon successful execution with an address and an integer the function will yield an address value corresponding to subtracting the integer offset to the original address value.}
 
-The function \verb|minus_val| computes the value of the unary minus operation over a value.
+\item{The function \verb|minus_val| computes the value of the unary minus operation over a value.
 This function will fail whenever overflow is detected or a value different from an integer is given as a parameter.
-Upon successful execution the function will yield an integer value corresponding to the result of negating the value given as a parameter.
+Upon successful execution the function will yield an integer value corresponding to the result of negating the value given as a parameter.}
 
-The function \verb|div_towards_zero| performs integer division with truncation towards zero.
+\item{The function \verb|div_towards_zero| performs integer division with truncation towards zero.}
 
-The function \verb|div_val| computes the value of division between two values.
+\item{The function \verb|div_val| computes the value of division between two values.
 This function will fail whenever either overflow or division by zero are detected or when the parameters given to the function are different from integers.
-Upon successful execution the function will yield an integer value corresponding to the result of performing integer division on the function operands.
+Upon successful execution the function will yield an integer value corresponding to the result of performing integer division on the function operands.}
 
-The function \verb|mod_towards_zero| performs the modulo operation with truncation towards zero.
+\item{The function \verb|mod_towards_zero| performs the modulo operation with truncation towards zero.}
 
-The function \verb|mod_val| computes the value of performing the modulo operation between two values.
+\item{The function \verb|mod_val| computes the value of performing the modulo operation between two values.
 This function will fail whenever either overflow or modulo by zero are detected or when the parameters given to the function are different from integers.
-Upon successful execution the function will yield an integer value corresponding to the result of performing integer modulo on the function operands.
+Upon successful execution the function will yield an integer value corresponding to the result of performing integer modulo on the function operands.}
 
-The function \verb|mult_val| computes the value of a multiplication between two values.
+\item{The function \verb|mult_val| computes the value of a multiplication between two values.
 This function will fail whenever overflow is detected or when anything different from integers are given as parameters to the function.
-Upon successful execution the function will yield an integer value corresponding to the multiplication of the function operands.
+Upon successful execution the function will yield an integer value corresponding to the multiplication of the function operands.}
 
-The function \verb|less_val| computes the value of performing the less than operation between two values.
+\item{The function \verb|less_val| computes the value of performing the less than operation between two values.
 This function will fail whenever anything different from integers are given as parameters to the function.
-Upon successful execution the function will yield an integer value of \verb|I| $1$ when the first operand is smaller than the second one, and an integer value of \verb|I| $0$ otherwise.
+Upon successful execution the function will yield an integer value of \verb|I| $1$ when the first operand is smaller than the second one, and an integer value of \verb|I| $0$ otherwise.}
 
-The function \verb|not_val| computes the value of performing logical negation over a value.
+\item{The function \verb|not_val| computes the value of performing logical negation over a value.
 This function will fail whenever a parameter different from an integer is given.
-Upon successful execution the function will yield an integer value of \verb|I| $1$ when the operand is an integer of value \verb|I| $0$, and an integer value of \verb|I| $0$ when the given operand is any integer value different from \verb|I| $0$.
+Upon successful execution the function will yield an integer value of \verb|I| $1$ when the operand is an integer of value \verb|I| $0$, and an integer value of \verb|I| $0$ when the given operand is any integer value different from \verb|I| $0$.}
 
-The function \verb|to_bool| yields an Isabelle predefined boolean given a value.
+\item{The function \verb|to_bool| yields an Isabelle predefined boolean given a value.
 This function is used to compute short-circuit evaluation on the \verb|And| and \verb|Or| operations.
 This function will fail whenever the parameter is anything different from an integer.
-Upon successful execution the function will yield \verb|False| when the given parameter has a value equal to \verb|I| $0$, it will yield \verb|True| otherwise.
+Upon successful execution the function will yield \verb|False| when the given parameter has a value equal to \verb|I| $0$, it will yield \verb|True| otherwise.}
 
-The function \verb|eq_val| computes the value of equality comparison between to values.
+\item{The function \verb|eq_val| computes the value of equality comparison between to values.
 This function will fail whenever anything different than two integers or two addresses are given as parameters to the function.
 Upon successful execution with two integer values the function will yield an integer value of \verb|I| $1$ if both operands were equal and an integer value of \verb|I| $0$ otherwise.
 Upon successful execution with two address values the function will yield an integer value of \verb|I| $1$ if both addresses were equal and an integer value of \verb|I| $0$ otherwise.
-Two addresses are regarded to as equal whenever both components of the address tuple are equal.
+Two addresses are regarded to as equal whenever both components of the address tuple are equal.}
 
-The functions \verb|new_block| and \verb|load| are the ones explained earlier in section~\ref{subsection:syntax_expressions} that allocate a new block of memory and load a value from memory, respectively.
+\item{The functions \verb|new_block| and \verb|load| are the ones explained earlier in section~\ref{subsection:syntax_expressions} that allocate a new block of memory and load a value from memory, respectively.}
+\end{itemize}
 
 
 \section{Commands}\label{section:commands}
@@ -743,7 +746,7 @@ depending on the result of the enabled function we will decide whether the term 
 The only cases where an execution would not be enabled to continue is when a condition for a conditional construct evaluates to \verb|True| and it would be attempting to follow an edge that would lead us to the node that contains $c_2$ or vice versa.
 This is the only interesting case given the set of commands Chloe supports, for every other command the enabled function will always yield true.
 
-In figure~\ref{fig:enabled_def} is the list of enabled functions we use.
+A list of the enabled functions we use is shown in figure~\ref{fig:enabled_def}.
 The function \verb|truth_value_of| maps a value to a boolean value, namely \verb|True| or \verb|False|.
 We also find \verb|en_always| which always yields \verb|True|, the \verb|en_pos| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|True| and the \verb|en_neg| function which only yields \verb|True| when the truth value of the expression given as a parameter evaluates to \verb|False|.
 These functions will be used later in the CFG definition.

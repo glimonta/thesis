@@ -1,7 +1,7 @@
 \chapter{Introduction}\label{chapter:introduction}
 
 In this chapter we will firstly discuss the motivation behind this work.
-Followed by theoretical background on concepts relating to semantics and Isabelle/HOL.
+Followed by theoretical background on concepts related to semantics and Isabelle/HOL.
 
 Then we will describe the features of the language used in this work.
 
@@ -79,22 +79,19 @@ The most widely used approaches are:
 \subsubsection{Operational semantics}
 
 A semantics is defined using the operational approach when the focus is turned to \textit{how} a construct is executed, it can be thought of as an abstraction of the execution of the program in a machine~\parencite{nielson}.
-The operational explanation of the meaning of a program indicates how it is executed.
+Given a construct, its operational explanation represents how that construct is executed given an initial state.
 
-There are two different kinds of operational semantics, namely \textit{small-step semantics} (or structural operational semantics) and \textit{big-step semantics} (or natural semantics).
-
-Our example contains a series of three statements separated by ``$;$'' and each of this statements is an assignment.
-The operational semantics will define how are sequences of statements and assignment statements executed.
-
-For this particular construct the semantics will be as follows:
+Returning to our example, to give an operational semantic interpretation for our construct is reduced to define how assignments and sequencing statements are executed.
+From our first intuitive approach, we can discern two basic rules:
 
 \begin{itemize}
 \item{To execute a sequence of statements, each statement is executed in a left-to-right order.}
 \item{To execute an assignment statement between two variables, the value of the right-hand-side variables is determined and assigned to the left-hand-side variable.}
 \end{itemize}
 
+There are two different kinds of operational semantics: \textit{small-step semantics} (or structural operational semantics) and \textit{big-step semantics} (or natural semantics).
+We will introduce both of them and build an interpretation for our example using them.
 
-We will proceed to define the two different kind of operational semantics by using the example introduced in the previous section and stating the different semantics for that particular construct.
 
 \paragraph{Big-step semantics}
 
@@ -139,7 +136,7 @@ Finally, executing the whole program $z:=x; x:=y; y:=z$ in state $s_{0}$ will yi
 
 \paragraph{Small-step semantics}
 
-Sometimes we want to have a bit more of information regarding intermediate states, that's why small-step semantics exists.
+Sometimes we want to have a bit more of information regarding intermediate states, that is why small-step semantics exists.
 
 This kind of semantics represents small, atomic execution steps in a program and allows for reasoning about how far a program has been executed and to explicitly inspect partial executions~\parencite{nipkow}.
 
@@ -157,9 +154,9 @@ Supposing we have a state where the variable $x$ has the value $5$, the variable
 \end{equation*}
 
 What happened here is that in the first step the statement $z:=x$ is executed and the value of the variable $z$ changes to $5$, $x$ and $y$ remain unchanged.
-After executing the first statement the program we're left with is $x:=y; y:=z$.
+After executing the first statement the program we are left with is $x:=y; y:=z$.
 We execute the second statement $x:=y$ and the value of $x$ changes to $7$, $y$ and $z$ remain unchanged.
-We're left then with the program $y:=z$, after executing this final statement the value of $y$ changes to $5$, $x$ and $z$ remain unchanged.
+We are left then with the program $y:=z$, after executing this final statement the value of $y$ changes to $5$, $x$ and $z$ remain unchanged.
 
 Then we have that the behavior of this program was to change the values of $x$ and $y$ using $z$ as a temporary variable.
 

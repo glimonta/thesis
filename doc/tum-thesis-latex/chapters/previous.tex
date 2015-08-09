@@ -34,13 +34,13 @@ Also Norrish takes the direction of presenting a programing logic and reasoning 
 
 \section{CompCert Compiler's Memory Model}
 
-The Compcert compiler is a moderately optimizing compiler that translates code from the Clight subset of the C programming language~\parencite{clight} to PowerPC assembly code, in chapter 4 of~\parencite{compcert-float-point} a description of the Compcert compiler can be found.
+The CompCert compiler is a moderately optimizing compiler that translates code from the Clight subset of the C programming language~\parencite{clight} to PowerPC assembly code, in chapter 4 of~\parencite{compcert-float-point} a description of the CompCert compiler can be found.
 It compiles source code from the Clight semantics to assembly code preserving the semantics of the original language.
 For doing this translation several languages are necessary, as well as a memory model that allows for reasoning about memory states.
 
 Memory models are usually either too concrete or too abstract.
 When they're too abstract they can fail to represent things like aliasing or partial overlap making the semantics incorrect, whereas a too concrete memory model can make the proof process more difficult by maybe failing to validate algebraic properties that are indeed valid in the language.
-The memory model used in the Compcert compiler~\parencite{leroy-blazy-memory-model} is somewhere in between a low-level model and a high-level model.
+The memory model used in the CompCert compiler~\parencite{leroy-blazy-memory-model} is somewhere in between a low-level model and a high-level model.
 The memory has a set of memory states which are indexed by a block reference and every block behaves like an array of bytes and can be addressed by using byte offsets.
 Leroy and Blazy give an abstract and a concrete description of their memory model and have a formalized and proved properties on memory operations on the Coq proof assistant~\parencite{coq-doc}, one of those properties is that separation between two blocks obtained from two different malloc calls is guaranteed.
 
