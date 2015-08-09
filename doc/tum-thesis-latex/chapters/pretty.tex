@@ -4,7 +4,7 @@ In this chapter we will detail the \textit{pretty printing} (translation) proces
 To assist us in this translation process we used Sternagel and Thiemann's implementation of Haskell's Show class in Isabelle/HOL~\parencite{Show-AFP}.
 In there they implement a type class for ``to-string'' functions as well as instantiations for Isabelle/HOL's standard types.
 Moreover they allow for deriving show functions for arbitrary user defined datatypes.
-We instantiate this class creating a ``show'' function for each of our defined datatypes incrementally until we can print a program.
+We instantiate this class creating a ``show'' function for each of our defined datatypes progressively until we can print a program.
 The following sections will explain in detail the concrete strings we get as a result of our translation.
 
 \section{Words}\label{section:pretty_words}
@@ -105,7 +105,7 @@ A complete block will be printed as follows:
 <base>\ :\ <block_content> 
 \end{equation*}
 
-Where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
+where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
 
 Finally, in order to show the whole memory, we only need to show each block existing in the memory.
 For instance, the string representation of memory state:
@@ -483,7 +483,7 @@ definition "dflt_type_min_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MIN''"
 definition "dflt_type_max_bound_name $\equiv$ dflt_type_bound_name $@$ ''_MAX''"
 \end{lstlisting}
 
-Where $@$ stands for the append operation between strings.
+where $@$ stands for the append operation between strings.
 It is important to note that the precision of the type used as \verb|dflt_type| must match the precision of \verb|int_width|.
 
 \paragraph{Global variables}

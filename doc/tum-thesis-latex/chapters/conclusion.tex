@@ -14,7 +14,7 @@ We guarantee that the generated program can be compiled and executed in a machin
 Moreover, we will only generate C code for programs that are valid and execute correctly in our interpreter.
 
 We faced some problems when formalizing the semantics such as allowing only programs with defined behavior to be executed in our semantics.
-This means we had to detect undefined behavior according to the C standard~\parencite{c99} such as integer overflow and consider it an error in our semantics.
+This means we had to detect undefined behavior, according to the C standard~\parencite{c99}, such as integer overflow and consider it an error in our semantics.
 We also faced a problem when formalizing the semantics for the memory allocation function because we assume an unlimited amount of memory, whereas the resources in a machine are limited.
 In order to solve this problem we decided to change the way a memory allocation call would be translated to C code.
 We wrap C's malloc function in a function defined by us that would abort the program if a call to malloc fails.

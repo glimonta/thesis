@@ -56,7 +56,7 @@ foo = *bar;
 *baz = 1;
 \end{lstlisting}
 
-Where \verb|foo| and \verb|bar| are variables, \verb|1| is a constant value, ``\verb|=|'' denotes an assignment statement and ``\verb|*|'' corresponds to the dereference operator.
+where \verb|foo| and \verb|bar| are variables, \verb|1| is a constant value, ``\verb|=|'' denotes an assignment statement and ``\verb|*|'' corresponds to the dereference operator.
 
 In the first expression \verb|*bar| is on the right-hand-side, in this case we want \verb|*bar| to yield a value we can then assign to \verb|foo|.
 On the other hand, in the second expression \verb|*baz| is on the left-hand-side, in this case we want \verb|*baz| to yield an address to which we can assign the value \verb|1|.
@@ -103,7 +103,7 @@ This parameter indicates the semantics to assume we are working with a 64 bit ar
 When working with a different architecture this parameter can be changed in order to comply with the architecture's requirements.
 
 Also our integers are defined as words of length \verb|int_width| (in this case \verb|64|).
-Since we are not using the Isabelle's predefined \verb|int| type, in order to work with words and to support code generation for them we use the Native Word entry in the Archive of Formal Proofs.~\parencite{Native_Word-AFP}.
+Since we are not using the Isabelle's predefined \verb|int| type, in order to work with words and to support code generation for them we use the Native Word entry in the Archive of Formal Proofs~\parencite{Native_Word-AFP}.
 
 From now on we will mostly refer to the 64 length words we use to represent integers in our language just as integers.
 Note that, unless explicitly stated so in the text, for simplicity we will use the word `integer' to refer to a 64 length word instead of Isabelle's predefined \verb|int| type.
@@ -244,7 +244,7 @@ eval   :: exp $\Rightarrow$ visible_state $\Rightarrow$ (val $\times$ visible_st
 eval_l :: lexp $\Rightarrow$ visible_state $\Rightarrow$ (addr $\times$ visible_state) option
 \end{lstlisting}
 
-Where \verb|eval|, given an expression and a visible state, will yield the value of that expression and the visible state resulting after evaluation of that expression.
+where \verb|eval|, given an expression and a visible state, will yield the value of that expression and the visible state resulting after evaluation of that expression.
 \verb|eval_l|, given a LHS expression and a visible state, will yield the value of that expression (which must be an address) and the state resulting after the evaluation of the LHS expression.
 Notice that the resulting type for these evaluation functions are an \verb|option| type.
 This is because these functions can fail, a failure can happen anywhere in the evaluation of the expression and if a failure is found then it will propagate until the whole expression evaluation returns a \verb|None| value indicating an error in evaluation.
@@ -639,7 +639,7 @@ A procedure table is defined as follows:
 type_synonym proc_table = fname $\rightharpoonup$ fun_decl
 \end{lstlisting}
 
-Where ``$\rightharpoonup$ \verb|fun_decl|'' is equivalent to writing ``$\Rightarrow$ \verb|fun_decl option|''.
+where ``$\rightharpoonup$ \verb|fun_decl|'' is equivalent to writing ``$\Rightarrow$ \verb|fun_decl option|''.
 This function maps function names to their declaration.
 
 This function is constructed by taking the program definition and pairing every function declaration from the list of functions to its name.
