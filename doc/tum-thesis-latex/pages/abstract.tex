@@ -1,5 +1,21 @@
 \chapter{\abstractname}
 
-%TODO: Abstract
+C is a widely used programming language, which is particularly popular in the implementation of operating systems and embedded system applications.
+It is often used in the development of compilers, libraries and interpreters for other programming languages due to its efficiency.
+C's efficiency comes from the fact that it is closer to the machine than other higher languages and it has a low overhead.
+Unfortunately, some of the semantics for the language are described using the English language which makes this definition prone to ambiguities.
 
+This work has three main goals.
+First of all, to formalize the semantics of an imperative language (with pointers and arrays) which represents a deterministic subset of the C language and write an interpreter for it.
+Second, to generate compilable and executable C code from the semantics.
+Finally, to create a test suite and a test harness that allow us to verify that the behavior of the generated C program matches the behavior of the formalized semantics.
 
+A small-step semantics for the language is formalized in the Isabelle/HOL theorem prover.
+Next an interpreter for the language within the Isabelle/HOL environment is written, which allows for programs in the semantics to be executed.
+Furthermore, this interpreter is proven to be correct with regard to the formal semantics.
+In order to translate programs from the formal semantics to C code, a code generator was written.
+This code generator uses the process of \textit{pretty printing} to translate the formal semantics to string representations which can then be exported to a file.
+In order to verify the translation process, the final state of the generated program is compared to the expected final state to determine if they are equivalent.
+Therefore, a method is defined to generate test instructions that check the equivalence condition for any program being translated to C.
+A test harness is presented in the Isabelle/HOL environment which translates test instructions to C macros that are defined outside of this environment.
+Finally, a test suite is presented along with example programs in the language.

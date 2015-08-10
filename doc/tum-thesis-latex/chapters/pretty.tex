@@ -2,10 +2,10 @@
 
 In this chapter we will detail the \textit{pretty printing} (translation) process that happens in the semantics and allows us to export C code.
 To assist us in this translation process we used Sternagel and Thiemann's implementation of Haskell's Show class in Isabelle/HOL~\parencite{Show-AFP}.
-In there they implement a type class for ``to-string'' functions as well as instantiations for Isabelle/HOL's standard types.
+Sternagel and Thiemann implement a type class for ``to-string'' functions as well as instantiations for Isabelle/HOL's standard types.
 Moreover they allow for deriving show functions for arbitrary user defined datatypes.
 We instantiate this class creating a ``show'' function for each of our defined datatypes progressively until we can print a program.
-The following sections will explain in detail the concrete strings we get as a result of our translation.
+The following sections will explain in detail the concrete strings we obtain as a result of our translation.
 
 \section{Words}\label{section:pretty_words}
 The first instantiation of shows we must make is the one for words in order to be able to pretty print values of this type.
@@ -13,6 +13,8 @@ For pretty printing a value of the type word we will simply cast that value to a
 As a result our words will be pretty printed as signed integers.
 
 \section{Values}\label{section:pretty_values}
+
+Although the datatype \verb|val| and valuations are not used in the code generation process, we find it useful to have a mechanism to pretty print them for debugging purposes.
 
 \subsection{Val type}\label{subsection:pretty_val_type}
 The type \verb|val| is the first user defined type we provide an instantiation for.
@@ -43,7 +45,7 @@ We will enclose parameters in between brackets ($"<\ >"$ ) to indicate that what
 Now that we know how to represent a \verb|val| type in the form of a string we must also know how to represent a \verb|val option|.
 A \verb|val option| holds the semantic meaning of an initialized and an uninitialized value.
 Table~\ref{tab:pretty_val_option} shows the equivalence between the abstract syntax and the string representation.
-Here an initialized value will just be the string resulting from showing that value, whereas an uninitialized value's string representation will be a $''?''$ to represent its value is not yet known.
+Here an initialized value will simply be the string resulting from showing that value, whereas the string representation of an uninitialized value will be a $''?''$ to represent its value is not yet known.
 
 \begin{table}[h!]
 \centering
@@ -70,7 +72,7 @@ The valuation will be printed in the following format:
 [<vname_0> = <value_0>, <vname_1> = <value_1>, \dots, <vname_n> = <value_n>]
 \end{equation*}
 
-For instance, if we take the valuation $[foo \mapsto \mathtt{Some}(\mathtt{I}\ 15), bar \mapsto None, baz \mapsto \mathtt{Some}(\mathtt{A}(1,9))]$ and the list of variables $[foo, bar, baz]$ then we would get the following as a string representation for the valuation:
+For instance, if we take the valuation $[foo \mapsto \mathtt{Some}(\mathtt{I}\ 15), bar \mapsto None, baz \mapsto \mathtt{Some}(\mathtt{A}(1,9))]$ and the list of variables $[foo, bar, baz]$ then we would obtain the following as a string representation for the valuation:
 
 \begin{equation*}
 [foo\ =\ 15,\ bar\ =\ ?,\ baz\ =\ 1[9]]
@@ -79,10 +81,13 @@ For instance, if we take the valuation $[foo \mapsto \mathtt{Some}(\mathtt{I}\ 1
 
 \section{Memory}\label{section:pretty_memory}
 
+The memory, same as the values, is not a component we need in order to generate C programs.
+Nevertheless, having a method to pretty print the memory in a determined state is useful in the event of debugging.
 In order to show the memory we must first know how to show a string representation of the content of a block and a string representation of the whole block.
 
-When we access a block in the memory we can get either the content of the block or a \verb|None| value indicating a free block of memory.
-Table~\ref{tab:pretty_block_content} shows the string representations for this, notice that in the case of a \verb|None| value we print the \verb|free| string enclosed in brackets, being the brackets part of the string representation and posing an exception to the notation described previously.
+When we access a block in the memory we can obtain either the content of the block or a \verb|None| value indicating a free block of memory.
+Table~\ref{tab:pretty_block_content} shows the string representations for this.
+Notice that in the case of a \verb|None| value we print the \verb|free| string enclosed in brackets, being the brackets part of the string representation and posing an exception to the notation described previously.
 If the content of the block is a list of values then we show the list of values.
 
 \begin{table}[h!]
@@ -102,7 +107,7 @@ If the content of the block is a list of values then we show the list of values.
 
 A complete block will be printed as follows:
 \begin{equation*}
-<base>\ :\ <block_content> 
+<base>\ :\ <block\_content> 
 \end{equation*}
 
 where $base$ is the first component of an address value that indexes the blocks and $block_content$ is the string representation of the content of block number $base$.
@@ -129,7 +134,8 @@ At the C level we must be able to tell the compiler when some value is meant to 
 We allow this casting between addresses and integers during the translation process because we know for sure when a value should be interpreted as an address and when it should be interpreted as an integer, whereas C does not.
 
 \paragraph{Unary and binary operations}
-When pretty printing binary operations we will use parenthesis around every expression pretty printed, this will naturally generate more parenthesis than needed but we are willing to make this choice to ensure the evaluation order remains the same as intended and we do not get different evaluation orders because of operator precedence.
+When pretty printing binary operations we will use parenthesis around every expression pretty printed.
+This will naturally generate more parenthesis than needed but we are willing to make this choice to ensure the evaluation order remains the same as intended and we do not obtain different evaluation orders because of operator precedence.
 
 A binary operator is pretty printed in an infix way:
 \begin{equation*}
@@ -182,7 +188,8 @@ Examples of this are shown in table~\ref{tab:pretty_un_op}.
 Since the values we are working with must be interpreted in C sometimes as integers and sometimes as pointers we must be able to pretty print an explicit cast between those two types in our generated program.
 We include casts to pointers when dealing with referencing, dereferencing and indexing.
 We will want to cast to integers in the case of a memory allocation.
-A memory allocation returns a pointer but in order to assign that to a variable we must cast it to an integer, due to the fact that all our variables are declared with the \verb|intptr_t| type and not \verb|intptr_t *|, we can do this and we know that when working with addresses these will be interpreted the right way since we will add a cast back to pointer.
+A memory allocation returns a pointer but in order to assign that to a variable we must cast it to an integer.
+Due to the fact that all our variables are declared with the \verb|intptr_t| type and not \verb|intptr_t *|, we can do this and we know that when working with addresses these will be interpreted the right way since we will add a cast back to pointer.
 
 
 A cast to an address value will be pretty printed in the following way:
@@ -216,9 +223,8 @@ In table~\ref{tab:pretty_casts} we can find examples of the pretty printing of c
 
 \paragraph{Memory allocations}
 
-The translation process for memory allocation requires its own section.
 As we mentioned in chapter~\ref{chapter:semantics} the behavior of our allocation function and C's allocation function differ due to the fact that we assume that the memory is unlimited.
-Therefore we cannot just translate our memory allocation function to a \verb|malloc| call in C.
+Therefore we cannot simply translate our memory allocation function to a \verb|malloc| call in C.
 
 We must wrap C's \verb|malloc| function in another function that will abort the program in the case a program runs out of memory.
 We define a function ``\verb|__MALLOC|'' that takes the size of the new block of memory to be allocated with \verb|malloc|, does the malloc call and returns the pointer to the new block of memory in case it succeeds and upon failure of the \verb|malloc| function it aborts the program with the exit code 3.
@@ -266,7 +272,7 @@ We use simple expressions as operands such as variables or constant values for s
 
 
 \section{Commands}
-First of all we need a way of printing indented commands to facilitate the generated code.
+First, we need a method for printing indented commands to facilitate the generated code.
 We define two auxiliary abbreviations that will pretty print white spaces for indentation at the beginning of a construct.
 The reason why two abbreviations are defined is because one of them will also pretty print a $";"$ terminator after the construct whereas the other will not.
 
@@ -281,7 +287,7 @@ where the brackets ($[]$) indicate that the arguments are optional.
 Finally the commands in Chloe are pretty printed as the examples in table~\ref{tab:pretty_commands} shows.
 We use $''$ to indicate an empty string.
 The correct level of indentation is indicated in the function parameters that are responsible for the pretty printing, we will omit those here and instead list where the indentation will increase.
-Indentation will increase inside a block, i.e.\ the branches of a conditional, the body of a loop.
+Indentation will increase when printing commands that are within a block, e.g.\ the branches of a conditional, the body of a loop.
 
 \begin{table}[h!]
 \centering
@@ -349,7 +355,7 @@ In order to do so, we will pretty print a function definition according to the f
 The return, argument and local variable's type is \verb|intptr_t| since, as mentioned previously, we only have one type in our translation process and we cast to and from pointers when necessary.
 
 An example of a function declaration translation for a factorial function is available in table~\ref{tab:pretty_function_fact}.
-In this example we avoid the use of $''\ ''$ for string representations in Isabelle and just write the string without the quotation marks.
+In this example we avoid the use of $''\ ''$ for string representations in Isabelle and simply write the string without the quotation marks.
 
 \begin{table}[h!]
 \centering
@@ -384,7 +390,7 @@ In this example we avoid the use of $''\ ''$ for string representations in Isabe
 \section{States}
 
 When executing a program inside the Isabelle/HOL environment we will often want to inspect the states.
-An easy way to inspect the states is to have a string representation for them.
+In this section we define an easy way to inspect the states by having a string representation for them.
 That is precisely what we define in this section.
 
 First we describe how a return location is pretty printed.
@@ -409,12 +415,12 @@ Where $<base>$ and $<ofs>$ are the result of applying the show function over $ba
 \end{table}
 
 Now we describe how the stack is pretty printed.
-A single stack frame is pretty printed by pretty printing the command, pretty printing the list of local variables and pretty printing the return location expected with the following format: $rloc\ =\ <rloc>$ separated by a line break.
+A single stack frame is pretty printed by printing the command, the list of local variables and the return location expected with the following format: $rloc\ =\ <rloc>$ separated by a line break.
 In order to pretty print the whole stack, we will print each stack frame separated by ``\verb|---------------|''.
 
 
 In order to pretty print a state we must give the show function a list of variable names, which will be used to print the valuation for the globals and the locals in the stack frame.
-A state is pretty printed by pretty printing the stack, the values of the global variables and finally the memory, separated by ``\verb|=================|''
+A state is pretty printed by printing the stack, the values of the global variables and finally the memory, separated by ``\verb|=================|''
 
 An example of pretty printing for a simple state is shown in table~\ref{tab:pretty_simp_state}.
 
@@ -455,7 +461,7 @@ An example of pretty printing for a simple state is shown in table~\ref{tab:pret
 In this section we can now talk about translating a complete program.
 
 \paragraph{Header files and bound checks}
-In our real C code we export we will, more often than not, want to include the header files for the C standard libraries, these allow us to use malloc and free for instance, these are \verb|stdlib.h| and \verb|stdio.h|.
+In the exported C code we will want to include the header files for the C standard libraries (\verb|stdlib.h| and \verb|stdio.h|).
 Also we include two more header files that allow the use of \verb|intptr_t| type and a header where the macro definitions that specify limits of integer types are defined.
 These are \verb|limits.h| and \verb|stdint.h|, respectively.
 We also want to include the header file that defines some macros used by our test harness for testing purposes, this will be addressed in more detail in chapter~\ref{chapter:testing}.
@@ -463,12 +469,12 @@ Finally we include the header file that contains the function for handling mallo
 Before pretty printing any part of our program we will want to pretty print the directive to include the header files mentioned before.
 
 
-Also, our translation process generates a program that will be compilable and executable.
+Additionally, our translation process generates a program that will be compilable and executable.
 This is true for architectures that support at least the same range of integer types as our abstraction does.
-This means, any architecture where the program will be compiled and executed must comply with the restrictions for integer values that we assume.
-That is why we use C's preprocessor to our advantage and pretty print an integer bounds check that will assert that the macros with the lower and upper bound definition are in fact defined.
+This means that, any architecture where the program will be compiled and executed must comply with the restrictions for integer values that we assume.
+Therefore, we use C's preprocessor to our advantage and pretty print an integer bounds check that will assert that the macros with the lower and upper bound definition are in fact defined.
 In our case we must check that the macros \verb|INTPTR_MIN| and \verb|INTPTR_MAX| are both defined.
-Then we proceed to assert that the bounds defined in those macros are in fact the same as the bounds we assume (the bounds we assume are \verb|INT_MIN| and \verb|INT_MAX|, they are defined in figure~\ref{fig:int_bounds}).
+Next, we proceed to assert that the bounds defined in those macros are in fact the same as the bounds we assume (the bounds we assume are \verb|INT_MIN| and \verb|INT_MAX| and they are defined in figure~\ref{fig:int_bounds}).
 
 
 The type we use for our translation as well as the precision of the integers can be changed.
@@ -501,11 +507,11 @@ It is done the same way as the pretty printing of local variables, following thi
 
 \paragraph{Program}
 
-Finally the pretty printing of a program is done by pretty printing the header files' include directives, then the integer bound checks, the global variable declarations and finally we pretty print each function in the program separated by a line break character.
+The pretty printing of a program is done by printing the include directives of the header files, then the integer bound checks, the global variable declarations and finally, we pretty print each function in the program separated by a line break character.
 In figures~\ref{fig:factorial_isabelle} we can find the Isabelle definition of a factorial program and in figure~\ref{fig:factorial_c} we find the generated C code for it.
 
 The integer bound check for the lower bound has a workaround because the absolute value of \verb|INTPTR_MIN| overflows the upper bound for integers of the preprocessor and causes a warning.\footnote{It interprets the negative number as $-(number)$ and yields a warning that it cannot represent the $number$.}
-To get rid of that warning we instead compare the \verb|INTPTR_MIN + 1| value to \verb|INT_MIN + 1|.
+To eliminate that warning we instead compare the \verb|INTPTR_MIN + 1| value to \verb|INT_MIN + 1|.
 
 
 \begin{figure}
@@ -595,7 +601,7 @@ To get rid of that warning we instead compare the \verb|INTPTR_MIN + 1| value to
 
 \section{Exporting C code}\label{section:exporting_c_code}
 
-Now that we know how to translate a complete program from the semantics to C code we are really close to export our generated C code.
+Now that we know how to translate a complete program from the semantics to C code we are almost ready to export our generated C code.
 
 We only export code for valid programs.
 To guarantee this we define a function that prepares a program for exporting:
@@ -609,7 +615,8 @@ To guarantee this we define a function that prepares a program for exporting:
 \end{lstlisting}
 
 
-This function takes a program and asserts that it is valid, according to the definition of a valid program given in~\ref{section:programs_commands}, if it is not valid we return a \verb|None| value, if it is valid we proceed to generate the string containing the C program with the function \verb|shows_prog|\footnote{We do not define the code for the show functions in this document but rather explain how they work. For implementation details the Isabelle theories can be checked.}.
+This function takes a program and asserts that it is valid, according to the definition of a valid program given in~\ref{section:programs_commands}.
+If it is not valid we return a \verb|None| value, if it is valid we proceed to generate the string containing the C program with the function \verb|shows_prog|\footnote{We do not include the code for the show functions in this document but rather explain how they work. The Isabelle theories can be checked for implementation details}.
 
 We export C code to external files.
 The name of the files is given by the program name in its definitions.
@@ -647,7 +654,7 @@ The first parameter of the function \verb|export_c_code| is a \verb|string optio
 If it receives a \verb|None| value this means the \verb|prepare_export| function failed and we do not want to generate a C program for it.
 The second parameter is the path to the directory where we want the program to be exported, this parameter is a relative path to the directory where the theory containing the pretty printing directives is.
 The third parameter is the name of the program.
-Finally, the last parameter is the theory context we are in.
+The last parameter is the theory context we are in.
 
 If the path given is an empty string the generated C code will be pretty printed to Isabelle's output view.
 This function will create a new file with the name indicated in the parameters with an extra "\verb|.c|" (i.e.\ $<name>\mathtt{.c}$) added in the directory indicated by the path parameter.
