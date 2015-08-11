@@ -5,6 +5,13 @@
 \frametitle{Previous and Related Work}
 \framesubtitle{Michael Norrish: Formalized C Semantics in HOL}
 
+\begin{itemize}
+\item{Operational semantics for the Cholera subset of C in HOL.}
+\item{Considers every possible order of evaluation for side effects.}
+\item{Derivation of Hoare logic for C programs.}
+\item{System for analysing loop bodies and generating correct postconditions.}
+\end{itemize}
+
 
 \end{frame}
 
@@ -13,6 +20,13 @@
 \frametitle{Previous and Related Work}
 \framesubtitle{CompCert Project}
 
+\begin{itemize}
+\item{Moderately optimizing compiler.}
+\item{Translates code from the Clight subset of C to PowerPC assembly code.}
+\item{Interesting memory model for imperative-like languages.}
+\item{Formalization and proving of properties on memory operations using Coq}
+\end{itemize}
+
 
 \end{frame}
 
@@ -20,6 +34,18 @@
 \begin{frame}
 \frametitle{Previous and Related Work}
 \framesubtitle{AutoCorres project}
+
+\begin{itemize}
+\item{Bottom-up approach.}
+\item{Parses C code and generates a high level monadic representation.}
+\item{The representation generated makes it easier to reason about programs.}
+\item{Is being used in several C verification projects:}
+\begin{itemize}
+\item{Verification of a large-scale graph library}
+\item{Verification of a file system}
+\item{Verification of a real-time operating system}
+\end{itemize}
+\end{itemize}
 
 
 \end{frame}
