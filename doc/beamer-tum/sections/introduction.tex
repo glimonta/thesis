@@ -1,0 +1,94 @@
+\section{Introduction}
+
+\begin{frame}
+\frametitle{Motivation}
+\framesubtitle{The C programming language}
+
+\pause
+
+The C language:
+
+\pause
+
+\begin{itemize}
+\item{Closeness to the machine and low overhead allow efficiency.}
+\pause
+\item{Used for operating systems, embedded system applications, compilers, libraries and interpreters.}
+\pause
+\end{itemize}
+
+Drawback?
+\pause
+\begin{itemize}
+\item{Part of its semantics is defined in natural language, which makes it prone to ambiguities.}
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Motivation}
+\framesubtitle{Goals of this work}
+
+\pause
+\begin{itemize}
+\item{Formalization of an imperative language which covers a deterministic subset of the C semantics.}
+\pause
+\item{Writing of a correct interpreter inside Isabelle/HOL environment.}
+\pause
+\item{Generation of C code from programs in the formal semantics.}
+\pause
+\item{Creation of a test harness and a test suite to increase trust in the code generation process.}
+\end{itemize}
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Chloe}
+\framesubtitle{An imperative language, subset of C}
+
+\begin{columns}[t]
+\column{.45\textwidth}
+\begin{block}{Features:}
+\pause
+\begin{itemize}
+\item{Variables}
+\pause
+\item{Arrays}
+\pause
+\item{Pointer Arithmetic}
+\pause
+\item{While loop construct}
+\pause
+\item{If-then-else conditional construct}
+\pause
+\item{Functions}
+\pause
+\item{Dynamic memory}
+\pause
+\end{itemize}
+\end{block}
+\column{.45\textwidth}
+\begin{block}{Limitations}
+\begin{itemize}
+\pause
+\item{Proven sound and correct static type system}
+\pause
+\item{Concurrency}
+\pause
+\item{I/O operations}
+\pause
+\item{Goto statements}
+\pause
+\item{Labels}
+\pause
+\item{Break and continue statements}
+\end{itemize}
+\pause
+\end{block}
+\end{columns}
+
+Chloe has enough expressive power to be Turing complete.
+
+\end{frame}
