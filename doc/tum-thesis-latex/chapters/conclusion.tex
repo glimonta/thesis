@@ -20,11 +20,13 @@ In order to solve this problem we decided to change the way a memory allocation 
 We wrap C's malloc function in a new one defined by us that would abort the program if a call to malloc fails.
 We also had to assume architecture restrictions over the target machine where the generated code will be executed and generate code that verifies if the machine satisfies our assumptions.
 
+
 Finally, we also present a test harness and a test suite for testing the translation process.
 The goal of this test suite is to increase the trust in the translation process and to make sure that the semantics of a Chloe program does not change when translated to C code.
 In this test suite we include incorrect cases that cover all the border cases or cases where no code should be generated due to the program facing an error.
 Furthermore, we include example programs to demonstrate how the language works and how the programs are translated to C code.
 Additionally, there is a set of correct tests written that are meant to generate code.
+The complete battery of tests can be found in the source code submitted with this work.
 
 To guarantee that the semantics of a program is not changed by the translation process, we include a way of generating code with tests.
 These tests are meant to check that the final state of the program executed in the interpreters within Isabelle/HOL is the same as the state the program is in after being compiled and executed.
@@ -37,7 +39,9 @@ In order to not run these tests manually we defined a bash script which runs all
 In this section we will point some directions in which this work can be taken in the future.
 The time frame available for doing this work made it impossible to include these features in the scope of our work.
 
-First of all, we can upgrade the testing process by parsing C tests from an outer test suite (as mentioned in the previous chapter) and translating them to Chloe.
+First of all, we can upgrade the testing process by parsing C tests from an external test suite and translating them to Chloe.
+This would allow us to provide more precise metrics for the results of the testing process, e.g.\ how much of the test suite is successfully covered by our work.
+An example of this would be to take a test suite made for C compilers such as gcc's C testsuites~\parencite{gcc-tests} and narrow the tests to ones that can be translated to our semantics, translate them from C to Chloe and generate the code with tests from them.
 After having the translation to Chloe we can generate code and tests for them in order to enhance the current test suite we have provided with this work.
 
 Another interesting direction this work might take is to formalize an axiomatic semantics in order to reason about programs and their properties in Chloe.

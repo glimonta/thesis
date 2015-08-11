@@ -506,3 +506,18 @@ done
 \caption{Shell script for running tests}
 \label{fig:bash_script}
 \end{figure}
+
+\section{Results}\label{section:results}
+
+Having a test suite that enabled us to check whether our translation process was being done correctly was remarkably valuable during the execution of this work.
+Originally, we had simple programs written in the language which helped us to intuitively verify that the translation process was done correctly and the semantics of the program was not changed.
+Subsequently, we were required to automate the testing process and design more specific tests.
+We proceeded to add the test harness and to create the battery of tests.
+The results we obtained from the tests were positive.
+All the incorrect test cases failed as expected.
+For all the correct cases we generate code with tests and all the tests generated for these programs run successfully.
+
+It is important to note that the test cases were written by us, so we cannot state exact metrics about the results we obtained during the testing process.
+It is possible that some cases are not completely covered by our test suite since the tests were written by us.
+This is why new tests can, and should, be added to the test suite in order to keep increasing the trust in the translation process.
+New tests should also be added as new functionality is added to the semantics.
