@@ -6,40 +6,18 @@
 
 \begin{frame}
 \frametitle{Conclusions}
-\framesubtitle{Formalized semantics in Isabelle/HOL}
+\framesubtitle{Results of this work}
 
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Conclusions}
-\framesubtitle{Interpreter for the semantics}
-
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Conclusions}
-\framesubtitle{Code generation}
-
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Conclusions}
-\framesubtitle{Test suite}
-
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Conclusions}
-\framesubtitle{Restrictions on the target machine}
-
+\begin{itemize}
+\item{Formalized semantics for Chloe}
+\item{Correct interpreter for Chloe within the Isabelle/HOL environment}
+\item{Restrictions and assumptions the semantics is based on}
+\item{Translation process from Chloe to C code}
+\item{Development of a test suite and test harnesses}
+\begin{itemize}
+\item{Cannot give a exact metrics on the testing process}
+\end{itemize}
+\end{itemize}
 
 \end{frame}
 
@@ -50,6 +28,19 @@
 \begin{frame}
 \frametitle{Future Work}
 \framesubtitle{How can this work be enhanced?}
+
+\begin{itemize}
+\item{Enhance the test suite by parsing C tests from external sources and translating them to Chloe}
+\item{Formalization of an axiomatic semantics with a separation logic to reason about programs in Chloe}
+\item{Add a static typesystem to prove our programs to be type safe}
+\item{Link Chloe to the Isabelle Refinement Framework so that programs from the framework can be refined to Chloe}
+\item{Expand the set of features supported by Chloe}
+\begin{itemize}
+\item{Adding more expressions or statements}
+\item{Adding I/O operations}
+\item{Adding support for concurrency}
+\end{itemize}
+\end{itemize}
 
 
 \end{frame}

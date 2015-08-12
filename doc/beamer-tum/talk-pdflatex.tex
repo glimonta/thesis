@@ -3,8 +3,40 @@
 \usepackage{helvet}
 \usepackage[english, ngerman]{babel}
 \usepackage{tikz}
-
+\usetikzlibrary{shapes.multipart}
 \usetikzlibrary{arrows,shapes,trees}
+\usepackage{drawstack}
+\usepackage{xcolor}
+\usepackage{lipsum}
+
+\newcommand\Fontvi{\fontsize{6}{7.2}\selectfont}
+\newcommand\Fontbi{\fontsize{12}{10}\selectfont}
+
+\definecolor{uablue}{RGB}{0,61,100}
+\colorlet{uablue100}{uablue}
+\colorlet{uablue75} {uablue!75!white}
+\colorlet{uablue50} {uablue!50!white}
+\colorlet{uablue25} {uablue!25!white}
+\colorlet{uablue10} {uablue!10!white}
+\colorlet{uablue5}  {uablue!5!white}
+
+\definecolor{uared}{RGB}{126,0,47}
+\colorlet{uared100}{uared}
+\colorlet{uared75} {uared!75!white}
+\colorlet{uared50} {uared!50!white}
+\colorlet{uared25} {uared!25!white}
+\colorlet{uared10} {uared!10!white}
+\colorlet{uared5}  {uared!5!white}
+
+\tikzset{onslide/.code args={<#1>#2}{%
+  \only<#1>{\pgfkeysalso{#2}} % \pgfkeysalso doesn't change the path
+}}
+\tikzset{alt/.code args={<#1>#2#3}{%
+  \alt<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}} % \pgfkeysalso doesn't change the path
+}}
+\tikzset{temporal/.code args={<#1>#2#3#4}{%
+  \temporal<#1>{\pgfkeysalso{#2}}{\pgfkeysalso{#3}}{\pgfkeysalso{#4}} % \pgfkeysalso doesn't change the path
+}}
 
 \usetheme{Boadilla}
 
@@ -49,9 +81,7 @@
 
 \author{Gabriela Limonta}
 \institute[]{Department of Informatics, Technische Universität München}
-%\date{12.08.2015}
-
-
+\date{12.08.2015}
 
 
 \begin{document}
@@ -69,7 +99,12 @@
 
 
 \begin{frame}
+
+\Fontbi
+
+\begin{center}
 Thank you!
+\end{center}
 \end{frame}
 
 \end{document}

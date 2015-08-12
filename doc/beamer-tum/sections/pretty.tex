@@ -1,11 +1,147 @@
 \section{Pretty Printing}
 
-\begin{frame}
+\begin{frame}[fragile]
 \frametitle{Pretty Printing}
 \framesubtitle{Factorial code generation}
+\Fontvi
+
+We take the following program in our semantics:
+
+\begin{columns}[t]
+\column{.45\textwidth}
+\begin{semiverbatim}
+definition factorial_decl :: fun_decl
+  where "factorial_decl ==
+    ( fun_decl.name = fact,
+      fun_decl.params = [n],
+      fun_decl.locals = [r, i],
+      fun_decl.body =
+        r ::= (Const 1);;
+        i ::= (Const 1);;
+        (WHILE (Less (V i) (Plus (V n) (Const 1))) DO
+          (r ::= (Mult (V r) (V i));;
+          i ::= (Plus (V i) (Const 1)))
+        );;
+        RETURN (V r)
+    )"
+
+definition main_decl :: fun_decl
+  where "main_decl ==
+    ( fun_decl.name = main,
+      fun_decl.params = [],
+      fun_decl.locals = [],
+      fun_decl.body =
+        n ::= Const 5;;
+        r ::= fact ([V n])
+    )"
+\end{semiverbatim}
+\column{.45\textwidth}
+\begin{semiverbatim}
+definition p :: program
+  where "p ==
+    ( program.name = fact,
+      program.globals = [n, r],
+      program.procs = [factorial_decl, main_decl]
+    )"
+\end{semiverbatim}
+
+and export code for it.
+\end{columns}
 
 
-Es buena idea hacer varios slides con highlight en diferentes cosas.
+\end{frame}
+
+
+\begin{frame}[fragile]
+\frametitle{Pretty Printing}
+\framesubtitle{Factorial code generation}
+\Fontvi
+
+We get the following code:
+
+\begin{columns}[t]
+\column{.65\textwidth}
+\begin{semiverbatim}
+\alert<2>{#include <stdlib.h>}
+\alert<2>{#include <stdio.h>}
+\alert<2>{#include <limits.h>}
+\alert<2>{#include <stdint.h>}
+\alert<2>{#include "../test_harness.h"}
+\alert<2>{#include "../malloc_lib.h"}
+\alert<3>{#ifndef INTPTR_MIN}
+  \alert<3>{#error ("Macro INTPTR_MIN undefined")}
+\alert<3>{#endif}
+\alert<3>{#ifndef INTPTR_MAX}
+  \alert<3>{#error ("Macro INTPTR_MAX undefined")}
+\alert<3>{#endif}
+\alert<3>{#if ( INTPTR_MIN + 1 != -9223372036854775807 )}
+  \alert<3>{#error (" Assertion INTPTR_MIN + 1 == -9223372036854775807 failed")}
+\alert<3>{#endif}
+\alert<3>{#if ( INTPTR_MAX != 9223372036854775807 )}
+  \alert<3>{#error (" Assertion INTPTR_MAX == 9223372036854775807 failed")}
+\alert<3>{#endif}
+
+
+\alert<4>{intptr_t n;}
+\alert<4>{intptr_t r;}
+\end{semiverbatim}
+\column{.35\textwidth}
+\begin{semiverbatim}
+\alert<5>{intptr_t fact(intptr_t n) {}
+\alert<5>{  intptr_t r;}
+\alert<5>{  intptr_t i;}
+\alert<5>{  r = (1);}
+\alert<5>{  i = (1);}
+\alert<5>{  while ((i) < ((n) + (1))) {}
+\alert<5>{    r = ((r) * (i));}
+\alert<5>{    i = ((i) + (1));}
+\alert<5>{  }}
+\alert<5>{  return(r);}
+\alert<5>{}}
+
+\alert<6>{intptr_t main() {}
+\alert<6>{  n = (5);}
+\alert<6>{  (r) = (fact(n));}
+\alert<6>{}}
+\end{semiverbatim}
+\end{columns}
+
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Pretty Printing}
+\framesubtitle{Casts}
+
+We translate our programs into C's type intptr\_t type.
+\bigskip
+
+This type allows either a pointer or an integer to be stored in it.
+
+All our variables are defined as a ``intptr\_t'' type.
+
+\bigskip
+
+Sometimes we want C to interpret our values as integers and other times as pointers.
+
+We must be able to print casts to and from pointer values.
+
+\bigskip
+\pause
+
+\begin{block}{Cast to pointer}
+(intptr\_t *) $<$expression$>$
+
+*((intptr\_t *) foo);
+\end{block}
+
+\begin{block}{Cast from pointer}
+(intptr\_t) $<$expression$>$
+
+(intptr\_t) \_\_MALLOC(sizeof(intptr\_t) * 5);
+\end{block}
+
 
 \end{frame}
 
@@ -14,13 +150,17 @@ Es buena idea hacer varios slides con highlight en diferentes cosas.
 \frametitle{Pretty Printing}
 \framesubtitle{How do we translate malloc under our unlimited memory assumption?}
 
+We translate malloc by wrapping it in another function.
 
-\end{frame}
+\begin{block}{Code generation for malloc}
+New (Const $9$) is pretty printed as \_\_MALLOC(sizeof(intptr\_t) * $9$)
+\end{block}
 
+\bigskip
 
-\begin{frame}
-\frametitle{Exporting C code}
-\framesubtitle{Preparation for exporting}
+This function will abort the program's execution upon an out of memory error.
+
+\bigskip
 
 
 \end{frame}
@@ -29,6 +169,8 @@ Es buena idea hacer varios slides con highlight en diferentes cosas.
 \begin{frame}
 \frametitle{Exporting C code}
 \framesubtitle{Exporting to a file}
+
+We provide a mechanism that will allow to export the generated C program to a file in a given directory.
 
 
 \end{frame}

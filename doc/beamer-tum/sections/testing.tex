@@ -4,6 +4,16 @@
 \frametitle{Testing}
 \framesubtitle{What is the purpose of testing?}
 
+The purpose of testing is to increase the trust in our translation process.
+
+\bigskip
+
+Code generated from our semantics will behave in the following way:
+\begin{itemize}
+\item{It will abort its execution upon an our of memory error (we promise nothing about these programs)}
+\item{It will yield an equivalent result as the same program interpreted in our semantics}
+\end{itemize}
+
 
 \end{frame}
 
@@ -11,6 +21,14 @@
 \begin{frame}
 \frametitle{Testing}
 \framesubtitle{Types of tests}
+
+We define three types of tests in this testing suite:
+
+\begin{itemize}
+\item{Example programs in Chloe}
+\item{Deliberately incorrect tests}
+\item{Programs with automatically generated test instructions that verify equality of final states}
+\end{itemize}
 
 
 \end{frame}
@@ -20,21 +38,17 @@
 \frametitle{Testing}
 \framesubtitle{Equality of final states}
 
+We provide the option to generate code for testing our programs.
 
-\end{frame}
+We want to verify that the final state yielded by the C program is the same as the one we obtain from interpreting the program.
 
-
-\begin{frame}
-\frametitle{Testing}
-\framesubtitle{Test Harness in Isabelle}
-
-
-\end{frame}
-
-
-\begin{frame}
-\frametitle{Testing}
-\framesubtitle{DFS and following pointers}
+\begin{block}{Equality of the content in the global variables and  the reachable memory.}
+\begin{itemize}
+\item{Integer values}
+\item{Null pointer values}
+\item{Non-Null pointer values}
+\end{itemize}
+\end{block}
 
 
 \end{frame}
@@ -42,8 +56,36 @@
 
 \begin{frame}
 \frametitle{Testing}
-\framesubtitle{Test Harness in C}
+\framesubtitle{Following pointers}
 
+When the content of a global variable is a pointer to memory, we check the complete content of the memory as it is reachable from the final state.
+\bigskip
+\pause
+
+When we stumble upon a pointer to memory we will follow this pointer until:
+\begin{itemize}
+\item{We reach an integer or null value}
+\item{We reach a pointer we already followed}
+\end{itemize}
+\bigskip
+
+\end{frame}
+
+
+\begin{frame}
+\frametitle{Testing}
+\framesubtitle{DFS following of pointers}
+
+To do this, we:
+\begin{itemize}
+\item{Follow pointers in a depth-first search order}
+\item{Keep a set of discovered blocks}
+\end{itemize}
+
+
+In order to avoid following pointers indefinitely when there are cyclic references:
+
+If we reach a pointer to a block of memory already in our set of discovered blocks, we stop following pointers and compare the values of the pointers instead.
 
 \end{frame}
 
@@ -52,5 +94,17 @@
 \frametitle{Testing}
 \framesubtitle{Automation of the testing process}
 
+In order to automate the testing we defined two test harnesses (one in Isabelle and one in C) which will help with the test generating and ruunning process.
+\bigskip
+\pause
+
+Apart from the generation of tests we need an automated way of executing all the tests in our test suite.
+\pause
+\bigskip
+
+\begin{itemize}
+\item{We define a theory file in Isabelle that imports every test in the suite.}
+\item{We define a Makefile and a bash script that will automate the compiling and running of all the generated code.}
+\end{itemize}
 
 \end{frame}
