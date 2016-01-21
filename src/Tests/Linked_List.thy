@@ -1,94 +1,42 @@
 theory Linked_List
-imports "../SmallStep" "../Test" "../Test_Harness"
+imports Test_Setup
 begin
+
+definition 
+  "ll_members \<equiv> [(''first'',ty.StructPtr ''le'')]"
+definition 
+  "le_members \<equiv> [(''data'',ty.I),(''next'',ty.StructPtr ''le'')]"
+definition "ll_decl \<equiv> \<lparr> struct_decl.name = ''ll'', struct_decl.members = ll_members\<rparr>"
+definition "le_decl \<equiv> \<lparr> struct_decl.name = ''le'', struct_decl.members = le_members\<rparr>"
+abbreviation "ty_ll \<equiv> ty.Struct ''ll'' ll_members"
+abbreviation "ty_le \<equiv> ty.Struct ''le'' le_members"
+
+
 
 definition linked_list_create_decl :: fun_decl
   where "linked_list_create_decl \<equiv>
     \<lparr> fun_decl.name = ''linked_list_create'',
+      fun_decl.rtype = Some (ty.Ptr ty_ll),
       fun_decl.params = [],
-      fun_decl.locals = [nn],
+      fun_decl.locals = [(nn,ty.Ptr ty_ll)],
       fun_decl.body = 
-        nn ::= New (Const 1);;
-        (Indexl (V nn) (Const 0)) ::== Null;; (* Pointer to first element of list *)
+        $nn := malloc ty_ll [C 1];;
+        $nn\<rightarrow>''first'' := Null;;
         RETURN (V nn)
     \<rparr>"
-
-definition get_first_decl :: fun_decl
-  where "get_first_decl \<equiv>
-    \<lparr> fun_decl.name = ''get_first'',
-      fun_decl.params = [hh],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        RETURN (Deref (V hh))
-    \<rparr>"
-
-definition set_first_decl :: fun_decl
-  where "set_first_decl \<equiv>
-    \<lparr> fun_decl.name = ''set_first'',
-      fun_decl.params = [hh, ff],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        (Indexl (V hh) (Const 0)) ::== V ff
-    \<rparr>"
-
-definition create_elem_decl :: fun_decl
-  where "create_elem_decl \<equiv>
-    \<lparr> fun_decl.name = ''create_elem'',
-      fun_decl.params = [dd, nn],
-      fun_decl.locals = [ee],
-      fun_decl.body =
-        ee ::= New (Const 2);;
-        (Indexl (V ee) (Const 0)) ::== V dd;; (* Data *)
-        (Indexl (V ee) (Const 1)) ::== V nn;; (* Next *)
-        RETURN (V ee)
-    \<rparr>"
-
-definition get_data_decl :: fun_decl
-  where "get_data_decl \<equiv>
-    \<lparr> fun_decl.name = ''get_data'',
-      fun_decl.params = [ee],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        RETURN (Index (V ee) (Const 0))
-    \<rparr>"
-
-definition get_next_decl :: fun_decl
-  where "get_next_decl \<equiv>
-    \<lparr> fun_decl.name = ''get_next'',
-      fun_decl.params = [ee],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        RETURN (Index (V ee) (Const 1))
-    \<rparr>"
-
-definition set_data_decl :: fun_decl
-  where "set_data_decl \<equiv>
-    \<lparr> fun_decl.name = ''set_data'',
-      fun_decl.params = [ee, dd],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        (Indexl (V ee) (Const 0)) ::== (V dd)
-    \<rparr>"
-
-definition set_next_decl :: fun_decl
-  where "set_next_decl \<equiv>
-    \<lparr> fun_decl.name = ''set_next'',
-      fun_decl.params = [ee, nn],
-      fun_decl.locals = [],
-      fun_decl.body = 
-        (Indexl (V ee) (Const 1)) ::== (V nn)
-    \<rparr>"
-
 
 definition linked_list_add_decl :: fun_decl
   where "linked_list_add_decl \<equiv>
     \<lparr> fun_decl.name = ''linked_list_add'',
-      fun_decl.params = [hh, dd],
-      fun_decl.locals = [nn, ee, ss],
+      fun_decl.rtype = None,
+      fun_decl.params = [(hh,ty.Ptr ty_ll), (dd,ty.I)],
+      fun_decl.locals = [(nn,ty.Ptr ty_le), (ee,ty.Ptr ty_le)],
       fun_decl.body = 
-        nn ::= ''get_first'' ([V hh]);;
-        ee ::= ''create_elem'' ([V dd, V nn]);;
-        CALL ''set_first'' ([V hh, V ee])
+        $nn := $hh\<rightarrow>''first'';;
+        $ee := malloc ty_le [C 1];;
+        $ee\<rightarrow>''data'' := $dd;;
+        $ee\<rightarrow>''next'' := $nn;;
+        $hh\<rightarrow>''first'' := $ee
     \<rparr>"
 
 
@@ -96,63 +44,58 @@ definition linked_list_add_decl :: fun_decl
 definition linked_list_delete_decl :: fun_decl
   where "linked_list_delete_decl \<equiv>
     \<lparr> fun_decl.name = ''linked_list_delete'',
-      fun_decl.params = [hh, dd],
-      fun_decl.locals = [nn, cc, ss, aa, pp],
+      fun_decl.rtype = None,
+      fun_decl.params = [(hh,ty.Ptr ty_ll), (dd,ty.I)],
+      fun_decl.locals = [(pp,ty.Ptr (ty.Ptr ty_le)), (cc,ty.Ptr ty_le)],
       fun_decl.body = 
-        nn ::= ''get_first'' ([V hh]);;
-        cc ::= ''get_data'' ([V nn]);;
-        (* Check if it's the first one *)
-        IF (Eq (V dd) (V cc)) THEN (
-          aa ::= ''get_next'' ([V nn]);;
-          CALL ''set_first'' ([V hh, V aa]);;
-          FREE (Derefl (V nn));;
-          nn ::= V aa
-        ) ELSE (
-          SKIP
-        );;
-        pp ::= V nn;;
-        WHILE (Index (V nn) (Const 1)) DO (
-          nn ::= ''get_next'' ([V nn]);;
-          cc ::= ''get_data'' ([V nn]);;
-          IF (Eq (V dd) (V cc)) THEN (
-            aa ::= ''get_next'' ([V nn]);;
-            CALL ''set_next'' ([V pp, V aa]);;
-            FREE (Derefl (V nn));;
-            nn ::= V aa
+        $cc := $hh\<rightarrow>''first'';;
+        $pp := &$hh\<rightarrow>''first'';;
+        WHILE $cc DO (
+          IF $cc\<rightarrow>''data'' == $dd THEN (
+            *$pp := $cc\<rightarrow>''next'';;
+            $cc := $cc\<rightarrow>''next''
           ) ELSE (
-            SKIP
-          );;
-          pp ::= V nn
+            $pp := &$cc\<rightarrow>''next'';;
+            $cc := $cc\<rightarrow>''next''
+          )
         )
     \<rparr>"
 
-definition main_decl :: fun_decl
-  where "main_decl \<equiv>
-    \<lparr> fun_decl.name = ''main'',
+definition main_decl
+  where "main_decl n \<equiv>
+    \<lparr> fun_decl.name = n,
+      fun_decl.rtype = None,
       fun_decl.params = [],
       fun_decl.locals = [],
       fun_decl.body = 
-        aa ::= ''linked_list_create'' ([]);;
-        CALL ''linked_list_add'' ([V aa, Const 6]);;
-        CALL ''linked_list_add'' ([V aa, Const 5]);;
-        CALL ''linked_list_add'' ([V aa, Const 4]);;
-        CALL ''linked_list_add'' ([V aa, Const 3]);;
-        CALL ''linked_list_add'' ([V aa, Const 2]);;
-        CALL ''linked_list_add'' ([V aa, Const 1]);;
-        CALL ''linked_list_add'' ([V aa, Const 4]);;
-        CALL ''linked_list_delete'' ([V aa, Const 4])
+        com_Callfun ($aa) ''linked_list_create'' ([]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 6]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 5]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 4]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 3]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 2]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 1]);;
+        com_Callfunv ''linked_list_add'' ([V aa, Const 4]);;
+        com_Callfunv ''linked_list_delete'' ([V aa, Const 4])
     \<rparr>"
 
-definition p :: program
-  where "p \<equiv> 
+definition p
+  where "p n \<equiv> 
     \<lparr> program.name = ''linked_list'',
-      program.globals = [aa],
-      program.procs = [linked_list_create_decl, get_first_decl, set_first_decl, create_elem_decl,
-      get_data_decl, get_next_decl, set_data_decl, set_next_decl, linked_list_add_decl,
-      linked_list_delete_decl, main_decl]
+      program.structs = [ll_decl, le_decl],
+      program.globals = [(aa,ty.Ptr ty_ll)],
+      program.functs = [linked_list_create_decl, linked_list_add_decl,
+      linked_list_delete_decl, main_decl n]
     \<rparr>"
 
-definition "linked_list_export \<equiv> prepare_export p"
+definition "linked_list_export \<equiv> prepare_export (p ''main'')"
 setup \<open>export_c_code @{code linked_list_export}"../TestC" "linked_list"\<close>
 
+definition p' :: program where "p' \<equiv> mk_test_prog p"
+definition "test \<equiv> prepare_test_export p'"
+setup \<open>generate_c_test_code @{code test} "../TestC" "linked_list_test"\<close>
+
+
 end
+
+

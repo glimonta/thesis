@@ -9,7 +9,7 @@ int __test_harness_num_tests = 0;
 int __test_harness_passed = 0;
 int __test_harness_failed = 0;
 
-#define __TEST_HARNESS_DISCOVER(addr, var) hashset_add(__test_harness_discovered, addr); var = addr;
+#define __TEST_HARNESS_DISCOVER(addr, var) if (hashset_add(__test_harness_discovered, addr)<=0) ++__test_harness_failed; var = addr;
 
 #define __TEST_HARNESS_ASSERT_EQ(var, val) ++__test_harness_num_tests; (var != val) ? ++__test_harness_failed : ++__test_harness_passed;
 

@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <limits.h>
 #include <inttypes.h>
+#include "malloc_lib.h"
 
-intptr_t * __MALLOC(intptr_t size) {
-  intptr_t * __ret_malloc = malloc(size);
-  if (NULL == __ret_malloc)
-    exit(3);
-  else
-    return __ret_malloc;
+void * __chloe_malloc(size_t size, int64_t n) {
+  if (n<=0) exit(3);
+  void *res = calloc((size_t)n, size);
+  if (res==0) exit(3);
+  return res;
 }
+
