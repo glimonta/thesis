@@ -19,6 +19,18 @@ definition valid_decls :: "vname list \<Rightarrow> bool" where
 
 export_code valid_decls in SML
 
+lemma valid_decls_empty[simp]: "valid_decls []"
+  by (auto simp: valid_decls_def)
+
+lemma valid_decls_conc_conv[simp]: "valid_decls (x#ds2) \<longleftrightarrow> 
+  x\<notin>keywords \<and> valid_decls ds2 \<and> (x \<notin> set ds2)"
+  by (auto simp: valid_decls_def)
+
+lemma valid_decls_append_conv[simp]: "valid_decls (ds1@ds2) \<longleftrightarrow> 
+  valid_decls ds1 \<and> valid_decls ds2 \<and> (set ds1 \<inter> set ds2 = {})"
+  by (auto simp: valid_decls_def)
+
+
 context
   fixes SM :: struct_map
 begin
@@ -33,7 +45,21 @@ begin
 
   definition wf_vdecls :: "(vname \<times> ty) list \<Rightarrow> bool" where
     "wf_vdecls l \<equiv> valid_decls (map fst l) \<and> (\<forall>ty\<in>set (map snd l). wf_ty ty)"
-  
+
+  lemma wf_vdecls_empty[simp]: "wf_vdecls []"
+    by (auto simp: wf_vdecls_def)
+
+  lemma wf_vdecls_conc_conv[simp]: "wf_vdecls (vd#vd2) \<longleftrightarrow> 
+    wf_ty (snd vd) \<and> fst vd \<notin> keywords \<and> wf_vdecls vd2 \<and> (fst vd \<notin> fst`set vd2)"
+    by (auto simp: wf_vdecls_def)
+
+  lemma wf_vdecls_append_conv[simp]: "wf_vdecls (vd1@vd2) \<longleftrightarrow> 
+    wf_vdecls vd1 \<and> wf_vdecls vd2 \<and> (fst`set vd1 \<inter> fst`set vd2 = {})"
+    by (auto simp: wf_vdecls_def)
+
+
+
+
   definition wf_struct_decl :: "struct_decl \<Rightarrow> bool" where
     "wf_struct_decl sd \<equiv> wf_vdecls (struct_decl.members sd) 
       \<and> struct_decl.members sd\<noteq>[]"
@@ -45,6 +71,30 @@ begin
 
   definition wf_exp :: "exp \<Rightarrow> bool" where [simp]: "wf_exp e \<equiv> True"
 
+  fun direct_lval_exp :: "exp \<Rightarrow> bool" 
+    -- \<open>Expression whose lvalue cannot be changed by side-effects.
+      This is important for LHS of assignment from function's return value to be safe,
+      as the order of evaluation of LHS and RHS is not specified.
+
+      (Thanks to Robbert Krebbers for pointing me to this)
+
+      Implemented as syntactic restriction here. 
+
+      TODO: Prove that evaluation of such an expression does not depend on
+      side-effects imposed by any function call.
+
+      As an approximation, we can prove that evaluation does not depend on memory.
+      \<close>
+  where
+    "direct_lval_exp (exp.E0 (op0.Var _)) \<longleftrightarrow> True"
+  (*| "direct_lval_exp (exp.E1 (op1.Memb _) e) \<longleftrightarrow> direct_lval_exp e"
+    TODO/FIXME: Including this requires some elaborate reasoning on a
+      function call not tampering with the memory of other stack frames.
+    *)
+  | "direct_lval_exp _ \<longleftrightarrow> False"
+    
+
+
   fun wf_com :: "com \<Rightarrow> bool" where
     "wf_com com.Skip \<longleftrightarrow> True"
   | "wf_com (com_Assign e1 e2) \<longleftrightarrow> wf_exp e1 \<and> wf_exp e2"
@@ -55,7 +105,7 @@ begin
   | "wf_com (com_Free e) \<longleftrightarrow> wf_exp e"
   | "wf_com (com_Return e) \<longleftrightarrow> wf_exp e"
   | "wf_com (com_Returnv) \<longleftrightarrow> True"
-  | "wf_com (com_Callfun e f args) \<longleftrightarrow> wf_exp e \<and> (\<forall>e\<in>set args. wf_exp e)"  
+  | "wf_com (com_Callfun e f args) \<longleftrightarrow> direct_lval_exp e \<and> wf_exp e \<and> (\<forall>e\<in>set args. wf_exp e)"  
   | "wf_com (com_Callfunv f args) \<longleftrightarrow> (\<forall>e\<in>set args. wf_exp e)"  
 
 
@@ -85,35 +135,67 @@ definition wf_program :: "program \<Rightarrow> bool" where
 
 export_code wf_program in SML
 
-
-locale wf_program_loc =
+locale program_defs_loc = 
   fixes \<pi> :: program
+begin
+  abbreviation "SM \<equiv> mk_struct_map \<pi>"
+  abbreviation "FM \<equiv> mk_fun_map \<pi>"
+end
+
+locale wf_program_loc = program_defs_loc +
   assumes WF[simp]: "wf_program \<pi>"
 begin
-  definition "SM \<equiv> mk_struct_map \<pi>"
-  definition "FM \<equiv> mk_fun_map \<pi>"
 
   lemma wf_struct_decls: "wf_struct_decls SM (program.structs \<pi>)"  
-    using WF by (auto simp: wf_program_def Let_def SM_def FM_def)
+    using WF by (auto simp: wf_program_def Let_def)
   lemma wf_vdecls: "wf_vdecls SM (program.globals \<pi>)"
-    using WF by (auto simp: wf_program_def Let_def SM_def FM_def)
+    using WF by (auto simp: wf_program_def Let_def)
   lemma wf_fun_decls: "wf_fun_decls SM (program.functs \<pi>)"
-    using WF by (auto simp: wf_program_def Let_def SM_def FM_def)
-  lemma main_exists: "FM main_fname \<noteq> None"
-    using WF by (auto simp: wf_program_def Let_def SM_def FM_def)
-  lemma main_no_param[simp]: "fun_decl.params (the (FM main_fname)) = []"
-    using WF by (auto simp: wf_program_def Let_def SM_def FM_def)
+    using WF by (auto simp: wf_program_def Let_def)
+
+  definition "main_fd \<equiv> the (FM main_fname)"
+  lemma main_exists': "FM main_fname \<noteq> None"
+    using WF by (auto simp: wf_program_def Let_def)
+
+  lemma main_exists: "FM main_fname = Some main_fd"  
+    using main_exists'
+    by (auto simp: main_fd_def)
+
+  lemma main_no_param[simp]: "fun_decl.params main_fd = []"
+    using WF by (auto simp: wf_program_def Let_def main_fd_def)
+
+  lemma main_rtype[simp]: "fun_decl.rtype main = Some ty.I"  
+    using WF apply (auto simp: wf_program_def Let_def main_fd_def)
+    oops (* TODO/FIXME: Restrict type of main! *)
 
 
   lemma SM_ne: "SM sn = Some ms \<Longrightarrow> ms\<noteq>[]"  
     using wf_struct_decls
-    by (force simp: SM_def mk_struct_map_def wf_struct_decls_def wf_struct_decl_def
+    by (force simp: mk_struct_map_def wf_struct_decls_def wf_struct_decl_def
       dest!: map_of_SomeD)
 
   lemma SM_wf_vdecls: "SM sn = Some ms \<Longrightarrow> wf_vdecls SM ms"  
     using wf_struct_decls
-    by (force simp: SM_def mk_struct_map_def wf_struct_decls_def wf_struct_decl_def
+    by (force simp: mk_struct_map_def wf_struct_decls_def wf_struct_decl_def
       dest!: map_of_SomeD)
+
+  lemma SM_mt_wf:
+    assumes "SM sn = Some mts"
+    assumes "map_of mts x = Some T"
+    shows "wf_ty SM T"
+    using assms SM_wf_vdecls[OF assms(1)]
+    by (auto simp: wf_vdecls_def dest!: map_of_SomeD)
+
+  lemma wf_fdeclI:
+    assumes "mk_fun_map \<pi> name = Some fd"
+    shows "wf_fun_decl SM fd"
+    using assms WF 
+    unfolding wf_program_def
+    apply (auto 
+      simp: mk_fun_map_def Let_def wf_fun_decls_def
+      dest!: map_of_SomeD)
+    done
+
 
 end
 

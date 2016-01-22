@@ -22,25 +22,26 @@ definition "itf_template name c \<equiv>
 definition "it_template c \<equiv> 
   \<lparr> program.name = ''invalid_test'',
     program.structs = [], 
-    program.globals = [],
+    program.globals = [(gg,ty.I)],
     program.functs = [itf_template ''main'' c]
   \<rparr>"
 
-definition "exp_template_static c \<equiv> prepare_export (it_template c)"
-definition "exp_template_dynamic c \<equiv> map_option fst (prepare_test_export (it_template c))"
+definition "exp_static p \<equiv> e2o (do {wt_program p; Error_Monad.return ''''})"
+definition "exp_dynamic p \<equiv> e2o (do {
+  s \<leftarrow> check_execute p;
+  let s = shows_state p None s '''';
+  Error_Monad.return s
+})"
+
+definition "exp_template_static c \<equiv> exp_static (it_template c)"
+definition "exp_template_dynamic c \<equiv> exp_dynamic (it_template c)"
 
 (* Regression tests for templates: With SKIP, they must not fail *)
-ML \<open>
-  if @{code exp_template_static} @{code SKIP} = NONE then
-    error "Expected Some"
-  else ()  
-\<close>
+lemma "exp_template_static SKIP \<noteq> None"
+  by eval
 
-ML \<open>
-  if @{code exp_template_dynamic} @{code SKIP} = NONE then
-    error "Expected Some"
-  else ()  
-\<close>
+lemma "exp_template_dynamic SKIP \<noteq> None"
+  by eval
 
 subsection \<open>Static Errors\<close>
 definition "tests_static \<equiv> map exp_template_static [
@@ -220,12 +221,12 @@ definition "kwprog6 k \<equiv>  \<lparr>
       itf_template ''main'' SKIP]
   \<rparr>"
 
-definition "kw_tests \<equiv> map prepare_export (concat (map (\<lambda>k. map k kws) 
+definition "kw_tests \<equiv> map exp_static (concat (map (\<lambda>k. map k kws) 
   [kwprog1,kwprog2,kwprog3,kwprog4,kwprog5,kwprog6]))"
 
 ML \<open>map expect_failed_test @{code kw_tests}\<close>
 
-definition "kw_test_regression \<equiv> map prepare_export (((map (\<lambda>k. k ''valid_name'') 
+definition "kw_test_regression \<equiv> map exp_static (((map (\<lambda>k. k ''valid_name'') 
   [kwprog1,kwprog2,kwprog3,kwprog4,kwprog5,kwprog6])))"
 
 ML \<open>
@@ -263,7 +264,7 @@ definition "funarg2 \<equiv>  \<lparr>
   \<rparr>"
 
 
-definition "funarg_tests \<equiv> map prepare_export [funarg1,funarg2]"
+definition "funarg_tests \<equiv> map exp_static [funarg1,funarg2]"
 ML \<open>map expect_failed_test @{code funarg_tests}\<close>
 
 subsubsection \<open>Zero-size structs\<close>
@@ -286,7 +287,7 @@ definition "structs_tests2 \<equiv>  \<lparr>
   \<rparr>"
 
 
-definition "structs_tests \<equiv> map prepare_export [structs_tests1,structs_tests2]"
+definition "structs_tests \<equiv> map exp_static [structs_tests1,structs_tests2]"
 ML \<open>map expect_failed_test @{code structs_tests}\<close>
 
 subsubsection \<open>Duplicate Names\<close>
@@ -363,15 +364,40 @@ definition "dupprog6 k \<equiv>  \<lparr>
       itf_template ''main'' SKIP]
   \<rparr>"
 
-definition "dup_tests \<equiv> map prepare_export ((map (\<lambda>k. k ''name'') 
+definition "dup_tests \<equiv> map exp_static ((map (\<lambda>k. k ''name'') 
   [dupprog1,dupprog2,dupprog3,dupprog4,dupprog5,dupprog6]))"
 
 ML \<open>map expect_failed_test @{code dup_tests}\<close>
 
 
+subsection \<open>Weird Effects of Undefined Eval-Order\<close>
+text \<open>While we can ignore most of the unspecified evaluation order of C99, it
+  comes to the surface on function calls with assignments, where the order
+  between evaluation the LHS and RHS of the assignment is not specified
+  \<close>
 
+definition "fun_assign_side_effect \<equiv>  \<lparr> 
+    program.name = ''invalid_test'',
+    program.structs = [], 
+    program.globals = int_ptrs [pp] @ ints [aa,bb],
+    program.functs = [
+      \<lparr>
+        fun_decl.name = ''f'', 
+        fun_decl.rtype = Some ty.I, 
+        fun_decl.params = [], 
+        fun_decl.locals = [], 
+        fun_decl.body = ($pp := &$bb;; return (C 0))\<rparr>,
+      \<lparr>
+        fun_decl.name = ''main'', 
+        fun_decl.rtype = Some ty.I, 
+        fun_decl.params = [], 
+        fun_decl.locals = [], 
+        fun_decl.body = ($pp:=&$aa;; *$pp := ''f''![];; return (C 0))\<rparr>
+      ]
+  \<rparr>"
 
-
+definition "fun_assign_side_effect_tests \<equiv> map exp_static [fun_assign_side_effect]"
+ML \<open>map expect_failed_test @{code fun_assign_side_effect_tests}\<close>
 
 subsection \<open>Dynamic Errors\<close>
 
@@ -403,5 +429,36 @@ definition "tests_dynamic \<equiv> map exp_template_dynamic [
 ML \<open>map expect_failed_test @{code tests_dynamic}\<close>
 
 
+definition "tests_free_static_mem \<equiv> map exp_template_dynamic [
+  free &$ii,
+  free &$gg
+]" 
+
+ML \<open>map expect_failed_test @{code tests_free_static_mem}\<close>
+
+
+definition "fun_free_param_mem \<equiv>  \<lparr> 
+    program.name = ''invalid_test'',
+    program.structs = [], 
+    program.globals = [],
+    program.functs = [
+      \<lparr>
+        fun_decl.name = ''f'', 
+        fun_decl.rtype = None, 
+        fun_decl.params = [(xx,ty.I)], 
+        fun_decl.locals = [], 
+        fun_decl.body = free &$xx
+      \<rparr>,
+      \<lparr>
+        fun_decl.name = ''main'', 
+        fun_decl.rtype = Some ty.I, 
+        fun_decl.params = [], 
+        fun_decl.locals = [], 
+        fun_decl.body = (''f''![C 0];; return (C 0))\<rparr>
+      ]
+  \<rparr>"
+
+definition "fun_free_param_mem_test \<equiv> map exp_dynamic [fun_free_param_mem]"
+ML \<open>map expect_failed_test @{code fun_free_param_mem_test}\<close>
 
 end

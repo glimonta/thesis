@@ -3,23 +3,7 @@ imports Main "~~/src/HOL/Library/AList"
   "../Syntax/Type" Int_Value "../Syntax/Wf_Checker"
 begin
 
-  (* TODO: Move *)
 
-  lemma map_leD[intro?, elim]: "m \<subseteq>\<^sub>m m' \<Longrightarrow> m x = Some v \<Longrightarrow> m' x = Some v"  
-    by (auto simp: map_le_def dom_def)
-
-  declare map_le_refl[intro!]  
-
-
-context wf_program_loc begin
-(* TODO: Move *)
-lemma SM_mt_wf:
-  assumes "SM sn = Some mts"
-  assumes "map_of mts x = Some T"
-  shows "wf_ty SM T"
-  using assms SM_wf_vdecls[OF assms(1)]
-  by (auto simp: wf_vdecls_def dest!: map_of_SomeD)
-end
 
 
 
@@ -386,6 +370,22 @@ inductive_simps wt_val_ty_conv:
 
 end
 
+lemma wt_mem_empty[simp]: "wt_mem SM []"
+  by (auto simp: wt_mem_def)
+
+
+lemma MT_wf_ty:
+  assumes "wt_mem SM \<mu>"
+  assumes "MT \<mu> bi = Some bty"
+  shows "wf_ty SM bty"
+  using assms
+  apply (auto simp: MT_def wt_mem_def 
+    split: split_if_asm)
+  apply (auto dest!: nth_mem[of bi \<mu>] dest!: bspec)
+  apply (auto simp: wt_block_def split: mem_block.splits)
+  done
+
+
 context wf_program_loc begin
 
 lemma wt_path_append[simp]: 
@@ -405,6 +405,23 @@ lemma wt_path_cons[simp]:
   assumes "wf_ty SM ty"  
   shows "wt_path T ty (s # p2) = (\<exists>ty'. wf_ty SM ty' \<and> wt_path ty' ty [s] \<and> wt_path T ty' p2)"
   using wt_path_append[of ty T "[s]" p2, OF assms(2)] by simp
+
+  lemma wt_val_cong:
+    assumes "nty_eq ty ty'"
+    assumes "wf_ty SM ty" "wf_ty SM ty'"
+    shows "wt_val SM \<mu> ty b \<longleftrightarrow> wt_val SM \<mu> ty' b"
+    using assms
+    apply (cases "(ty,ty')" rule: nty_eq.cases)
+    apply simp_all
+    apply (auto intro!: wt_val.intros elim!: wt_val.cases)
+    done
+  
+  lemma wt_addr_cong:
+    assumes "nty_eq ty ty'"
+    assumes "wf_ty SM ty" "wf_ty SM ty'"
+    shows "wt_addr \<mu> ty addr \<longleftrightarrow> wt_addr \<mu> ty' addr"
+    using assms wt_path_cong2
+    by (auto simp: wt_addr.simps)  
 
 end
 
@@ -657,25 +674,6 @@ private lemma dom_eq_SomeE:
   obtains y where "dom a = dom b" "b k = Some y"
   using assms by auto
 
-(* TODO: Move *)
-lemma wt_val_cong:
-  assumes "nty_eq ty ty'"
-  assumes "wf_ty SM ty" "wf_ty SM ty'"
-  shows "wt_val SM \<mu> ty b \<longleftrightarrow> wt_val SM \<mu> ty' b"
-  using assms
-  apply (cases "(ty,ty')" rule: nty_eq.cases)
-  apply simp_all
-  apply (auto intro!: wt_val.intros elim!: wt_val.cases)
-  done
-
-(* TODO: Move *)
-lemma wt_addr_cong:
-  assumes "nty_eq ty ty'"
-  assumes "wf_ty SM ty" "wf_ty SM ty'"
-  shows "wt_addr \<mu> ty addr \<longleftrightarrow> wt_addr \<mu> ty' addr"
-  using assms wt_path_cong2
-  by (auto simp: wt_addr.simps)  
-  
 lemma get_subpath_spec[e_vcg]:
   assumes "wt_path T bty p" 
   assumes "wt_val SM \<mu> bty b"
@@ -717,18 +715,6 @@ lemma set_subpath_spec[e_vcg]:
   done
 
 end
-
-(* TODO: Move *)
-lemma MT_wf_ty:
-  assumes "wt_mem SM \<mu>"
-  assumes "MT \<mu> bi = Some bty"
-  shows "wf_ty SM bty"
-  using assms
-  apply (auto simp: MT_def wt_mem_def 
-    split: split_if_asm)
-  apply (auto dest!: nth_mem[of bi \<mu>] dest!: bspec)
-  apply (auto simp: wt_block_def split: mem_block.splits)
-  done
 
 lemma get_addr_spec[e_vcg]:
   assumes "wt_mem SM \<mu>"
@@ -1020,24 +1006,6 @@ end
 
 datatype ptr_comp_res = PC_EQ | PC_NEQ | PC_LESS | PC_GREATER
 
-(* TODO: Move *)
-fun split_common_prefix :: "'a list \<Rightarrow> 'a list \<Rightarrow> ('a list \<times> 'a list \<times> 'a list)" where
-  "split_common_prefix [] l2 = ([],[],l2)"
-| "split_common_prefix l1 [] = ([],l1,[])"
-| "split_common_prefix (a#l1) (b#l2) = (
-    if a=b then
-      let (prf,ra,rb) = split_common_prefix l1 l2 in (b#prf,ra,rb)
-    else
-      ([],a#l1,b#l2)
-  )"
-
-lemma split_common_prefix_correct:
-  assumes "split_common_prefix l1 l2 = (prf,r1,r2)"
-  shows "l1=prf@r1" "l2=prf@r2" "r1\<noteq>[] \<and> r2\<noteq>[] \<longrightarrow> hd r1\<noteq>hd r2"
-  using assms
-  apply (induction l1 l2 arbitrary: "prf" r1 r2 rule: split_common_prefix.induct)
-  apply (auto split: split_if_asm prod.splits)
-  done
 
 definition compare_addr :: "memory \<Rightarrow> addr \<Rightarrow> addr \<hookrightarrow> ptr_comp_res" where
   "compare_addr \<mu> addr1 addr2 \<equiv> do {

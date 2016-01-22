@@ -12,6 +12,25 @@ begin
 
   type_synonym stack = "stack_frame list"
 
+  text \<open>A valuation can be initialized from a variable declaration list,
+    by allocating a new block of memory for each variable.\<close>
+  definition alloc_vdecls :: "vdecl list \<Rightarrow> memory \<hookrightarrow> (valuation\<times>memory)" where
+    "alloc_vdecls l \<mu> \<equiv> efold (\<lambda>(vname,ty) (vals,\<mu>). do {
+      (addr,\<mu>) \<leftarrow> alloc ty \<mu>;
+      let vals = vals(vname \<mapsto> addr);
+      return (vals,\<mu>)
+      }) l (Map.empty,\<mu>)"
+  
+  text \<open>A valuation can also be initialized from a parameter declaration list and a value list\<close>      
+  definition alloc_params :: "vdecl list \<Rightarrow> val list \<Rightarrow> memory \<hookrightarrow> (valuation\<times>memory)" where
+    "alloc_params vdecls vs \<mu> \<equiv> do {
+      assert (length vdecls = length vs) structural_error;
+      efold (\<lambda>((name,ty),v) (vals,\<mu>). do {
+        (addr,\<mu>) \<leftarrow> cp_alloc ty v \<mu>;
+        let vals = vals(name \<mapsto> addr);
+        return (vals,\<mu>)
+      }) (zip vdecls vs) (Map.empty,\<mu>)
+    }"
 
   definition create_frame :: "fun_decl \<Rightarrow> val list \<Rightarrow> addr option \<Rightarrow> memory \<hookrightarrow> (stack_frame \<times> memory)" 
   where
@@ -30,6 +49,25 @@ begin
         free addr \<mu>
       }) names \<mu>
     }"
+
+  (* TODO/FIXME/BUG: We should protect memory allocated by stack-frames from being freed explicitely! 
+    In particular for globals, this is important: Currently, our semantics allows
+      "free &x" where x is a global!
+
+    While we can argue that this will yield an error late for locals, i.e., on returning 
+    from the function, it still seems somewhat scary to allow such a behaviour.
+
+    Ideas for solution:
+      1) Allocate frame with an T[1] - indirection, such that you never obtain a block pointer
+          by referencing locals, globals, or parameters.
+
+      2) Flag blocks as being statically allocated. Check for that on explicit free instruction.
+
+      #2 seems somewhat cleaner by explicitly addressing the problem, while #1 is a hack 
+        indirectly exploiting that only block-base pointers can be freed, assuming that one
+        can never obtain the base-pointer from a deeper pointer.
+
+    *)  
 
   type_synonym state = "stack \<times> valuation \<times> memory"  
 

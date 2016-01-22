@@ -2,22 +2,6 @@ theory Type_Eval
 imports Check_Execute "../Typing/Type_Checker" 
 begin
 
-  (* TODO: Move *)  
-  lemma assert_eq_return_simp[simp]: "assert \<Phi> e = return x \<longleftrightarrow> \<Phi>"
-    by (cases \<Phi>) simp_all
-
-  (* TODO: Move *)  
-  lemma norm_struct_ptr_pres_lv[simp]: 
-    "norm_struct_ptr \<pi> (lv,T) = return (lv',T') \<Longrightarrow> lv'=lv"  
-    apply (cases "(lv,T)" rule: norm_struct_ptr.cases)
-    apply (auto split: Error_Monad.bind_splits)
-    done
-
-  (* TODO: Move *)
-  lemma ellokup_eq_return_simp[simp]: "elookup E m k = return v \<longleftrightarrow> m k = Some v"
-    by (auto simp: elookup_def split: option.split)
-
-  lemma elookup_succ_iff[simp]: "m k = Some v \<Longrightarrow> elookup E m k = return v"   by simp
 
   term MT
 
@@ -27,8 +11,19 @@ begin
       "wt_valuation \<mu> ty vs \<equiv> (dom ty = dom vs) 
         \<and> (\<forall>x T addr. ty x = Some T \<and> vs x = Some addr \<longrightarrow> wf_ty SM T \<and> wt_addr \<mu> T addr)"
   
-    lemma wt_valuation_empty[simp]: "wt_valuation \<mu> Map.empty Map.empty"
+    lemma wt_valuation_empty[simp]: 
+      "wt_valuation \<mu> Map.empty vs \<longleftrightarrow> vs=Map.empty"
+      "wt_valuation \<mu> tys Map.empty \<longleftrightarrow> tys=Map.empty"
       by (auto simp: wt_valuation_def)
+
+
+
+    lemma wt_valuation_add: "
+      \<lbrakk>wt_valuation \<mu> T1 v1; wt_valuation \<mu> T2 v2\<rbrakk> 
+      \<Longrightarrow> wt_valuation \<mu> (T1++T2) (v1++v2)"
+      unfolding wt_valuation_def
+      apply clarsimp apply blast done
+
 
     context 
       fixes \<mu> :: memory 
@@ -42,7 +37,7 @@ begin
         using assms
         apply (cases "(lv,ty)" rule: norm_struct_ptr.cases)
         apply (auto split: Error_Monad.bind_splits option.splits 
-          simp: elookup_def SM_def) (* TODO/FIXME: Unify Type_Checker.SM and SM! *)
+          simp: elookup_def) 
         done
 
       lemma wf_varty:
@@ -52,7 +47,7 @@ begin
         using assms WF
         by (auto   
           simp: varty_def elookup_def ET_def wf_fun_decl_def wf_vdecls_def
-          simp: wf_program_def Let_def SM_def
+          simp: wf_program_def Let_def
           dest!: map_of_SomeD
           split: option.splits)
 
@@ -574,6 +569,14 @@ begin
     lemma wt_raddr_None[simp]: "wt_raddr \<mu> x None"
       by (auto simp: wt_raddr_def split: option.split)
 
+    lemma wt_raddr_mono: 
+      assumes "wt_raddr \<mu> rt ra"
+      assumes "\<mu> \<subseteq>\<^sub>\<mu> \<mu>'"
+      shows "wt_raddr \<mu>' rt ra"
+      using assms wt_addr_mono
+      by (auto simp: wt_raddr_def split: option.splits)
+
+
     definition wt_stack_frame :: "memory \<Rightarrow> stack_frame \<Rightarrow> bool" where
       "wt_stack_frame \<mu> \<equiv> \<lambda>(fd,c,l,r). 
         fd \<in> set (program.functs \<pi>)
@@ -708,33 +711,13 @@ begin
           wt_valuation_mono[OF _ M] wt_addr_mono[OF _ M] wt_raddr_def 
         split: option.splits)
 
-    (* TODO: Move *)  
-    lemma wt_valuation_add: "
-      \<lbrakk>wt_valuation \<mu> T1 v1; wt_valuation \<mu> T2 v2\<rbrakk> 
-      \<Longrightarrow> wt_valuation \<mu> (T1++T2) (v1++v2)"
-      unfolding wt_valuation_def
-      apply clarsimp apply blast done
-
-    (* TODO: Move *)  
-    lemma wt_raddr_mono: 
-      assumes "wt_raddr \<mu> rt ra"
-      assumes "\<mu> \<subseteq>\<^sub>\<mu> \<mu>'"
-      shows "wt_raddr \<mu>' rt ra"
-      using assms wt_addr_mono
-      by (auto simp: wt_raddr_def split: option.splits)
-
     lemma wt_stack_frames_mono:
       assumes "\<forall>fr\<in>set stk. wt_stack_frame \<mu> fr"
       assumes "\<mu> \<subseteq>\<^sub>\<mu> \<mu>'"
       shows "\<forall>fr\<in>set stk. wt_stack_frame \<mu>' fr"
       using assms wt_stack_frame_mono by auto
 
-    definition "ID_TAG \<equiv> \<lambda>x. x"
-
-    lemma ID_TAGI: "P \<Longrightarrow> ID_TAG P" by (simp add: ID_TAG_def)
-
-
-
+    (* TODO/FIXME: Ad-Hoc hack to transfer heap properties! *)  
     lemmas mo_monos = wt_addr_mono wt_raddr_mono wt_stack_frame_mono wt_val_mono
       wt_valuation_mono wt_stack_frames_mono
 
@@ -756,11 +739,6 @@ begin
         simp: wf_rty.simps[OF WTM])
       done
 
-    (* TODO: Move *)  
-    lemma (in -) efold_return_unit_simp[simp]:
-      "efold f l s = return () \<longleftrightarrow> (\<forall>x\<in>set l. f x () = return ())"
-      by (induction l) (auto split: Error_Monad.bind_splits)
-
     lemma return_ty_assignD:
       assumes TYA: "ty_assign' T' T = return ()"
       assumes FEX: "mk_fun_map \<pi> name = Some fdn"
@@ -769,7 +747,7 @@ begin
     proof -
       from FEX have "ty_fdecl \<pi> fdn = return ()" using WT
         unfolding wt_program_def ty_program_def
-        apply (auto simp: Let_def wf_fun_decls_def SM_def mk_fun_map_def in_set_conv_decomp
+        apply (auto simp: Let_def wf_fun_decls_def mk_fun_map_def in_set_conv_decomp
           dest!: map_of_SomeD
           )
         apply (cases "ty_fdecl \<pi> fdn")
@@ -845,24 +823,6 @@ begin
     *)  
 
 
-    (* TODO: Move *)
-    lemma valid_decls_append_conv[simp]: "valid_decls (ds1@ds2) \<longleftrightarrow> 
-      valid_decls ds1 \<and> valid_decls ds2 \<and> (set ds1 \<inter> set ds2 = {})"
-      by (auto simp: valid_decls_def)
-
-    lemma valid_decls_conc_conv[simp]: "valid_decls (x#ds2) \<longleftrightarrow> 
-      x\<notin>keywords \<and> valid_decls ds2 \<and> (x \<notin> set ds2)"
-      by (auto simp: valid_decls_def)
-
-
-    lemma wf_vdecls_append_conv[simp]: "wf_vdecls SM (vd1@vd2) \<longleftrightarrow> 
-      wf_vdecls SM vd1 \<and> wf_vdecls SM vd2 \<and> (fst`set vd1 \<inter> fst`set vd2 = {})"
-      by (auto simp: wf_vdecls_def)
-
-    lemma wf_vdecls_conc_conv[simp]: "wf_vdecls SM (vd#vd2) \<longleftrightarrow> 
-      wf_ty SM (snd vd) \<and> fst vd \<notin> keywords \<and> wf_vdecls SM vd2 \<and> (fst vd \<notin> fst`set vd2)"
-      by (auto simp: wf_vdecls_def)
-
 
     lemma alloc_params_spec[e_vcg]:
       fixes decls :: "(char list \<times> ty) list" and vals :: "val list"
@@ -891,7 +851,7 @@ begin
           apply (induction arbitrary: vs0 \<mu>0 ts0 rule: list_induct2)
           apply simp
           apply (e_vcg' 
-            simp: wt_val_mono wf_vdecls_def nonzero_tyI[OF WF, folded SM_def]
+            simp: wt_val_mono wf_vdecls_def nonzero_tyI[OF WF]
             simp: valid_decls_def
             elim!: mem_ord_trans
             )
@@ -941,7 +901,7 @@ begin
           (efold ?f decls (vs0,\<mu>))"
           apply (induction decls arbitrary: vs0 ts0 \<mu>)
           apply simp
-          apply (e_vcg' simp: nonzero_tyI[OF WF, folded SM_def])
+          apply (e_vcg' simp: nonzero_tyI[OF WF])
           apply (drule wt_valuation_mono, assumption)
           apply (rule wt_valuation_upd; assumption)
 
@@ -958,32 +918,6 @@ begin
 
     lemma rp_ty_imp_nty_eq: "\<lbrakk>valid_rp_type ty\<rbrakk> \<Longrightarrow> norm_array_ty ty = ty"
       by (cases ty) auto
-
-    (* TODO: Move *)  
-    lemma ty_fdeclI:
-      assumes "mk_fun_map \<pi> name = Some fd"
-      shows "ty_fdecl \<pi> fd = return ()"
-      using assms WT 
-      unfolding wt_program_def ty_program_def
-      apply (auto 
-        simp: wt_program_def mk_fun_map_def
-        dest!: map_of_SomeD)
-      apply (drule (1) bspec)
-      apply (auto split: error.splits pre_error.splits ck_error.splits option.splits)
-      done
-
-    lemma wf_fdeclI:
-      assumes "mk_fun_map \<pi> name = Some fd"
-      shows "wf_fun_decl SM fd"
-      using assms WF 
-      unfolding wf_program_def
-      apply (auto 
-        simp: wt_program_def mk_fun_map_def Let_def wf_fun_decls_def
-        dest!: map_of_SomeD)
-      apply (drule (1) bspec)
-      apply (auto simp: SM_def)
-      done
-
 
     lemma map_nty_param_eq:
       assumes FD: "mk_fun_map \<pi> name = Some fdn"  
@@ -1086,7 +1020,7 @@ begin
 
       from FD WF have WFFD[simp]: "wf_fun_decl SM fd"
         unfolding wf_program_def
-        by (auto simp: Let_def wf_fun_decls_def SM_def) (* TODO: There are two SMs hanging around! *)
+        by (auto simp: Let_def wf_fun_decls_def)
         
       from WFFD have WFRT[simp]: "\<And>T. RT fd = Some T \<Longrightarrow> wf_ty SM T" 
         unfolding wf_fun_decl_def RT_def by auto
@@ -1167,7 +1101,7 @@ begin
           apply (rule e_vcg | rule e_cons, rule e_vcg)+
           apply simp_all
           apply (rule e_vcg | rule e_cons, rule e_vcg)+
-          apply (simp_all add: nonzero_tyI[OF WF, folded SM_def])
+          apply (simp_all add: nonzero_tyI[OF WF])
 
           apply clarsimp
           apply ((drule (1) tagged_monos)+; unfold ID_TAG_def)
@@ -1305,39 +1239,18 @@ begin
         done
     qed    
 
-
-    (* TODO: Move *)
-    lemma wt_mem_empty[simp]: "wt_mem SM []"
-      by (auto simp: wt_mem_def)
-
-    lemma valid_decls_empty[simp]: "valid_decls []"
-      by (auto simp: valid_decls_def)
-
-    lemma wf_vdecls_empty[simp]: "wf_vdecls SM []"
-      by (auto simp: wf_vdecls_def)
-
-    lemma wt_valuation_empty_simps[simp]: 
-      "wt_valuation \<mu> Map.empty vs \<longleftrightarrow> vs=Map.empty"
-      "wt_valuation \<mu> tys Map.empty \<longleftrightarrow> tys=Map.empty"
-      by (auto simp: wt_valuation_def)
-
-
     theorem initial_state_spec[e_vcg]: 
       -- \<open>Main theorem: Initial state is well-typed\<close>
       "nd_spec wt_state (initial_state \<pi>)"
     proof -
-      have MFD: "mk_fun_map \<pi> main_fname = Some (the (FM main_fname))"
-        using main_exists
-        by (auto simp: lookup_fun_def FM_def)
-        
       have [simp]: 
-        "lookup_fun \<pi> main_fname = return (the (FM main_fname))"
+        "lookup_fun \<pi> main_fname = return main_fd"
         using main_exists
-        by (auto simp: lookup_fun_def FM_def)
+        by (auto simp: lookup_fun_def)
 
-      from wf_fdeclI[OF MFD] have 
+      from wf_fdeclI[OF main_exists] have 
         [simp]: 
-          "wf_vdecls SM (fun_decl.locals (the (FM main_fname)))" 
+          "wf_vdecls SM (fun_decl.locals main_fd)" 
         by (auto simp: wf_fun_decl_def)
 
       show ?thesis
@@ -1346,19 +1259,15 @@ begin
         apply clarsimp
         apply ((drule (1) tagged_monos)+; unfold ID_TAG_def)+
         (* TODO/FIXME: Two notions for fun exists: Via FM, and via set functs!*)
-        using wf_fdeclI[OF MFD] ty_fdeclI[OF MFD]
+        using wf_fdeclI[OF main_exists] ty_fdeclI[OF main_exists]
         apply (clarsimp 
           simp: wt_state_def wt_stack_frame_def 
           simp: wf_fun_decl_def ty_fdecl_def
           split: Error_Monad.bind_split_asm)
-        using MFD (* TODO/FIXME: Constant for main-fdecl, show its properties *)
+        using main_exists
         apply (auto simp: mk_fun_map_def dest: map_of_SomeD)
         done
     qed    
-
-    (* TODO: Move *)
-    lemma ss_imp_no_empty: "small_step \<pi> s s' \<Longrightarrow> \<not>is_empty_stack s"
-      using ss_stuck_empty[of \<pi> s] by auto
 
     lemma small_steps_pres_wt_state:
       assumes "nd_spec wt_state s"
@@ -1391,31 +1300,8 @@ begin
     qed  
   end
 
-  (* TODO: Move *)
-  lemma map_error_spec[e_vcg]:
-    assumes "e_spec P (\<lambda>e. E (f e)) T m"
-    shows "e_spec P E T (map_error f m)"  
-    using assms
-    apply (cases m)
-    apply (auto simp: map_error_def)
-    done
-
-  lemma efold_unit_setI[e_vcg]:
-    assumes "\<And>x. x\<in>set l \<Longrightarrow> e_spec (\<lambda>_. True) E T (f x ())"  
-    shows "e_spec (\<lambda>_. True) E T (efold f l ())"  
-      using assms
-    apply (induction l)
-    apply (auto simp: pw_espec_iff)
-    done
-
-  (* TODO: Move *)
   (* TODO/FIXME: Consider monad that always terminates, or
     automatic syntactic termination check with def-unfolding! *)  
-  lemma assert_term[simp]: "assert \<Phi> e \<noteq> ENonterm"
-    by (auto simp: assert_def)  
-
-  lemma lookup_term[simp]: "elookup e m k \<noteq> ENonterm"  
-    by (auto simp: elookup_def split: option.splits)
 
   lemma [simp]: "norm_struct_ptr \<pi> rty \<noteq> ENonterm"  
     by (case_tac "rty" rule: norm_struct_ptr.cases;
@@ -1441,19 +1327,6 @@ begin
   lemma [simp]: "ty_exp \<pi> fd e \<noteq> ENonterm"
     by (auto simp: ty_exp_def split: error.splits pre_error.splits ck_error.splits option.splits)  
 
-
-  (* TODO: Move close to thm emap_nontermD *)  
-  lemma emap_nontermD': "emap f l = ENonterm \<Longrightarrow> (\<exists>x\<in>set l. f x = ENonterm)"  
-    by (induction l) (auto split: Error_Monad.bind_splits)
-
-  (* TODO: Move close to thm efold_nontermD *)  
-  lemma efold_nontermD': "efold f l s = ENonterm 
-    \<Longrightarrow> \<exists>x\<in>set l. \<exists>s. f x s = ENonterm"  
-    by (induction l arbitrary: s) (auto split: Error_Monad.bind_splits)
-
-
-  lemma [simp]: "o2e e m \<noteq> ENonterm"  
-    by (auto simp: o2e_def split: option.splits)
 
   lemma [simp]: "ty_com1 \<pi> fd c \<noteq> ENonterm"
     apply (induction c rule: ty_com1.induct)
@@ -1484,11 +1357,6 @@ begin
       split: Error_Monad.bind_split option.splits
       split: error.splits pre_error.splits ck_error.splits
       )  
-
-  (* TODO: Move *)  
-  lemma espec_add_ret: "e_spec P E T m \<Longrightarrow> e_spec (\<lambda>r. P r \<and> m=return r) E T m"  
-    apply (cases m) apply auto
-    done
 
   theorem check_execute_spec:
     -- \<open>Main theorem: Check-Execute yields no static errors\<close>  

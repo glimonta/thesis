@@ -348,10 +348,6 @@ text \<open>A program is pretty printing by first pretty printing the names of t
 
 subsection \<open>Exporting C code\<close>
 
-(* TODO: Move *)
-fun e2o :: "('a,'e) error \<Rightarrow> 'a option" where
-  "e2o (return x) = Some x"
-| "e2o _ = None"  
 
 definition prepare_export' :: "program \<Rightarrow> string ck" where
   "prepare_export' p \<equiv> do {

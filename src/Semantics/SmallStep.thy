@@ -246,12 +246,6 @@ begin
   lemma [simp]: "\<not>is_nonterm (free addr \<mu>)" 
     by (auto simp: free_def raw_free_def split: prod.splits)
 
-  lemma efold_nontermD: "is_nonterm (efold f l s) \<Longrightarrow> \<exists>x s. is_nonterm (f x s)"  
-    apply (induction l arbitrary: s) by auto
-
-  lemma emap_nontermD: "is_nonterm (emap f l) \<Longrightarrow> (\<exists>x\<in>set l. is_nonterm (f x))"  
-    by (induction l) auto
-
   lemma [simp]: "\<not>is_nonterm (alloc T \<mu>)"  
     by (auto simp: alloc_def raw_alloc_def)
 
@@ -323,6 +317,10 @@ begin
     apply (cases s rule: com_of.cases)
     apply (auto elim: small_step.cases simp: small_step_stuck_empty_aux)
     done
+
+  corollary ss_imp_no_empty: "small_step \<pi> s s' \<Longrightarrow> \<not>is_empty_stack s"
+    using ss_stuck_empty[of \<pi> s] by auto
+
 
   definition ss_step :: "program \<Rightarrow> state \<hookrightarrow> state" where
     "ss_step p s \<equiv> do {

@@ -44,24 +44,23 @@ begin
 
   abbreviation "cklookup E \<equiv> elookup (mk_ckerr o E)"
 
-  definition o2e :: "'e \<Rightarrow> ('a option) \<Rightarrow> ('a,'e) error" where
-    "o2e e m \<equiv> case m of Some v \<Rightarrow> return v | None \<Rightarrow> EAssert e"
-
   type_synonym typing = "vname \<rightharpoonup> ty"
 
   abbreviation typing_of :: "vdecl list \<Rightarrow> typing" where "typing_of \<equiv> map_of"
 
   type_synonym res_ty = "bool \<times> ty" -- \<open>Result of expressions: lvalue-flag and type\<close>
 
+
+  context program_defs_loc begin
+    abbreviation "GT \<equiv> typing_of (program.globals \<pi>)"
+  end
+
   context
     fixes p :: program
   begin  
 
     interpretation checker_syntax .
-
-    private abbreviation "SM \<equiv> mk_struct_map p"
-    private abbreviation "FM \<equiv> mk_fun_map p"
-    private abbreviation "GT \<equiv> typing_of (program.globals p)"
+    interpretation program_defs_loc p .
 
     abbreviation resolve_sname :: "sname \<hookrightarrow> mdecl list" where
       "resolve_sname \<equiv> cklookup ENoStruct SM"
@@ -98,6 +97,13 @@ begin
           mts \<leftarrow> resolve_sname sname; 
           return (lv,ty.Ptr (ty.Struct sname mts))}"
       | "norm_struct_ptr rty = return rty"    
+
+      lemma norm_struct_ptr_pres_lv[simp]: 
+        "norm_struct_ptr (lv,T) = return (lv',T') \<Longrightarrow> lv'=lv"  
+        apply (cases "(lv,T)" rule: norm_struct_ptr.cases)
+        apply (auto split: Error_Monad.bind_splits)
+        done
+
 
       text \<open>Convert array to pointer type, if it occurs as operand of an operator other than 
         @{text "&"}. 
@@ -196,7 +202,7 @@ begin
         
 
       primrec ty_exp_aux :: "exp \<hookrightarrow> res_ty" where
-        "ty_exp_aux (exp.E0 f) = ty_op0 f \<guillemotright>= norm_struct_ptr"
+        "ty_exp_aux (exp.E0 f) = ty_op0 f \<bind> norm_struct_ptr"
       | "ty_exp_aux (exp.E1 f e) = do {
           ty \<leftarrow> ty_exp_aux e;
           ty \<leftarrow> ty_op1 f ty;
@@ -376,7 +382,6 @@ begin
 
   export_code wt_program in SML module_name WT_Checker
 
-
   locale wt_program_loc = wf_program_loc \<pi> for \<pi> :: program +
     assumes TY[simp]: "ty_program \<pi> = return ()"
   begin
@@ -384,6 +389,17 @@ begin
       unfolding wt_program_def
       by simp
 
+    lemma ty_fdeclI:
+      assumes "mk_fun_map \<pi> name = Some fd"
+      shows "ty_fdecl \<pi> fd = return ()"
+      using assms WT 
+      unfolding wt_program_def ty_program_def
+      apply (auto 
+        simp: wt_program_def mk_fun_map_def
+        dest!: map_of_SomeD)
+      apply (drule (1) bspec)
+      apply (auto split: error.splits pre_error.splits ck_error.splits option.splits)
+      done
 
   end
 

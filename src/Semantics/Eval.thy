@@ -16,27 +16,6 @@ begin
 
   type_synonym valuation = "vname \<rightharpoonup> addr"
 
-  (* TODO: Move this to program evaluator *)
-  text \<open>A valuation can be initialized from a variable declaration list,
-    by allocating a new block of memory for each variable.\<close>
-  definition alloc_vdecls :: "vdecl list \<Rightarrow> memory \<hookrightarrow> (valuation\<times>memory)" where
-    "alloc_vdecls l \<mu> \<equiv> efold (\<lambda>(vname,ty) (vals,\<mu>). do {
-      (addr,\<mu>) \<leftarrow> alloc ty \<mu>;
-      let vals = vals(vname \<mapsto> addr);
-      return (vals,\<mu>)
-      }) l (Map.empty,\<mu>)"
-  
-  text \<open>A valuation can also be initialized from a parameter declaration list and a value list\<close>      
-  definition alloc_params :: "vdecl list \<Rightarrow> val list \<Rightarrow> memory \<hookrightarrow> (valuation\<times>memory)" where
-    "alloc_params vdecls vs \<mu> \<equiv> do {
-      assert (length vdecls = length vs) structural_error;
-      efold (\<lambda>((name,ty),v) (vals,\<mu>). do {
-        (addr,\<mu>) \<leftarrow> cp_alloc ty v \<mu>;
-        let vals = vals(name \<mapsto> addr);
-        return (vals,\<mu>)
-      }) (zip vdecls vs) (Map.empty,\<mu>)
-    }"
-
 
   text \<open>The result of an evaluation can either be an 
     lvalue, represented by an address, or a plain value (right value)
@@ -44,9 +23,6 @@ begin
 
   datatype res = L addr | R val
   hide_const (open) L R
-
-  (* TODO: Move *)
-  abbreviation (input) e_then (infixr "#>" 54) where "e_then f g \<equiv> \<lambda>x. Error_Monad.bind (f x) g"
 
   context 
     fixes EV :: valuation -- \<open>Effective valuation, combined globals,locals,params\<close>
@@ -287,6 +263,27 @@ begin
 
   code_thms eval_exp
   export_code eval_exp checking SML
+
+
+  subsection \<open>Theorems about Evaluation\<close>
+  text \<open>Theorems to ensure confidence in the semantics.\<close>
+
+  lemma direct_lval_mem_indep:
+    -- \<open>Direct lval-expressions are independent of effects on the memory\<close>
+    assumes "direct_lval_exp e"
+    shows "eval_exp SM \<mu> e = eval_exp SM \<mu>' e"
+  proof -
+    (* Note: Extending this lemma to structure member access requires some argumentation that
+      the static memory where the structure is stored has not been destroyed in between \<mu> and \<mu>'. 
+      *)
+    show ?thesis  
+      using assms
+      apply (induction e rule: direct_lval_exp.induct)
+      apply auto
+      done
+
+  qed    
+
 
 end
 

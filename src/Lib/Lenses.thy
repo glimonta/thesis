@@ -12,15 +12,15 @@ begin
   (* TODO: The behaviour in case of error is not specified here *)
   locale elens = 
     fixes l :: "('a,'b,'e) elens"
-    assumes get_set[e_vcg]: "e_spec (op = b) (\<lambda>_. True) True (eset l b a \<guillemotright>= eget l)"
+    assumes get_set[e_vcg]: "e_spec (op = b) (\<lambda>_. True) True (eset l b a \<bind> eget l)"
     assumes set_get[e_vcg]: "e_spec (op = a) (\<lambda>_. True) True (do { b \<leftarrow> eget l a; eset l b a })"
     assumes get_term[simp]: "\<not>is_nonterm (eget l a)"
     assumes set_term[simp]: "\<not>is_nonterm (eset l b a)"
-    (*assumes set_set[simp]: "eset l b a \<guillemotright>= eset l b = eset l b a"*)
+    (*assumes set_set[simp]: "eset l b a \<bind> eset l b = eset l b a"*)
 
   definition ecompose :: "('a,'b,'e) elens \<Rightarrow> ('b,'c,'e) elens \<Rightarrow> ('a,'c,'e) elens" (infixl "o\<^sub>l" 55)
   where
-    "ecompose \<equiv> \<lambda>l1 l2. ( \<lambda>a. eget l1 a \<guillemotright>= eget l2, \<lambda>c a. do { b \<leftarrow> eget l1 a; b \<leftarrow> eset l2 c b; eset l1 b a })"
+    "ecompose \<equiv> \<lambda>l1 l2. ( \<lambda>a. eget l1 a \<bind> eget l2, \<lambda>c a. do { b \<leftarrow> eget l1 a; b \<leftarrow> eset l2 c b; eset l1 b a })"
 
   notation ecompose (infixl "\<circ>\<^sub>l" 55)  
 

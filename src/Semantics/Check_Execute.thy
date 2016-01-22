@@ -11,13 +11,6 @@ begin
       return ([fr],\<gamma>,\<mu>)
     }"
   
-  (* TODO: Move *)  
-  definition map_error :: "('e \<Rightarrow> 'f) \<Rightarrow> ('a,'e) error \<Rightarrow> ('a,'f) error" where
-    "map_error f m \<equiv> case m of 
-      return x \<Rightarrow> return x 
-    | EAssert e \<Rightarrow> EAssert (f e) 
-    | ENonterm \<Rightarrow> ENonterm"
-
 
   type_synonym 'a cke = "('a,ck_error + chloe_error) error"  
 

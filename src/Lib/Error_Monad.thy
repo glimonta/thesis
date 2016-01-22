@@ -5,11 +5,6 @@ imports
   "$AFP/Automatic_Refinement/Lib/Refine_Lib"
 begin
 
-(*
-  notation (input)
-    bind_do (infixr "\<bind>" 54) (* TODO: Replace by new \<bind> symbol *)
-*)
-
   text \<open>We define an error monad, with a special case for nontermination,
     and set up the monad syntax and partial function package\<close>
 
@@ -138,6 +133,10 @@ begin
     "assert False e = EAssert e"
     "assert \<Phi> e = return () \<longleftrightarrow> \<Phi>"
     unfolding assert_def by auto
+
+  lemma assert_term[simp]: "assert \<Phi> e \<noteq> ENonterm"
+    by (auto simp: assert_def)  
+
     
   fun try_catch where  
     "try_catch (return m) _ = return m"
@@ -213,6 +212,21 @@ begin
     \<and> (\<forall>e. is_error m e \<longrightarrow> E e)
     \<and> (is_nonterm m \<longrightarrow> T)"
     by (cases m) auto
+
+  lemma espec_add_full:
+      -- \<open>Strengthen specification by adding full knowledge about program\<close>
+    "e_spec P E T m \<Longrightarrow> 
+      e_spec 
+        (\<lambda>r. P r \<and> m=return r)
+        (\<lambda>e. E e \<and> m=EAssert e)
+        (m=ENonterm) m"  
+        apply (cases m) apply auto
+        done
+
+  lemma espec_add_ret: "e_spec P E T m \<Longrightarrow> e_spec (\<lambda>r. P r \<and> m=return r) E T m"  
+    apply (cases m) apply auto
+    done
+
 
   (*abbreviation "et_spec' P E \<equiv> e_spec P E False" -- \<open>Total correctness, with error\<close>
   abbreviation "ep_spec' P E \<equiv> e_spec P E True" -- \<open>Partial correctness, with error\<close>
@@ -350,6 +364,12 @@ begin
     apply (auto split: Error_Monad.bind_split)
     done
 
+  lemma emap_nontermD: "is_nonterm (emap f l) \<Longrightarrow> (\<exists>x\<in>set l. is_nonterm (f x))"  
+    by (induction l) auto
+  lemma emap_nontermD': "emap f l = ENonterm \<Longrightarrow> (\<exists>x\<in>set l. f x = ENonterm)"  
+    by (induction l) (auto split: Error_Monad.bind_splits)
+
+
   primrec efold :: "('a \<Rightarrow> 's \<Rightarrow> ('s,'e) error) \<Rightarrow> 'a list \<Rightarrow> 's \<Rightarrow> ('s,'e) error" where
     "efold f [] s = return s"
   | "efold f (x#xs) s = do {
@@ -357,15 +377,10 @@ begin
       efold f xs s
     }"  
 
-  lemma efold_cong[fundef_cong]: "\<lbrakk>a=b; xs=ys; \<And>x. x\<in>set ys \<Longrightarrow> f x = g x\<rbrakk> \<Longrightarrow> efold f xs a = efold g ys b"
-    by (induction xs arbitrary: ys a b) (auto split: Error_Monad.bind_splits)
-
-
-  thm partial_function_mono  
   lemma efold_mono[partial_function_mono]:     
-  fixes f :: "('c \<Rightarrow> ('d, 'e) error) \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> ('b, 'e) error"
-  assumes [partial_function_mono]: "\<And>x \<sigma>. mono_error (\<lambda>fa. f fa x \<sigma>)"
-  shows "mono_error (\<lambda>x. efold (f x) l \<sigma>)"
+    fixes f :: "('c \<Rightarrow> ('d, 'e) error) \<Rightarrow> 'a \<Rightarrow> 'b \<Rightarrow> ('b, 'e) error"
+    assumes [partial_function_mono]: "\<And>x \<sigma>. mono_error (\<lambda>fa. f fa x \<sigma>)"
+    shows "mono_error (\<lambda>x. efold (f x) l \<sigma>)"
     apply (induction l arbitrary: \<sigma>)
     apply simp
     apply (tactic \<open>Partial_Function.mono_tac @{context} 1\<close>)
@@ -375,8 +390,71 @@ begin
     .
 
 
+  lemma efold_cong[fundef_cong]: "\<lbrakk>a=b; xs=ys; \<And>x. x\<in>set ys \<Longrightarrow> f x = g x\<rbrakk> \<Longrightarrow> efold f xs a = efold g ys b"
+    by (induction xs arbitrary: ys a b) (auto split: Error_Monad.bind_splits)
+
+  lemma efold_nontermD: "is_nonterm (efold f l s) \<Longrightarrow> \<exists>x s. is_nonterm (f x s)"  
+    apply (induction l arbitrary: s) by auto
+
+  lemma efold_nontermD': "efold f l s = ENonterm 
+    \<Longrightarrow> \<exists>x\<in>set l. \<exists>s. f x s = ENonterm"  
+    by (induction l arbitrary: s) (auto split: Error_Monad.bind_splits)
+
+
+
+  lemma efold_return_unit_simp[simp]:
+    "efold f l s = return () \<longleftrightarrow> (\<forall>x\<in>set l. f x () = return ())"
+    by (induction l) (auto split: Error_Monad.bind_splits)
+
+  lemma efold_unit_setI[e_vcg]:
+    assumes "\<And>x. x\<in>set l \<Longrightarrow> e_spec (\<lambda>_. True) E T (f x ())"  
+    shows "e_spec (\<lambda>_. True) E T (efold f l ())"  
+      using assms
+    apply (induction l)
+    apply (auto simp: pw_espec_iff)
+    done
+
+
   definition elookup :: "('k \<Rightarrow> 'e) \<Rightarrow> ('k \<rightharpoonup> 'v) \<Rightarrow> 'k \<Rightarrow> ('v,'e) error" where
     "elookup E m k \<equiv> case m k of None \<Rightarrow> EAssert (E k) | Some v \<Rightarrow> return v"
+
+  lemma ellokup_eq_return_simp[simp]: "elookup E m k = return v \<longleftrightarrow> m k = Some v"
+    by (auto simp: elookup_def split: option.split)
+
+  lemma elookup_succ_iff[simp]: "m k = Some v \<Longrightarrow> elookup E m k = return v"   by simp
+
+  lemma elookup_term[simp]: "elookup e m k \<noteq> ENonterm"  
+    by (auto simp: elookup_def split: option.splits)
+
+
+
+  definition map_error :: "('e \<Rightarrow> 'f) \<Rightarrow> ('a,'e) error \<Rightarrow> ('a,'f) error" where
+    "map_error f m \<equiv> case m of 
+      return x \<Rightarrow> return x 
+    | EAssert e \<Rightarrow> EAssert (f e) 
+    | ENonterm \<Rightarrow> ENonterm"
+
+  lemma map_error_spec[e_vcg]:
+    assumes "e_spec P (\<lambda>e. E (f e)) T m"
+    shows "e_spec P E T (map_error f m)"  
+    using assms
+    apply (cases m)
+    apply (auto simp: map_error_def)
+    done
+
+  abbreviation (input) e_then (infixr "#>" 54) where "e_then f g \<equiv> \<lambda>x. Error_Monad.bind (f x) g"
+
+  
+  subsection \<open>Link to Option Monad\<close>
+  fun e2o :: "('a,'e) error \<Rightarrow> 'a option" where
+    "e2o (return x) = Some x"
+  | "e2o _ = None"  
+
+  definition o2e :: "'e \<Rightarrow> ('a option) \<Rightarrow> ('a,'e) error" where
+    "o2e e m \<equiv> case m of Some v \<Rightarrow> return v | None \<Rightarrow> EAssert e"
+
+  lemma o2e_term[simp]: "o2e e m \<noteq> ENonterm"  
+    by (auto simp: o2e_def split: option.splits)
 
   subsection \<open>Regression Test\<close>  
   context begin  
