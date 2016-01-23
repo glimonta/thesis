@@ -112,15 +112,27 @@ lemma elens_subpath[simp]: "elens (l_subpath p)"
 
 subsection \<open>Memory\<close>
 
-datatype mem_block = is_Block: Block ty (the_Block: val) | is_Freed: Freed ty
+datatype mem_block = 
+  is_Block: Block ty bool (the_Block: val) 
+    -- \<open>Allocated memory block. The flag indicates structural memory,
+        which is on stack or statically allocated, and thus cannot be 
+        freed by the program. \<close>
+| is_Freed: Freed ty
+    -- \<open>Freed memory block. We retain its type, to be able to argue
+      about valid memory evolutions, where blocks can be freed, but 
+      must not be re-allocated or change type. \<close>
 
+(* TODO: Check again why we need the type of a freed block, and explain here! *)
 primrec block_ty :: "mem_block \<Rightarrow> ty" where
-  "block_ty (Block ty _) = ty" | "block_ty (Freed ty) = ty"
+  "block_ty (Block ty _ _) = ty" | "block_ty (Freed ty) = ty"
+
+primrec is_dynamic_block :: "mem_block \<Rightarrow> bool" where
+  "is_dynamic_block (Block _ s _) \<longleftrightarrow> \<not>s" | "is_dynamic_block (Freed _) = False"
 
 definition l_Block :: "(mem_block,val,_) elens" where
   "l_Block \<equiv> (
-    \<lambda>(Block _ v) \<Rightarrow> return v | _ \<Rightarrow> EAssert pointer_error,
-    \<lambda>v. \<lambda>(Block ty _) \<Rightarrow> return (Block ty v) | _ \<Rightarrow> EAssert pointer_error)"
+    \<lambda>(Block _ _ v) \<Rightarrow> return v | _ \<Rightarrow> EAssert pointer_error,
+    \<lambda>v. \<lambda>(Block ty s _) \<Rightarrow> return (Block ty s v) | _ \<Rightarrow> EAssert pointer_error)"
 
 lemma elens_Block[simp]: "elens (l_Block)"
   apply unfold_locales
@@ -133,7 +145,7 @@ lemma struct_get_spec[e_vcg]:
   by (auto simp: l_Block_def)
 
 lemma struct_set_spec[e_vcg]:
-  "e_spec (\<lambda>v'. \<exists>n ms'. v=Block n ms' \<and> v'=Block n ms) (\<lambda>e. \<not>is_Block v \<and> e=pointer_error) False (eset l_Block ms v)"
+  "e_spec (\<lambda>v'. \<exists>n s ms'. v=Block n s ms' \<and> v'=Block n s ms) (\<lambda>e. \<not>is_Block v \<and> e=pointer_error) False (eset l_Block ms v)"
   apply (cases v)
   by (auto simp: l_Block_def)
 
@@ -164,18 +176,23 @@ fun nonzerosize_val :: "val \<Rightarrow> bool" where
 | "nonzerosize_val (val.Struct ms) \<longleftrightarrow> (\<exists>(_,v)\<in>set ms. nonzerosize_val v)"
 | "nonzerosize_val (val.Uninit) \<longleftrightarrow> True"
 
-definition raw_alloc :: "ty \<Rightarrow> val \<Rightarrow> memory \<hookrightarrow> (block_idx \<times> memory)" where
-  "raw_alloc ty v m \<equiv> do {
+definition raw_alloc :: "ty \<Rightarrow> bool \<Rightarrow> val \<Rightarrow> memory \<hookrightarrow> (block_idx \<times> memory)" 
+  -- \<open>Allocate block initialized with value. 
+    The Boolean is set if the block is to be flagged as static or stack memory.\<close>
+where
+  "raw_alloc ty s v m \<equiv> do {
     assert (nonzerosize_val v) type_error;
     let idx = length m;
-    let m = m@[Block ty v];
+    let m = m@[Block ty s v];
     return (idx,m)
   }"
 
-definition raw_free :: "block_idx \<Rightarrow> memory \<hookrightarrow> memory"  where
-  "raw_free bi m \<equiv> do {
+definition raw_free :: "bool \<Rightarrow> block_idx \<Rightarrow> memory \<hookrightarrow> memory"  where
+  "raw_free allow_static bi m \<equiv> do {
     assert_valid_block m bi;
-    let ty = block_ty (m!bi);
+    let blk = m!bi;
+    assert (allow_static \<or> is_dynamic_block blk) pointer_error;
+    let ty = block_ty blk;
     let m = m[bi:=Freed ty];
     return m
   }"
@@ -199,36 +216,36 @@ fun new_val :: "ty \<Rightarrow> val" where
 | "new_val (ty.Array sz ty) = val.Array (replicate sz (new_val ty))"
 | "new_val (ty.Struct sn ms) = val.Struct (map (\<lambda>(x,T). (x, new_val T)) ms)"
 
-definition alloc :: "ty \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" 
+definition alloc :: "ty \<Rightarrow> bool \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" 
 where
-  "alloc ty \<mu> \<equiv> do {
-    (bi,\<mu>) \<leftarrow> raw_alloc ty (new_val ty) \<mu>;
+  "alloc ty static \<mu> \<equiv> do {
+    (bi,\<mu>) \<leftarrow> raw_alloc ty static (new_val ty) \<mu>;
     return ((bi,[]),\<mu>)
   }"
 
 
-definition calloc :: "ty \<Rightarrow> nat \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" 
+definition calloc :: "ty \<Rightarrow> bool \<Rightarrow> nat \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" 
   -- \<open>Allocate an array of memory objects. Array size must be greater 0,
       as a zero size results in undefined behaviour. \<close>
 where
-  "calloc ty n \<mu> \<equiv> do {
+  "calloc ty static n \<mu> \<equiv> do {
     assert (n>0) overflow_error; 
     let ty = ty.Array n ty;
-    (bi,\<mu>) \<leftarrow> raw_alloc ty (new_val ty) \<mu>;
+    (bi,\<mu>) \<leftarrow> raw_alloc ty static (new_val ty) \<mu>;
     return ((bi,[subscript.Idx 0]),\<mu>)
   }"
 
-definition cp_alloc :: "ty \<Rightarrow> val \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" where
-  "cp_alloc ty v \<mu> \<equiv> do {
-    (bi,\<mu>) \<leftarrow> raw_alloc ty v \<mu>;
+definition cp_alloc :: "ty \<Rightarrow> bool \<Rightarrow> val \<Rightarrow> memory \<hookrightarrow> (addr\<times>memory)" where
+  "cp_alloc ty static v \<mu> \<equiv> do {
+    (bi,\<mu>) \<leftarrow> raw_alloc ty static v \<mu>;
     return ((bi,[]),\<mu>)
   }"
 
-definition free :: "addr \<Rightarrow> memory \<hookrightarrow> memory" where
-  "free \<equiv> \<lambda>(bi,p) \<mu>. do {
+definition free :: "bool \<Rightarrow> addr \<Rightarrow> memory \<hookrightarrow> memory" where
+  "free allow_static \<equiv> \<lambda>(bi,p) \<mu>. do {
     (* Frees both, pointers created by cp_alloc and by calloc *)
     assert (p=[] \<or> p=[subscript.Idx 0]) pointer_error;
-    raw_free bi \<mu>
+    raw_free allow_static bi \<mu>
   }"
 
 definition l_addr :: "addr \<Rightarrow> (memory,val,_) elens" where
@@ -354,7 +371,7 @@ inductive wt_val:: "ty \<Rightarrow> val \<Rightarrow> bool" where
 
 definition wt_block :: "mem_block \<Rightarrow> bool" where 
   "wt_block \<equiv> \<lambda>
-    (Block ty v) \<Rightarrow> wt_val ty v \<and> wf_ty SM ty \<and> nonzero_ty ty \<and> nonzerosize_val v 
+    (Block ty _ v) \<Rightarrow> wt_val ty v \<and> wf_ty SM ty \<and> nonzero_ty ty \<and> nonzerosize_val v 
   | (Freed ty) \<Rightarrow> nonzero_ty ty \<and> wf_ty SM ty"
 
 definition wt_mem :: "bool" where
@@ -425,6 +442,7 @@ lemma wt_path_cons[simp]:
 
 end
 
+(* TODO/FIXME: Also include constraint that static-flags remain unchanged *)
 definition mem_ord :: "memory \<Rightarrow> memory \<Rightarrow> bool" (infix "\<subseteq>\<^sub>\<mu>" 50) where
   "\<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<equiv> length \<mu> \<le> length \<mu>' 
     \<and> (\<forall>i<length \<mu>. block_ty (\<mu>!i) = block_ty (\<mu>'!i))
@@ -511,9 +529,9 @@ lemma raw_alloc_spec[e_vcg]:
   assumes "nonzero_ty ty" "wf_ty SM ty"
   shows "nd_spec (\<lambda>(bi,\<mu>'). 
     bi\<ge>length \<mu> \<and> MT \<mu>' bi = Some ty \<and> \<mu> \<subseteq>\<^sub>\<mu> \<mu>'
-  \<and> wt_mem SM \<mu>') (raw_alloc ty v \<mu>)"
+  \<and> wt_mem SM \<mu>') (raw_alloc ty static v \<mu>)"
 proof -
-  have MTSS: "\<mu> \<subseteq>\<^sub>\<mu> (\<mu> @ [Block ty v])"
+  have MTSS: "\<mu> \<subseteq>\<^sub>\<mu> (\<mu> @ [Block ty static v])"
     by (auto simp: mem_ord_def nth_append)
 
   show ?thesis  
@@ -530,7 +548,7 @@ lemma alloc_spec[e_vcg]:
   assumes "wt_mem SM \<mu>"  
   assumes "nonzero_ty ty" "wf_ty SM ty"
   shows "nd_spec (\<lambda>(addr,\<mu>'). 
-    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (alloc ty \<mu>)"
+    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (alloc ty static \<mu>)"
 proof -
   show ?thesis  
     using assms
@@ -547,7 +565,7 @@ lemma calloc_spec[e_vcg]:
   assumes "wt_mem SM \<mu>"  
   assumes "nonzero_ty ty" "wf_ty SM ty"
   shows "nd_spec (\<lambda>(addr,\<mu>'). 
-    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (calloc ty n \<mu>)"
+    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (calloc ty static n \<mu>)"
 proof -
   show ?thesis  
     using assms
@@ -564,7 +582,7 @@ lemma cp_alloc_spec[e_vcg]:
   assumes "wt_val SM \<mu> ty v"  
   assumes "nonzero_ty ty" "wf_ty SM ty"
   shows "nd_spec (\<lambda>(addr,\<mu>'). 
-    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (cp_alloc ty v \<mu>)"
+    \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>' \<and> wt_addr \<mu>' ty addr) (cp_alloc ty static v \<mu>)"
 proof -
   show ?thesis  
     using assms
@@ -573,41 +591,49 @@ proof -
     done
 qed    
 
-    
+lemma raw_free_spec_aux:
+  assumes "wt_mem SM \<mu>"
+  assumes "i<length \<mu>" "\<mu>!i = Block ty static v"
+  shows "wt_mem SM (\<mu>[i:=Freed ty])" (is "wt_mem SM ?\<mu>'")   
+proof -
+  from assms have LE: "\<mu> \<subseteq>\<^sub>\<mu> ?\<mu>'"
+    by (auto simp: mem_ord_def nth_list_update)
+
+  show ?thesis  
+    using assms
+    apply (auto simp: wt_mem_def elim!: in_set_upd_cases)
+    apply (auto simp: wt_block_def split: mem_block.splits dest!: nth_mem) []
+    apply (auto simp: wt_block_def wt_val_mono[OF _ LE] split: mem_block.splits) []
+    done
+qed
+
 lemma raw_free_spec[e_vcg]:
   assumes "wt_mem SM \<mu>"  
-  shows "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>') (raw_free bi \<mu>)"
+  shows "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>') (raw_free allow_static bi \<mu>)"
 proof -
-  have "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>') (raw_free bi \<mu>)"
+  have "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>') (raw_free allow_static bi \<mu>)"
     unfolding raw_free_def 
     by (e_vcg simp: is_valid_block_def mem_ord_def nth_list_update)
-  hence aux: "\<And>P. nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<longrightarrow> P \<mu>') (raw_free bi \<mu>) \<Longrightarrow> nd_spec P (raw_free bi \<mu>)"
+  hence aux: "\<And>P. nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<longrightarrow> P \<mu>') (raw_free allow_static bi \<mu>) 
+    \<Longrightarrow> nd_spec P (raw_free allow_static bi \<mu>)"
     by (simp add: pw_espec_iff)
 
   show ?thesis  
     apply (rule aux)
     using assms
     unfolding raw_free_def 
-    apply e_vcg
-    unfolding wt_mem_def
-    apply clarify
-
-    apply (auto simp: wt_block_def split: mem_block.splits)
-    using set_update_subset_insert wt_val_mono apply fastforce
-    apply (metis insertE mem_block.distinct(2) set_update_subset_insert subsetCE)
-    apply (metis insertE mem_block.distinct(2) set_update_subset_insert subsetCE)
-    apply (metis insertE mem_block.distinct(2) set_update_subset_insert subsetCE)
-    apply (metis block_ty.simps(1) insertE is_valid_block_def mem_block.collapse(1) mem_block.exhaust_disc mem_block.sel(3) nth_mem set_update_subset_insert subsetCE)
-    apply (metis block_ty.simps(1) insertE is_valid_block_def mem_block.collapse(1) mem_block.exhaust_disc mem_block.sel(3) nth_mem set_update_subset_insert subsetCE)
+    apply e_vcg'
+    apply (cases "\<mu>!bi")
+    apply (simp_all add: raw_free_spec_aux is_valid_block_def)
     done
 qed    
 
 lemma free_spec[e_vcg]:
   assumes "wt_mem SM \<mu>"
-  shows "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>') (free addr \<mu>)"
+  shows "nd_spec (\<lambda>\<mu>'. \<mu> \<subseteq>\<^sub>\<mu> \<mu>' \<and> wt_mem SM \<mu>') (free allow_static addr \<mu>)"
   using assms unfolding free_def by (cases addr) e_vcg
 
-lemma is_BlockE: assumes "is_Block b" obtains ty v where "b = Block ty v"
+lemma is_BlockE: assumes "is_Block b" obtains ty static v where "b = Block ty static v"
   using assms by (cases b) auto
 
 lemma raw_mem_get_spec[e_vcg]:
@@ -633,14 +659,16 @@ proof (cases "is_Freed (\<mu>!bi)")
 
 next
   case False
-  with assms(2) obtain vh where X1: "\<mu>!bi = Block T vh" "bi<length \<mu>"
+  with assms(2) obtain static vh where X1: "\<mu>!bi = Block T static vh" "bi<length \<mu>"
     by (cases "\<mu>!bi") (auto simp: MT_def split: split_if_asm)
-  hence X2: "Block T vh \<in> set \<mu>"  
+  hence X2: "Block T static vh \<in> set \<mu>"  
     by (auto simp: in_set_conv_nth)
 
-  have MTSS: "\<mu> \<subseteq>\<^sub>\<mu> \<mu>[bi := Block T v]"
+  have MTEQ: "\<mu> =\<^sub>\<mu> \<mu>[bi := Block T static v]"
     using assms(2) X1
-    by (auto simp: mem_ord_def MT_def nth_list_update split: split_if_asm)
+    by (auto simp: mem_eq_def mem_ord_def MT_def nth_list_update split: split_if_asm)
+  hence MTSS: "\<mu> \<subseteq>\<^sub>\<mu> \<mu>[bi := Block T static v]"
+    by (auto simp: mem_eq_def)
 
   from assms(1) have [simp]: "nonzero_ty T" "wf_ty SM T" 
     unfolding wt_mem_def MT_def wt_block_def
@@ -650,16 +678,15 @@ next
     by (blast intro: nonzero_ty_imp_nonzerosize_val)
 
   show ?thesis
-    using assms  
+    using assms X1 MTEQ  
     unfolding l_raw_mem_def wt_mem_def[abs_def]
-    apply (e_vcg simp: in_set_conv_nth nth_list_update split: split_if_asm)
+    apply (e_vcg' simp: in_set_conv_nth nth_list_update split: split_if_asm)
     apply (auto 
-      simp: wt_block_def MT_def in_set_conv_nth nth_list_update Ball_def
-      split: mem_block.splits split_if_asm 
-      intro!: wt_val_mono[OF _ MTSS]) []
-    apply fastforce
-    apply fastforce
-    apply (auto simp: mem_eq_alt MT_def[abs_def] nth_list_update FREE_def intro!: ext)
+      simp: wt_block_def  
+      split: mem_block.splits split_if_asm
+      elim!: in_set_upd_cases
+      intro: wt_val_mono[OF _ MTSS]
+      )
     done    
 qed
 
@@ -938,7 +965,7 @@ definition valid_addr :: "memory \<Rightarrow> addr \<Rightarrow> bool" where
   "valid_addr \<mu> \<equiv> \<lambda>(bi,p). bi<length \<mu> \<and> (
     case \<mu>!bi of
       Freed ty \<Rightarrow> False
-    | Block ty v \<Rightarrow> valid_subpath v p  
+    | Block ty _ v \<Rightarrow> valid_subpath v p  
   )"
 
 fun readable_subpath :: "val \<Rightarrow> subpath \<Rightarrow> bool" where
@@ -952,7 +979,7 @@ definition readable_addr :: "memory \<Rightarrow> addr \<Rightarrow> bool" where
   "readable_addr \<mu> \<equiv> \<lambda>(bi,p). bi<length \<mu> \<and> (
     case \<mu>!bi of
       Freed ty \<Rightarrow> False
-    | Block ty v \<Rightarrow> readable_subpath v p  
+    | Block ty _ v \<Rightarrow> readable_subpath v p  
   )"
 
 
@@ -1073,14 +1100,14 @@ definition "addr_eq \<mu> addr1 addr2 \<equiv> do {
 
 lemma is_allocated_rawE:
   assumes "is_allocated_raw \<mu> bi"
-  obtains ty v where "bi<length \<mu>" "\<mu>!bi = Block ty v"
+  obtains ty static v where "bi<length \<mu>" "\<mu>!bi = Block ty static v"
   using assms
   apply (cases "\<mu>!bi")
   apply (auto simp: is_allocated_raw_def)
   done
 
 lemma wt_mem_block_imp:
-  assumes "\<mu>!bi = Block ty v"
+  assumes "\<mu>!bi = Block ty static v"
   assumes "bi < length \<mu>"
   assumes "wt_mem SM \<mu>" 
   shows 

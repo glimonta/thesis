@@ -84,7 +84,7 @@ text \<open>Given a list of variable names the valuation will be printed with th
 subsection \<open>Pretty printing of memory\<close>
 
   fun shows_block :: "mem_block \<Rightarrow> shows" where
-    "shows_block (Block ty v) = shows_val v o shows '' :: '' o shows_ty ty"
+    "shows_block (Block ty static v) = (if static then shows ''[static] '' else id) o shows_val v o shows '' :: '' o shows_ty ty"
   | "shows_block (Freed ty) = shows ''<Free>'' o shows '' :: '' o shows_ty ty"  
 
 text \<open>The memory is indexed by an @{term "A (base, ofs)"} in order to print a block we will

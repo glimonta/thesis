@@ -44,14 +44,14 @@ begin
       e2 \<leftarrow> to_int \<mu> e2;
       let e2 = sint e2;
       assert (e2\<ge>0) overflow_error;  (* Note: calloc asserts positive size *)
-      (addr,\<mu>) \<leftarrow> calloc T (nat e2) \<mu>;
+      (addr,\<mu>) \<leftarrow> calloc T False (nat e2) \<mu>;
       \<mu> \<leftarrow> eset (l_addr e1) (val.Addr addr) \<mu>;
       return \<mu>
     }"  
   | "basic_effect (bcom.Free e) ev \<mu> = do {
       e \<leftarrow> eval_exp ev \<mu> e;
       e \<leftarrow> to_ptr \<mu> e;
-      \<mu> \<leftarrow> free e \<mu>;
+      \<mu> \<leftarrow> free False e \<mu>;
       return \<mu>
     }"  
 
@@ -243,13 +243,13 @@ begin
   lemma [simp]: "\<not>is_nonterm (to_lval x)"  
     by (cases x) (auto)
 
-  lemma [simp]: "\<not>is_nonterm (free addr \<mu>)" 
-    by (auto simp: free_def raw_free_def split: prod.splits)
+  lemma [simp]: "\<not>is_nonterm (free allow_static addr \<mu>)" 
+    by (auto simp: Let_def free_def raw_free_def split: prod.splits)
 
-  lemma [simp]: "\<not>is_nonterm (alloc T \<mu>)"  
+  lemma [simp]: "\<not>is_nonterm (alloc T static \<mu>)"  
     by (auto simp: alloc_def raw_alloc_def)
 
-  lemma [simp]: "\<not>is_nonterm (calloc T n \<mu>)"  
+  lemma [simp]: "\<not>is_nonterm (calloc T static n \<mu>)"  
     by (auto simp: calloc_def raw_alloc_def)
 
   lemma effect_term[simp]: "\<not>is_nonterm (effect p e s)"

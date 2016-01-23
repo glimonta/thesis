@@ -436,7 +436,6 @@ definition "tests_free_static_mem \<equiv> map exp_template_dynamic [
 
 ML \<open>map expect_failed_test @{code tests_free_static_mem}\<close>
 
-
 definition "fun_free_param_mem \<equiv>  \<lparr> 
     program.name = ''invalid_test'',
     program.structs = [], 

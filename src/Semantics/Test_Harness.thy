@@ -48,7 +48,7 @@ begin
         | (val.Addr (bi,p)) \<Rightarrow> do {
             case \<mu>!bi of
               Freed _ \<Rightarrow> return (D,[])
-            | Block ty v \<Rightarrow> do { 
+            | Block ty _ v \<Rightarrow> do { 
                 let s = shows_normalized_addr (bi,p) s;
                 if bi\<notin>D then do {
                   let D = insert bi D;
